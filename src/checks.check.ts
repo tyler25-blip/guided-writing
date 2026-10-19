@@ -18,4 +18,7 @@ assert.equal(c('You froze, maybe anxiety disorder. Want to say more?').X3.ok, fa
 assert.equal(c('Rumination detected. Want to say more?').X5.ok, false)
 assert.equal(c('Hard moment. Want to tell it as Tyler?', ['Tyler']).S4.ok, false) // name doesn't count
 assert.equal(c('Hard moment. Want to say more?', ['stumbled']).S4.ok, false) // word not in user's text
+assert.equal(c('Freezing in front of them is hard. Want to say more?', ['froze']).S4.ok, true) // same word family
+assert.equal(c('Hard moment. Want to say more?', ['froze']).S4.ok, false) // reported but not used in the comment
+assert.equal(c('Being like this again is hard. Want to say more?', ['always']).S4.ok, false)
 console.log('checks ok')

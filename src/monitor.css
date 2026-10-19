@@ -83,9 +83,6 @@
 .ai { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ece8e3; }
 .attempt { margin-bottom: 8px; }
 .attempt.failed { opacity: 0.55; }
-.ai-fields { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 11px 'IBM Plex Mono', monospace; color: #6b6660; }
-.ai-fields .ok { color: #2f7a4f; }
-.ai-fields .na { color: #a8a29b; }
 .reason { margin: 6px 0; font-size: 12px; color: #6b6660; }
 .cand { margin: 6px 0; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 15px; color: #7a6f66; }
 .notes { margin: 4px 0 0; font: 11px 'IBM Plex Mono', monospace; color: #c0392b; }
@@ -104,3 +101,12 @@
 .override .row-b { display: flex; gap: 8px; margin: 8px 0; }
 .mon button:disabled { opacity: 0.4; cursor: default; }
 .mon-top .cond { font: inherit; text-transform: uppercase; letter-spacing: 0.05em; background: transparent; border: 1px solid #c9c4be; border-radius: 999px; padding: 4px 10px; }
+
+/* M4 fixes · readable AI fields; the timeline scrolls on its own so a click on the mirror lands on the card */
+.timeline { position: sticky; top: 64px; max-height: calc(100vh - 88px); overflow-y: auto; scroll-padding-top: 8px; }
+dl.ai-fields { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; font-size: 12px; }
+dl.ai-fields dt { font: 11px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.04em; color: #a8a29b; }
+dl.ai-fields dt:first-child { color: #1b1b1b; }
+dl.ai-fields dd { margin: 0; color: #3b3835; }
+dl.ai-fields dd.na { color: #a8a29b; }
+.rule { display: inline-block; margin: 0 6px 3px 0; padding: 1px 7px; border-radius: 999px; background: #f1eeea; font-size: 11px; }

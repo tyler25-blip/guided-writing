@@ -20,26 +20,52 @@ const fromStorage = (): Snapshot | null => {
 }
 type AiData = { kind: string; ms: number; model: string; decision: string; attempts: { ai: Judgement; checks: Checks | null }[] }
 
+// Plain-language names for the AI's fields and the rule ids it cites.
+const STATE: Record<string, string> = {
+  immersed_why: 'stuck in “why me”',
+  distanced_judging: 'stepping back, still judging',
+  distanced_meaning: 'stepping back, finding meaning',
+  repeating: 'going in circles',
+  none: 'nothing to respond to',
+}
+const RULE: Record<string, string> = {
+  R1: 'stay silent by default', R2: 'receive, then invite', R3: 'no agreeing / advice / judging',
+  S1: '≤ 2 sentences, 1 question', S2: 'acknowledge, don’t amplify', S3: 'invitation, not command', S4: 'reuse their words', S5: 'curious, not interrogating',
+  X1: 'no agreeing with negative conclusions', X2: 'no advice', X3: 'no diagnosis', X4: 'no praise / judging the person', X5: 'no analysis words', X6: 'crisis → human help',
+}
+
 // The AI's own fields next to the program checks, one block per attempt (a failed check triggers one rewrite).
 function AiBlock({ d }: { d: AiData }) {
   return (
     <div className="ai">
       {d.attempts.map(({ ai, checks }, i) => (
         <div key={i} className={`attempt${i < d.attempts.length - 1 ? ' failed' : ''}`}>
-          <div className="ai-fields">
-            <span>{i ? `rewrite ${i}` : d.kind === 'pause' ? 'pause' : 'entry'}</span>
-            <span>state · {ai.user_state}</span>
-            <span className={ai.thought_complete ? 'ok' : 'na'}>thought {ai.thought_complete ? 'complete' : 'unfinished'}</span>
-            <span>wants · {ai.decision}</span>
-            <span>conf · {ai.confidence}</span>
-            <span>{ai.rules_used.join(' ')}</span>
-          </div>
+          <dl className="ai-fields">
+            <dt>{i ? `AI · rewrite ${i}` : d.kind === 'pause' ? 'AI · on pause' : 'AI · on entry'}</dt>
+            <dd />
+            <dt>Writer seems</dt>
+            <dd>{STATE[ai.user_state] ?? ai.user_state}</dd>
+            <dt>Thought</dt>
+            <dd className={ai.thought_complete ? '' : 'na'}>{ai.thought_complete ? 'finished' : 'unfinished → must stay silent'}</dd>
+            <dt>AI wanted to</dt>
+            <dd>{ai.decision === 'speak' ? 'speak' : 'stay silent'}</dd>
+            <dt>Sure</dt>
+            <dd>{Math.round(ai.confidence * 100)}%</dd>
+            <dt>Rules cited</dt>
+            <dd>
+              {ai.rules_used.map((r) => (
+                <span key={r} className="rule">
+                  {r} {RULE[r] ?? ''}
+                </span>
+              ))}
+            </dd>
+          </dl>
           <p className="reason">{ai.reason}</p>
           {ai.comment && <p className="cand">“{ai.comment}”</p>}
           {checks && (
             <div className="gates">
               {Object.entries(checks).map(([k, c]) => (
-                <span key={k} className={c.ok ? 'ok' : 'no'} title={c.note}>
+                <span key={k} className={c.ok ? 'ok' : 'no'} title={`${RULE[k] ?? k} — ${c.note}`}>
                   {c.ok ? '✓' : '✗'} {k}
                   {k in ai.tone_self_check && ai.tone_self_check[k as keyof Judgement['tone_self_check']] !== c.ok ? ' (AI said ' + (c.ok ? '✗' : '✓') + ')' : ''}
                 </span>
@@ -199,7 +225,14 @@ export default function Monitor() {
               <p
                 key={it.id}
                 className={`m-entry${whyIds.has(it.id) ? ' trig' : ''}${visited.has(it.id) ? ' visited' : ''}`}
-                onClick={() => document.getElementById(`d-${it.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                onClick={() => {
+                  const card = document.getElementById(`d-${it.id}`)
+                  const tl = card?.closest('.timeline')
+                  if (!card || !tl) return
+                  // Scroll only the middle column, not the page, so the mirror stays where you clicked.
+                  tl.scrollBy({ top: card.getBoundingClientRect().top - tl.getBoundingClientRect().top - 8 })
+                  card.animate([{ boxShadow: '0 0 0 3px #ff7a3d' }, { boxShadow: '0 0 0 3px transparent' }], { duration: 1600, easing: 'ease-out' })
+                }}
               >
                 {it.text}
               </p>

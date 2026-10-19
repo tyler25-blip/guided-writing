@@ -26,16 +26,39 @@ const ANALYSIS = /\b(rumina\w*|detected|score|index|pattern|analy[sz]\w*|first[-
 
 const words = (s: string) => s.toLowerCase().match(/[\p{L}']+/gu) ?? []
 
+// S4 is relaxed to the same word family: froze ≈ freezing, meeting ≈ meetings, stupid ≈ stupidly.
+// ponytail: crude suffix stripper + a few irregular verbs; swap for a real stemmer if labels show misses.
+const IRREGULAR: Record<string, string> = {
+  froze: 'freeze', frozen: 'freeze', felt: 'feel', thought: 'think', said: 'say', went: 'go', gone: 'go', did: 'do', done: 'do',
+  made: 'make', took: 'take', taken: 'take', gave: 'give', given: 'give', got: 'get', lost: 'lose', broke: 'break', broken: 'break',
+  forgot: 'forget', forgotten: 'forget', ran: 'run', sat: 'sit', saw: 'see', seen: 'see', told: 'tell', knew: 'know', known: 'know',
+  left: 'leave', fell: 'fall', fallen: 'fall', kept: 'keep', hid: 'hide', hidden: 'hide', was: 'be', were: 'be', been: 'be',
+  ate: 'eat', woke: 'wake', spoke: 'speak', spoken: 'speak', wrote: 'write', written: 'write', began: 'begin', begun: 'begin',
+  hurt: 'hurt', cried: 'cry', tried: 'try', worried: 'worry', failed: 'fail', messed: 'mess',
+}
+export const stem = (w: string) => {
+  let s = IRREGULAR[w] ?? w.replace(/'s$/, '')
+  for (const suf of ['ingly', 'edly', 'ing', 'ied', 'ies', 'ed', 'es', 'ly', 's', 'e'])
+    if (s.endsWith(suf) && s.length - suf.length >= 3) {
+      s = s.slice(0, -suf.length) + (suf === 'ied' || suf === 'ies' ? 'y' : '')
+      break
+    }
+  if (s.endsWith('e') && s.length > 3) s = s.slice(0, -1)
+  return s.replace(/(.)\1$/, '$1') // stopped → stopp → stop
+}
+const stems = (s: string) => new Set(words(s).map(stem))
+
 export function checkComment(comment: string, userText: string, wordsUsed: string[], name = ''): Checks {
   const sentences = comment.split(/(?<=[.!?…])\s+/).filter((s) => s.trim()).length
   const questions = (comment.match(/\?/g) ?? []).length
   const ask = comment.slice(comment.lastIndexOf('.') + 1)
-  const user = new Set(words(userText))
-  const nm = name.toLowerCase()
-  // S4: a reported user word must really be in the user's text AND in the comment; the name doesn't count.
+  const user = stems(userText)
+  const said = stems(comment)
+  const nm = stem(name.toLowerCase())
+  // S4: a reported user word must be in the user's text AND in the comment (same word family); the name doesn't count.
   const shared = wordsUsed.filter((w) => {
-    const ws = words(w)
-    return ws.length > 0 && !ws.every((x) => x === nm) && ws.every((x) => user.has(x)) && comment.toLowerCase().includes(w.toLowerCase())
+    const ws = words(w).map(stem)
+    return ws.length > 0 && !ws.every((x) => x === nm) && ws.every((x) => user.has(x) && said.has(x))
   })
   const hit = (re: RegExp) => comment.match(re)?.[0]
   return {
