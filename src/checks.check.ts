@@ -21,4 +21,6 @@ assert.equal(c('Hard moment. Want to say more?', ['stumbled']).S4.ok, false) // 
 assert.equal(c('Freezing in front of them is hard. Want to say more?', ['froze']).S4.ok, true) // same word family
 assert.equal(c('Hard moment. Want to say more?', ['froze']).S4.ok, false) // reported but not used in the comment
 assert.equal(c('Being like this again is hard. Want to say more?', ['always']).S4.ok, false)
+// Ellipsis inside the AI's quoted example must not hide the "Would you like" invitation (seen live, 2026-10-19).
+assert.equal(c("That moment sounds like it stung. Would you like to retell it as Tyler, like 'Tyler stood in front of everyone and...'?").S3.ok, true)
 console.log('checks ok')

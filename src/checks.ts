@@ -49,9 +49,10 @@ export const stem = (w: string) => {
 const stems = (s: string) => new Set(words(s).map(stem))
 
 export function checkComment(comment: string, userText: string, wordsUsed: string[], name = ''): Checks {
-  const sentences = comment.split(/(?<=[.!?…])\s+/).filter((s) => s.trim()).length
+  const parts = comment.split(/(?<=[.!?…])\s+/).filter((s) => s.trim())
+  const sentences = parts.length
   const questions = (comment.match(/\?/g) ?? []).length
-  const ask = comment.slice(comment.lastIndexOf('.') + 1)
+  const ask = parts.at(-1) ?? '' // the last whole sentence (a "…" inside a quoted example must not cut it)
   const user = stems(userText)
   const said = stems(comment)
   const nm = stem(name.toLowerCase())
