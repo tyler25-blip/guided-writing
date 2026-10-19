@@ -5,7 +5,7 @@ import { createServer } from 'node:http'
 import { allOk, checkComment, type Checks, type Judgement } from '../src/checks.ts'
 
 const PORT = Number(process.env.PORT ?? 8787)
-const MODEL = 'claude-opus-5-5'
+const MODEL = 'claude-sonnet-5-5' // cheaper than Opus; enough for a short judgement
 const hasKey = Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN)
 const client = hasKey ? new Anthropic() : null
 
@@ -70,16 +70,14 @@ async function ask(r: Req, feedback?: string): Promise<Judgement> {
   ]
     .filter(Boolean)
     .join('\n\n')
-  const res = await client!.beta.messages.create({
+  const res = await client!.messages.create({
     model: MODEL,
     max_tokens: 4000,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
     output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
     system: SYSTEM.replaceAll('{NAME}', r.name),
     messages: [{ role: 'user', content }],
   })
-  if (res.stop_reason === 'refusal') throw new Error('refusal')
+  if (res.stop_reason === 'refusal') throw new Error('refusal') // treated as silence by the page
   const text = res.content.find((b) => b.type === 'text')
   if (!text || text.type !== 'text') throw new Error(`no text (stop_reason ${res.stop_reason})`)
   return JSON.parse(text.text) as Judgement

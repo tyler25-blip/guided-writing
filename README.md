@@ -34,7 +34,7 @@ Open http://localhost:5173.
 - [x] **M3 · AI + rule checks** — `server/index.ts`, `src/checks.ts` (code done; needs `npm i @anthropic-ai/sdk` + a key to run live)
   - Setup once: `npm i @anthropic-ai/sdk`, then copy `.env.example` to `.env` and put your `ANTHROPIC_API_KEY` in it (`.env` is git-ignored). `npm run dev` starts the judge server (:8787) and Vite together; Vite proxies `/api`.
   - Controls → untick **Mock replies (no AI)** to use the AI. Controls shows `AI · ready / no API key / server offline`.
-  - Every entry outside the min gap goes to `claude-opus-5-5` (effort low, server-side fallback on), which returns the plan's JSON (`thought_complete`, `user_state`, `decision`, `reason`, `rules_used`, `comment`, `user_words_used`, `tone_self_check`, `confidence`). A why-loop holds the line at once; otherwise the dot only moves if the AI speaks. Pausing mid-draft (≥ 20 chars) also asks the AI.
+  - Every entry outside the min gap goes to `claude-sonnet-5-5` (effort low; roughly a cent per judgement), which returns the plan's JSON (`thought_complete`, `user_state`, `decision`, `reason`, `rules_used`, `comment`, `user_words_used`, `tone_self_check`, `confidence`). A why-loop holds the line at once; otherwise the dot only moves if the AI speaks. Pausing mid-draft (≥ 20 chars) also asks the AI.
   - The server shows a comment only if the AI wants to speak, the thought is complete, and every program check passes: S1–S5, R3, X3, X5. One failed check → one rewrite with the failures as feedback → still failing = silence. No answer within *hold timeout* (10 s) → the dot retracts. Any error → silence.
   - Monitor cards show the AI fields, each check (and where the AI's self-check disagreed), rewrites, latency.
   - Self-check: `node src/checks.check.ts`
