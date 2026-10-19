@@ -22,6 +22,7 @@ export type Cmd =
   | { cmd: 'say'; text: string } // Wizard-of-Oz: show exactly this text now
   | { cmd: 'ask_ai' } // ask the AI about the latest entry now, ignoring the min gap
   | { cmd: 'label'; key: string; label: Label }
+  | { cmd: 'new_session' } // journal downloads the old session JSON, then starts fresh
 type Msg = { kind: 'snapshot'; snap: Snapshot } | { kind: 'hello' } | ({ kind: 'cmd' } & Cmd)
 
 const ch = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('guided-writing')

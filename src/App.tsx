@@ -424,6 +424,8 @@ export default function App() {
       if (!lastWritten() || !entry) return
       log('override', entry.text, { action: 'ask_ai', entryId: entry.id })
       activate(askAI(entry.text, 'commit', entry.id), 'override_ai')
+    } else if (c.cmd === 'new_session') {
+      newSession()
     } else if (c.cmd === 'label') {
       setSession((s) => ({ ...s, labels: { ...s.labels, [c.key]: c.label } }))
     }
@@ -433,7 +435,9 @@ export default function App() {
     log('end')
     setMode('closed')
   }
-  const newEntry = () => {
+  // New session (next participant / next evening): the old one is downloaded first if anything was written.
+  const newSession = () => {
+    if (items.length) exportJson()
     setSession({ started: now(), mode: 'intro', items: [], events: [{ t: now(), type: 'session_start' }] })
     setDraft('')
     setCrisis(false)
@@ -624,7 +628,7 @@ export default function App() {
               <button onClick={visit}>Visit once</button>
               <button onClick={() => activate(`Rough moment. Want to try telling it as ${p.name || 'you'}’s story?`, 'manual')}>Activate · reply</button>
               <button onClick={() => activate(null, 'manual')}>Activate · silent</button>
-              <button onClick={newEntry}>New entry</button>
+              <button onClick={newSession}>New session</button>
             </div>
             <label className="row">
               <span>Writer name</span>

@@ -214,6 +214,13 @@ export default function Monitor() {
         <span className={live ? 'live' : 'off'}>{live ? '● live' : '○ not connected'}</span>
         <div className="grow" />
         <button onClick={exportJson}>Export JSON</button>
+        <button
+          onClick={() =>
+            confirm(`Start a new session? ${items.length ? 'The current one is downloaded as JSON first.' : ''}`) && command({ cmd: 'new_session' })
+          }
+        >
+          New session
+        </button>
       </header>
 
       <main className="mon-grid">

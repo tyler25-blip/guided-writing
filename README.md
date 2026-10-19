@@ -43,6 +43,7 @@ Open http://localhost:5173.
   - Monitor → journal commands over the same channel; the journal writes everything into its session, so it all lands in one export.
   - **Condition** (monitor top bar or journal Controls): *AI margin notes* · *Rules only* (why-rule + fixed reply) · *Dot only* (control, never speaks). Each switch is logged; each decision records its condition.
   - **Override** (monitor side): *Say this now* shows your own text as a margin note (Wizard-of-Oz); *Ask AI now* judges the latest entry ignoring the min gap. Both logged as `override`; the card shows “· overridden”.
+  - **New session** (monitor top bar, or journal Controls): downloads the current session JSON if anything was written, then starts fresh.
   - **Your labels** on every decision card: click cycles – → ✓ → ✗. *timing* always; *S2 S5 X1 X2 X4* once something was said (the checks a program can't do). Plus a free note (Enter to save). Stats show timing agreement.
 - [ ] M5 · Replay + export
 - [ ] M6 · Pilot
