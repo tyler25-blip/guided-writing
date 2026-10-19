@@ -9,6 +9,13 @@
   background: #e9e2da;
 }
 
+/* Journal typeface: justfont 蘭陽黑體 W7, installed on this computer (~/Library/Fonts).
+   ponytail: local() only — another computer without the font falls back to Inter; bundle the webfont (check the licence) for the pilot. */
+@font-face {
+  font-family: 'LanYang';
+  src: local('jf-lanyanghei-1.1 W7'), local('jf-lanyanghei-1.1-W7');
+}
+
 * { box-sizing: border-box; }
 body { margin: 0; }
 .muted { color: var(--muted); }
@@ -84,18 +91,18 @@ body { margin: 0; }
 }
 .card:not(.mode-intro) .hero { opacity: 0; transform: translateY(16px); }
 
-.entry { margin: 0 0 18px; font-size: 18px; line-height: 1.75; white-space: pre-wrap; }
+/* Diary density: tight lines, small gaps between entries; replies in the same face, lighter grey. */
+.card { font-family: 'LanYang', Inter, system-ui, sans-serif; }
+.entry { margin: 0 0 8px; font-size: 17px; line-height: 1.45; white-space: pre-wrap; }
 .reply {
-  margin: 0 0 18px;
-  min-height: 1.75em;
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-style: italic;
-  font-size: 21px;
-  line-height: 1.5;
-  color: var(--reply);
+  margin: 0 0 8px;
+  min-height: 1.45em;
+  font-size: 17px;
+  line-height: 1.45;
+  color: #b3ada6;
   user-select: none;
 }
-.farewell { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 20px; color: var(--muted); }
+.farewell { font-size: 17px; color: var(--muted); }
 .referral {
   margin: 8px 0 24px;
   padding: 18px 22px;
@@ -124,7 +131,7 @@ body { margin: 0; }
   resize: none;
   font: inherit;
   font-size: 17px;
-  line-height: 1.6;
+  line-height: 1.45;
   background: transparent;
   color: var(--ink);
 }
