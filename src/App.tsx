@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { InkDot } from './ink.tsx'
-import { listen, send, type Ev, type Item, type Mode, type Session, type Snapshot } from './sync.ts'
+import { CONDITIONS, listen, send, type Cmd, type Condition, type Ev, type Item, type Mode, type Session, type Snapshot } from './sync.ts'
 import { isCrisis, isWhyLoop } from './triggers.ts'
 
 // M1 · Journal page + break/trigger detection (no AI yet; optional mock replies to feel the flow).
@@ -24,7 +24,7 @@ type Params = {
   holdTimeout: number
   spreadMs: number
   revealMs: number
-  mockReplies: boolean
+  condition: Condition
   name: string
   reduced: boolean
 }
@@ -50,7 +50,7 @@ const DEFAULTS: Params = {
   holdTimeout: 10,
   spreadMs: 1400,
   revealMs: 800,
-  mockReplies: true,
+  condition: 'ai',
   name: 'Tyler',
   reduced: false,
 }
@@ -142,7 +142,10 @@ export default function App() {
   useEffect(() => void send({ kind: 'snapshot', snap: snap.current }), [session, draft, status, p, ai])
   useEffect(() => {
     const beat = setInterval(() => send({ kind: 'snapshot', snap: { ...snap.current, at: Date.now() } }), 2000)
-    const off = listen((m) => m.kind === 'hello' && send({ kind: 'snapshot', snap: snap.current }))
+    const off = listen((m) => {
+      if (m.kind === 'hello') send({ kind: 'snapshot', snap: snap.current })
+      if (m.kind === 'cmd') onCmd.current(m)
+    })
     return () => {
       clearInterval(beat)
       off()
@@ -389,10 +392,11 @@ export default function App() {
     const why = !crisisHit && isWhyLoop(text)
     const sinceLast = lastReply.current ? Math.round((Date.now() - lastReply.current) / 1000) : null
     const gapOk = sinceLast === null || sinceLast >= pRef.current.minGap
-    const mock = pRef.current.mockReplies
-    // Mock: only the why-rule replies. AI: every entry outside the gap goes to the AI, which decides (R1).
-    const outcome = crisisHit ? 'referral' : !gapOk && (why || !mock) ? 'throttled' : !mock ? 'ai' : why ? 'reply' : 'silent'
-    log('decision', text, { entryId, crisis: crisisHit, why, sinceLast, minGap: pRef.current.minGap, gapOk, outcome })
+    const cond = pRef.current.condition
+    // rules: only the why-rule replies (fixed text). ai: every entry outside the gap goes to the AI (R1). none: never speaks.
+    const outcome =
+      crisisHit ? 'referral' : cond === 'none' ? 'control' : !gapOk && (why || cond === 'ai') ? 'throttled' : cond === 'ai' ? 'ai' : why ? 'reply' : 'silent'
+    log('decision', text, { entryId, crisis: crisisHit, why, sinceLast, minGap: pRef.current.minGap, gapOk, outcome, condition: cond })
 
     if (crisisHit) return setCrisis(true)
     if (outcome === 'reply') return activate(`Rough moment. Want to try telling it as ${pRef.current.name || 'you'}’s story?`, 'trigger_why')
@@ -404,6 +408,25 @@ export default function App() {
       return
     }
     setTimeout(settle, 350)
+  }
+
+  // --- monitor commands (M4) ------------------------------------------------------------------
+  const onCmd = useRef<(c: Cmd) => void>(() => {})
+  onCmd.current = (c) => {
+    if (c.cmd === 'condition') {
+      set('condition', c.value)
+      log('condition', c.value)
+    } else if (c.cmd === 'say' && c.text.trim()) {
+      log('override', c.text, { action: 'say' })
+      activate(c.text.trim(), 'override')
+    } else if (c.cmd === 'ask_ai') {
+      const entry = items.filter((i) => i.kind === 'entry').at(-1)
+      if (!lastWritten() || !entry) return
+      log('override', entry.text, { action: 'ask_ai', entryId: entry.id })
+      activate(askAI(entry.text, 'commit', entry.id), 'override_ai')
+    } else if (c.cmd === 'label') {
+      setSession((s) => ({ ...s, labels: { ...s.labels, [c.key]: c.label } }))
+    }
   }
 
   const endEntry = () => {
@@ -472,7 +495,7 @@ export default function App() {
         if (d && isCrisis(d)) {
           log('decision', d, { crisis: true, why: false, outcome: 'referral', fromDraft: true })
           setCrisis(true)
-        } else if (d.length >= 20 && !pRef.current.mockReplies && idle() && Date.now() - lastReply.current >= pRef.current.minGap * 1000) {
+        } else if (d.length >= 20 && pRef.current.condition === 'ai' && idle() && Date.now() - lastReply.current >= pRef.current.minGap * 1000) {
           // Paused mid-draft: the AI judges whether the thought is complete (thought_complete) and whether to speak.
           askAI(d, 'pause').then((c) => c && activate(c, 'pause'))
         }
@@ -608,8 +631,14 @@ export default function App() {
               <input value={p.name} onChange={(e) => set('name', e.target.value)} />
             </label>
             <label className="row">
-              <span>Mock replies (no AI)</span>
-              <input type="checkbox" checked={p.mockReplies} onChange={(e) => set('mockReplies', e.target.checked)} />
+              <span>Condition</span>
+              <select value={p.condition} onChange={(e) => set('condition', e.target.value as Condition)}>
+                {CONDITIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="row">
               <span>Reduced motion</span>

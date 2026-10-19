@@ -90,3 +90,17 @@
 .cand { margin: 6px 0; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 15px; color: #7a6f66; }
 .notes { margin: 4px 0 0; font: 11px 'IBM Plex Mono', monospace; color: #c0392b; }
 .o-silent .badge { background: #e6e3de; }
+
+/* M4 · labels, override, condition */
+.labels { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ece8e3; }
+.labels .hint { margin: 0 4px 0 0; }
+.mon .lab { font: 11px 'IBM Plex Mono', monospace; padding: 3px 9px; border-color: #d6d1cb; color: #8a8680; }
+.mon .lab.ok { border-color: #2f7a4f; color: #2f7a4f; background: #eaf4ee; }
+.mon .lab.no { border-color: #c0392b; color: #c0392b; background: #fbecea; }
+.mon .lab:hover { background: #1b1b1b; color: #fff; }
+.labels input { flex: 1; min-width: 120px; font: 12px Inter, sans-serif; border: none; border-bottom: 1px solid #ece8e3; background: transparent; padding: 3px 2px; }
+.labels input:focus { outline: none; border-color: #ff7a3d; }
+.override textarea { width: 100%; box-sizing: border-box; font: 14px 'Instrument Serif', Georgia, serif; font-style: italic; border: 1px solid #ece8e3; border-radius: 12px; padding: 8px 10px; resize: vertical; }
+.override .row-b { display: flex; gap: 8px; margin: 8px 0; }
+.mon button:disabled { opacity: 0.4; cursor: default; }
+.mon-top .cond { font: inherit; text-transform: uppercase; letter-spacing: 0.05em; background: transparent; border: 1px solid #c9c4be; border-radius: 999px; padding: 4px 10px; }

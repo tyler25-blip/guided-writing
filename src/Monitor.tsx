@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { listen, send, type Ev, type Session, type Snapshot } from './sync.ts'
+import { CONDITIONS, command, listen, send, type Condition, type Ev, type Label, type Session, type Snapshot } from './sync.ts'
 import type { Checks, Judgement } from './checks.ts'
 import './monitor.css'
 
@@ -56,6 +56,39 @@ function AiBlock({ d }: { d: AiData }) {
   )
 }
 
+// Your labels: click cycles – → ✓ → ✗ → –. Tone/prohibition labels only make sense when something was said.
+const TONE = ['S2', 'S5', 'X1', 'X2', 'X4'] as const
+const HELP: Record<string, string> = {
+  S2: 'acknowledges without amplifying',
+  S5: 'curious, not interrogating',
+  X1: 'does not agree with negative conclusions',
+  X2: 'gives no advice',
+  X4: 'no empty praise / judging the person',
+  timing: 'right moment to speak / stay silent',
+}
+function Labels({ k, label = {}, spoke }: { k: string; label?: Label; spoke: boolean }) {
+  const put = (next: Label) => command({ cmd: 'label', key: k, label: next })
+  const cycle = (f: keyof Omit<Label, 'note'>) => put({ ...label, [f]: label[f] === undefined ? true : label[f] ? false : undefined })
+  const mark = (v?: boolean) => (v === undefined ? '–' : v ? '✓' : '✗')
+  return (
+    <div className="labels">
+      <span className="hint">your label</span>
+      {(['timing', ...(spoke ? TONE : [])] as const).map((f) => (
+        <button key={f} className={`lab ${label[f] === undefined ? '' : label[f] ? 'ok' : 'no'}`} title={HELP[f]} onClick={() => cycle(f)}>
+          {mark(label[f])} {f}
+        </button>
+      ))}
+      <input
+        key={label.note ?? ''}
+        defaultValue={label.note ?? ''}
+        placeholder="note…"
+        onBlur={(e) => e.target.value !== (label.note ?? '') && put({ ...label, note: e.target.value || undefined })}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+    </div>
+  )
+}
+
 const OUTCOME: Record<string, string> = {
   reply: 'Reply',
   silent: 'Silent',
@@ -63,6 +96,24 @@ const OUTCOME: Record<string, string> = {
   referral: 'Referral',
   trigger_only: 'Trigger · no reply',
   ai: 'AI',
+  control: 'Dot only',
+}
+
+// Wizard-of-Oz controls: make the dot say exactly your text now, or ask the AI about the latest entry ignoring the gap.
+function Override() {
+  const [text, setText] = useState('')
+  return (
+    <div className="override">
+      <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Type a margin note to show now…" rows={3} />
+      <div className="row-b">
+        <button disabled={!text.trim()} onClick={() => (command({ cmd: 'say', text }), setText(''))}>
+          Say this now
+        </button>
+        <button onClick={() => command({ cmd: 'ask_ai' })}>Ask AI now</button>
+      </div>
+      <p className="hint">Both skip the min gap and are logged as overrides. Crisis wording still goes to the referral card only.</p>
+    </div>
+  )
 }
 
 export default function Monitor() {
@@ -92,13 +143,18 @@ export default function Monitor() {
   const at = (e: Ev) => clock(new Date(e.t).getTime() - start)
 
   const decisions = events.filter((e) => e.type === 'decision')
+  const labels = session.labels ?? {}
+  const timed = Object.values(labels).filter((l) => l.timing !== undefined)
   const judgements = events.filter((e) => e.type === 'ai_judgement')
-  const aiFor = (entryId: unknown) => judgements.find((j) => j.data?.entryId === entryId)?.data as AiData | undefined
+  const aiFor = (entryId: unknown) => judgements.findLast((j) => j.data?.entryId === entryId)?.data as AiData | undefined
   const errFor = (entryId: unknown) => events.find((e) => e.type === 'ai_error' && e.data?.entryId === entryId)
   const whyIds = new Set(decisions.filter((d) => d.data?.why).map((d) => d.data?.entryId))
   const visited = new Set(session.visited ?? [])
-  const replyFor = (i: number) => {
-    for (let j = i + 1; j < events.length && events[j].type !== 'decision'; j++) if (events[j].type === 'reply_shown') return events[j].detail
+  // Every reply shown until the next decision (the AI's, or yours via override).
+  const repliesFor = (i: number) => {
+    const out: string[] = []
+    for (let j = i + 1; j < events.length && events[j].type !== 'decision'; j++) if (events[j].type === 'reply_shown' && events[j].detail) out.push(events[j].detail!)
+    return out
   }
   const count = (pred: (e: Ev) => boolean) => events.filter(pred).length
   const entries = items.filter((i) => i.kind === 'entry')
@@ -121,7 +177,13 @@ export default function Monitor() {
         <span>{new Date(session.started).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
         <span>elapsed {clock(Date.now() - start)}</span>
         <span>mode · {session.mode}</span>
-        <span>condition · margin notes · {params.mockReplies ? 'mock replies' : 'AI'}</span>
+        <select className="cond" value={String(params.condition ?? 'ai')} onChange={(e) => command({ cmd: 'condition', value: e.target.value as Condition })}>
+          {CONDITIONS.map(([v, l]) => (
+            <option key={v} value={v}>
+              condition · {l}
+            </option>
+          ))}
+        </select>
         <span>ai · {String(params.ai ?? '—')}</span>
         <span className={live ? 'live' : 'off'}>{live ? '● live' : '○ not connected'}</span>
         <div className="grow" />
@@ -174,6 +236,7 @@ export default function Monitor() {
                   </div>
                   <p className="quote">{e.detail}</p>
                   <AiBlock d={e.data as AiData} />
+                  <Labels k={e.t} label={labels[e.t]} spoke={e.data?.decision === 'speak'} />
                 </article>
               )
             if (e.type !== 'decision')
@@ -184,10 +247,13 @@ export default function Monitor() {
                 </div>
               )
             const d = e.data ?? {}
-            const reply = replyFor(i)
-            const aiD = d.outcome === 'ai' ? aiFor(d.entryId) : undefined
-            const err = d.outcome === 'ai' ? errFor(d.entryId) : undefined
-            const badge = d.outcome !== 'ai' ? (OUTCOME[String(d.outcome)] ?? String(d.outcome)) : err ? 'AI · error' : !aiD ? 'AI · thinking…' : aiD.decision === 'speak' ? 'AI · reply' : 'AI · silent'
+            const replies = repliesFor(i)
+            const aiD = aiFor(d.entryId)
+            const err = errFor(d.entryId)
+            const overridden = events.some((x, j) => j > i && x.type === 'override' && (x.data?.entryId === d.entryId || !x.data?.entryId) && !events.slice(i + 1, j).some((y) => y.type === 'decision'))
+            const badge =
+              (d.outcome !== 'ai' ? (OUTCOME[String(d.outcome)] ?? String(d.outcome)) : err ? 'AI · error' : !aiD ? 'AI · thinking…' : aiD.decision === 'speak' ? 'AI · reply' : 'AI · silent') +
+              (overridden ? ' · overridden' : '')
             return (
               <article key={i} id={`d-${d.entryId}`} className={`card-d o-${aiD ? (aiD.decision === 'speak' ? 'reply' : 'silent') : d.outcome}`}>
                 <div className="card-h">
@@ -206,13 +272,21 @@ export default function Monitor() {
                 </div>
                 {aiD && <AiBlock d={aiD} />}
                 {err && <p className="notes">AI error · {err.detail}</p>}
-                {reply && <p className="reply-q">{reply}</p>}
+                {replies.map((r, k) => (
+                  <p key={k} className="reply-q">
+                    {r}
+                  </p>
+                ))}
+                {d.outcome !== 'referral' && <Labels k={String(d.entryId)} label={labels[String(d.entryId)]} spoke={replies.length > 0} />}
               </article>
             )
           })}
         </section>
 
         <section className="col side">
+          <h2>Override</h2>
+          <Override />
+
           <h2>Now</h2>
           <div className="tile">
             <span>Dot</span>
@@ -228,6 +302,8 @@ export default function Monitor() {
                 ['Silent', count((e) => (e.type === 'decision' && e.data?.outcome === 'silent') || (e.type === 'ai_judgement' && e.data?.decision === 'silent'))],
                 ['AI calls', count((e) => e.type === 'ai_judgement')],
                 ['Timeouts', count((e) => e.type === 'hold_timeout')],
+                ['Overrides', count((e) => e.type === 'override')],
+                ['Timing ✓', timed.length ? `${timed.filter((l) => l.timing).length}/${timed.length}` : '—'],
                 ['Triggers', count((e) => e.type === 'decision' && !!e.data?.why)],
                 ['Throttled', count((e) => e.type === 'decision' && e.data?.outcome === 'throttled')],
                 ['Referrals', count((e) => e.type === 'decision' && e.data?.outcome === 'referral')],
@@ -254,7 +330,7 @@ export default function Monitor() {
 
           <h2>Parameters</h2>
           <dl className="params">
-            {(['name', 'mockReplies', 'minGap', 'pauseSec', 'holdTimeout', 'visitEvery'] as const).map((k) => (
+            {(['name', 'condition', 'minGap', 'pauseSec', 'holdTimeout', 'visitEvery'] as const).map((k) => (
               <div key={k}>
                 <dt>{k}</dt>
                 <dd>{String(params[k] ?? '—')}</dd>
