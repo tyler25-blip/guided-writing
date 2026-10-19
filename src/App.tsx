@@ -205,11 +205,15 @@ export default function App() {
     place(pt)
     a.cancel()
   }
+  // The dot is drawn at its largest size (K × size) and scaled DOWN, so the big intro dot stays sharp
+  // instead of a small bitmap blown up ×4.
+  const K = () => Math.max(pRef.current.introScale, 1.5)
+  const sc = (s: number) => `scale(${s / K()})`
   const lookTo = async (s: number, o: number, ms: number) => {
     const el = scaler.current!
-    const to = { transform: `scale(${s})`, opacity: o }
+    const to = { transform: sc(s), opacity: o }
     if (!reduced() && ms > 0) {
-      const a = el.animate([{ transform: `scale(${look.current.s})`, opacity: look.current.o }, to], { duration: ms, easing: 'ease-in-out', fill: 'forwards' })
+      const a = el.animate([{ transform: sc(look.current.s), opacity: look.current.o }, to], { duration: ms, easing: 'ease-in-out', fill: 'forwards' })
       await a.finished
       a.cancel()
     }
@@ -443,7 +447,7 @@ export default function App() {
     setCrisis(false)
     requestAnimationFrame(() => {
       place(center())
-      Object.assign(scaler.current!.style, { transform: `scale(${pRef.current.introScale})`, opacity: '1' })
+      Object.assign(scaler.current!.style, { transform: sc(pRef.current.introScale), opacity: '1' })
       look.current = { s: pRef.current.introScale, o: 1 }
     })
   }
@@ -460,7 +464,7 @@ export default function App() {
   useLayoutEffect(() => {
     if (modeRef.current === 'intro') {
       place(center())
-      Object.assign(scaler.current!.style, { transform: `scale(${pRef.current.introScale})` })
+      Object.assign(scaler.current!.style, { transform: sc(pRef.current.introScale) })
       look.current = { s: pRef.current.introScale, o: 1 }
     } else place(home())
     const onResize = () => idle() && place(modeRef.current === 'intro' ? center() : home())
@@ -473,7 +477,7 @@ export default function App() {
     if (!idle()) return
     if (mode === 'intro') {
       place(center())
-      scaler.current!.style.transform = `scale(${p.introScale})`
+      scaler.current!.style.transform = sc(p.introScale)
       look.current = { s: p.introScale, o: 1 }
     } else place(home())
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -524,6 +528,7 @@ export default function App() {
   const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
   const vars = {
     '--size': `${p.size}px`,
+    '--k': Math.max(p.introScale, 1.5),
     '--period': `${p.breathPeriod}s`,
     '--min': p.breathMin,
     '--max': p.breathMax,

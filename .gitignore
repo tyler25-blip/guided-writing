@@ -25,3 +25,6 @@ dist-ssr
 
 # API key — never commit
 .env
+
+# Licensed font (justfont) — local copy only, not in git
+public/fonts/
