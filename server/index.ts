@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createServer } from 'node:http'
 import { allOk, checkComment, type Checks, type Judgement } from '../src/checks.ts'
 
-const PORT = Number(process.env.PORT ?? 8787)
+const PORT = Number(process.env.JUDGE_PORT ?? 8787)
 const MODEL = 'claude-sonnet-5-5' // cheaper than Opus; enough for a short judgement
 const hasKey = Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN)
 const client = hasKey ? new Anthropic() : null
