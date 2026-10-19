@@ -45,6 +45,12 @@ Open http://localhost:5173.
   - **Override** (monitor side): *Say this now* shows your own text as a margin note (Wizard-of-Oz); *Ask AI now* judges the latest entry ignoring the min gap. Both logged as `override`; the card shows “· overridden”.
   - **New session** (monitor top bar, or journal Controls): downloads the current session JSON if anything was written, then starts fresh.
   - **Your labels** on every decision card: click cycles – → ✓ → ✗. *timing* always; *S2 S5 X1 X2 X4* once something was said (the checks a program can't do). Plus a free note (Enter to save). Stats show timing agreement.
+- [x] **Saved sessions** — `src/saved/`
+  - Open from the journal Controls (**Open saved**) or the monitor top bar (**open saved…**). The current session is downloaded first if anything was written.
+  - Each saved session is a small config (`src/saved/what-if-night.ts`): the entries, what the AI judged, and your labels. Program checks and the 3-minute gap run for real when it loads.
+  - **What-if night (dry run)**: one evening of worry after a broken condom, to rehearse the rules.
+  - Journal Controls → **Open exported JSON** reopens any session you exported.
+  - Self-check: `node src/saved/saved.check.ts`
 - [ ] M5 · Replay + export
 - [ ] M6 · Pilot
 

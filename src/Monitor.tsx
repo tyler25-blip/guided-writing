@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { SAVED } from './saved/index.ts'
 import { CONDITIONS, command, listen, send, type Condition, type Ev, type Label, type Session, type Snapshot } from './sync.ts'
 import type { Checks, Judgement } from './checks.ts'
 import './monitor.css'
@@ -162,6 +163,8 @@ export default function Monitor() {
   const { items, events } = session
   const start = new Date(session.started).getTime()
   const live = Date.now() - snap.at < 5000
+  // A saved session (dry run, reopened export) ends at its last event, not now.
+  const end = session.title ? new Date(events.at(-1)?.t ?? session.started).getTime() : Date.now()
   const clock = (ms: number) => {
     const s = Math.max(0, Math.round(ms / 1000))
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -200,8 +203,9 @@ export default function Monitor() {
     <div className="mon">
       <header className="mon-top">
         <b>Monitor</b>
+        {session.title && <span className="saved">{session.title}</span>}
         <span>{new Date(session.started).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
-        <span>elapsed {clock(Date.now() - start)}</span>
+        <span>{session.title ? 'length' : 'elapsed'} {clock(end - start)}</span>
         <span>mode · {session.mode}</span>
         <select className="cond" value={String(params.condition ?? 'ai')} onChange={(e) => command({ cmd: 'condition', value: e.target.value as Condition })}>
           {CONDITIONS.map(([v, l]) => (
@@ -213,6 +217,14 @@ export default function Monitor() {
         <span>ai · {String(params.ai ?? '—')}</span>
         <span className={live ? 'live' : 'off'}>{live ? '● live' : '○ not connected'}</span>
         <div className="grow" />
+        <select className="cond" id="open-saved" value="" onChange={(e) => e.target.value && confirm(`Open "${SAVED[e.target.value].title}"? ${items.length ? 'The current session is downloaded as JSON first.' : ''}`) && command({ cmd: 'open_saved', key: e.target.value })}>
+          <option value="">open saved…</option>
+          {Object.entries(SAVED).map(([k, s]) => (
+            <option key={k} value={k}>
+              {s.title}
+            </option>
+          ))}
+        </select>
         <button onClick={exportJson}>Export JSON</button>
         <button
           onClick={() =>
@@ -223,6 +235,7 @@ export default function Monitor() {
         </button>
       </header>
 
+      {session.note && <p className="mon-note">{session.note}</p>}
       <main className="mon-grid">
         <section className="col mirror">
           <h2>Text mirror</h2>

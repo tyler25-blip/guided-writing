@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { InkDot } from './ink.tsx'
 import { CONDITIONS, listen, send, type Cmd, type Condition, type Ev, type Item, type Mode, type Session, type Snapshot } from './sync.ts'
 import { isCrisis, isWhyLoop } from './triggers.ts'
+import { SAVED, build } from './saved/index.ts'
 
 // M1 · Journal page + break/trigger detection (no AI yet; optional mock replies to feel the flow).
 
@@ -430,6 +431,8 @@ export default function App() {
       activate(askAI(entry.text, 'commit', entry.id), 'override_ai')
     } else if (c.cmd === 'new_session') {
       newSession()
+    } else if (c.cmd === 'open_saved' && SAVED[c.key]) {
+      openSession(build(SAVED[c.key]))
     } else if (c.cmd === 'label') {
       setSession((s) => ({ ...s, labels: { ...s.labels, [c.key]: c.label } }))
     }
@@ -440,9 +443,21 @@ export default function App() {
     setMode('closed')
   }
   // New session (next participant / next evening): the old one is downloaded first if anything was written.
-  const newSession = () => {
+  const newSession = () => openSession({ started: now(), mode: 'intro', items: [], events: [{ t: now(), type: 'session_start' }] })
+  // Replace the current session (downloaded first if anything was written). Used by New session, saved sessions and file import.
+  const openSession = (next: Session) => {
     if (items.length) exportJson()
-    setSession({ started: now(), mode: 'intro', items: [], events: [{ t: now(), type: 'session_start' }] })
+    setSession(next)
+    if (next.mode !== 'intro') {
+      setDraft('')
+      setCrisis(false)
+      requestAnimationFrame(() => {
+        Object.assign(scaler.current!.style, { transform: sc(1), opacity: '1' })
+        look.current = { s: 1, o: 1 }
+        place(home())
+      })
+      return
+    }
     setDraft('')
     setCrisis(false)
     requestAnimationFrame(() => {
@@ -674,6 +689,37 @@ export default function App() {
               ))}
             </div>
             <button onClick={exportJson}>Export session JSON</button>
+            <label className="row">
+              <span>Open saved</span>
+              <select id="open-saved" value="" onChange={(e) => SAVED[e.target.value] && openSession(build(SAVED[e.target.value]))}>
+                <option value="">choose…</option>
+                {Object.entries(SAVED).map(([k, s]) => (
+                  <option key={k} value={k}>
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="row">
+              <span>Open exported JSON</span>
+              <input
+                id="open-file"
+                type="file"
+                accept=".json,application/json"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!f) return
+                  try {
+                    const { params: _params, ...s } = JSON.parse(await f.text())
+                    if (!Array.isArray(s.items) || !Array.isArray(s.events)) throw new Error('not a session export')
+                    openSession({ ...s, mode: s.mode === 'intro' ? 'writing' : s.mode, title: s.title ?? f.name })
+                  } catch (err) {
+                    log('import_error', String(err))
+                  }
+                }}
+              />
+            </label>
             <button onClick={() => open('/monitor', 'monitor')}>Open monitor ↗</button>
           </div>
         )}

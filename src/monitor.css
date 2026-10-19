@@ -110,3 +110,7 @@ dl.ai-fields dt:first-child { color: #1b1b1b; }
 dl.ai-fields dd { margin: 0; color: #3b3835; }
 dl.ai-fields dd.na { color: #a8a29b; }
 .rule { display: inline-block; margin: 0 6px 3px 0; padding: 1px 7px; border-radius: 999px; background: #f1eeea; font-size: 11px; }
+
+/* saved sessions (dry runs) */
+.mon-top .saved { background: linear-gradient(90deg, #ffc56b, #ff9ec7); color: #1b1b1b; border-radius: 999px; padding: 3px 10px; }
+.mon-note { margin: 16px 24px 0; padding: 12px 18px; border-radius: 14px; background: #f8f7f5; font-size: 14px; color: #5a5650; }
