@@ -1,5 +1,6 @@
 /* Monitor: sunset-card language — light grey cards, mono labels, big numbers, warm accents. */
-.mon { min-height: 100vh; background: #efede9; color: #1b1b1b; font-family: Inter, system-ui, sans-serif; }
+/* Same faces as the journal: LanYang Hei for text, IBM Plex Mono for labels; AI notes in the journal's light grey. */
+.mon { min-height: 100vh; background: #efede9; color: #1b1b1b; font-family: 'LanYang', Inter, system-ui, sans-serif; }
 .mon-empty { min-height: 100vh; display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; color: #8a8680; background: #efede9; }
 .mon-top {
   position: sticky;
@@ -38,12 +39,12 @@
 
 /* mirror */
 .mirror { position: sticky; top: 64px; max-height: calc(100vh - 88px); overflow-y: auto; }
-.m-entry { margin: 0 0 12px; font-size: 15px; line-height: 1.6; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+.m-entry { margin: 0 0 8px; font-size: 15px; line-height: 1.45; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
 .m-entry:hover { background: #efeae4; }
 .m-entry.trig, .legend .trig { background: #fde3d5; }
 .m-entry.visited, .legend .visited { text-decoration: underline dotted #ff7a3d 2px; text-underline-offset: 5px; }
-.m-reply { margin: 0 0 12px; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 17px; color: #7a6f66; }
-.m-draft { margin: 0 0 12px; font-size: 15px; line-height: 1.6; color: #8a8680; }
+.m-reply { margin: 0 0 8px; font-size: 15px; line-height: 1.45; color: #a39c94; }
+.m-draft { margin: 0 0 8px; font-size: 15px; line-height: 1.45; color: #8a8680; }
 .caret { display: inline-block; width: 1px; height: 1em; background: #ff7a3d; margin-left: 2px; vertical-align: -2px; animation: blink 1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 .legend { margin-top: 18px; font-size: 11px; color: #8a8680; }
@@ -60,12 +61,12 @@
 .o-throttled .badge { background: #f4e7c8; }
 .o-referral .badge { background: #1b1b1b; color: #fff; }
 .o-referral { border-color: #1b1b1b; }
-.quote { margin: 10px 0; font-size: 14px; line-height: 1.55; }
+.quote { margin: 10px 0; font-size: 15px; line-height: 1.45; }
 .gates { display: flex; flex-wrap: wrap; gap: 6px 14px; font: 11px 'IBM Plex Mono', monospace; }
 .gates .ok { color: #2f7a4f; }
 .gates .no { color: #c0392b; }
 .gates .na { color: #a8a29b; }
-.reply-q { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed #ece8e3; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 16px; color: #7a6f66; }
+.reply-q { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed #ece8e3; font-size: 15px; line-height: 1.45; color: #a39c94; }
 
 /* side */
 .tile, .stat { background: #fff; border-radius: 14px; padding: 10px 12px; }
@@ -84,7 +85,7 @@
 .attempt { margin-bottom: 8px; }
 .attempt.failed { opacity: 0.55; }
 .reason { margin: 6px 0; font-size: 12px; color: #6b6660; }
-.cand { margin: 6px 0; font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 15px; color: #7a6f66; }
+.cand { margin: 6px 0; font-size: 14px; line-height: 1.45; color: #a39c94; }
 .notes { margin: 4px 0 0; font: 11px 'IBM Plex Mono', monospace; color: #c0392b; }
 .o-silent .badge { background: #e6e3de; }
 
@@ -95,9 +96,9 @@
 .mon .lab.ok { border-color: #2f7a4f; color: #2f7a4f; background: #eaf4ee; }
 .mon .lab.no { border-color: #c0392b; color: #c0392b; background: #fbecea; }
 .mon .lab:hover { background: #1b1b1b; color: #fff; }
-.labels input { flex: 1; min-width: 120px; font: 12px Inter, sans-serif; border: none; border-bottom: 1px solid #ece8e3; background: transparent; padding: 3px 2px; }
+.labels input { flex: 1; min-width: 120px; font: 12px 'LanYang', Inter, sans-serif; border: none; border-bottom: 1px solid #ece8e3; background: transparent; padding: 3px 2px; }
 .labels input:focus { outline: none; border-color: #ff7a3d; }
-.override textarea { width: 100%; box-sizing: border-box; font: 14px 'Instrument Serif', Georgia, serif; font-style: italic; border: 1px solid #ece8e3; border-radius: 12px; padding: 8px 10px; resize: vertical; }
+.override textarea { width: 100%; box-sizing: border-box; font: 14px 'LanYang', Inter, sans-serif; border: 1px solid #ece8e3; border-radius: 12px; padding: 8px 10px; resize: vertical; }
 .override .row-b { display: flex; gap: 8px; margin: 8px 0; }
 .mon button:disabled { opacity: 0.4; cursor: default; }
 .mon-top .cond { font: inherit; text-transform: uppercase; letter-spacing: 0.05em; background: transparent; border: 1px solid #c9c4be; border-radius: 999px; padding: 4px 10px; }
