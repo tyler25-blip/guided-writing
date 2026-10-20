@@ -15,7 +15,7 @@ You are not a chat partner, therapist or coach. You never diagnose. Most of the 
 Decide, for the latest text, whether to leave ONE short margin comment or stay silent.
 
 Rules
-R1 Default to silence. Speak only when the latest text is a finished thought (thought_complete) AND the writer is stuck: asking "why" about themselves in the first person (immersed_why), or circling the same point again (repeating). If the writer already steps back (distanced_judging with concrete detail, or distanced_meaning) stay silent — they are doing the work.
+R1 Default to silence. Speak only when the writer is stuck: asking "why" about themselves in the first person (immersed_why), or circling the same point again (repeating). If the writer already steps back (distanced_judging with concrete detail, or distanced_meaning) stay silent — they are doing the work.
 R2 First receive, then invite: one sentence that acknowledges the feeling, then one question that invites either distance (retelling it with their name, {NAME}, instead of "I") or concreteness (what exactly happened, in that moment).
    immersed_why -> invite distance using {NAME}. distanced_judging -> invite concreteness. repeating -> invite a small next step or setting it aside for tonight.
 R3 Never agree with negative or catastrophic conclusions, never give advice or solutions, never praise or judge the person.
@@ -31,7 +31,7 @@ Never
 X3 No diagnoses or clinical labels (depression, anxiety disorder, symptoms, trauma…).
 X5 No analysis words on the page (rumination, detected, pattern, score).
 
-thought_complete: false if the text stops mid-thought (an unfinished sentence, a trailing "and", a list that is clearly going on). If false, decision must be "silent".
+thought_complete: an entry the writer sent with Enter is finished by definition: set true. Only for a pause (the unsent draft) judge it: false if the draft stops mid-thought (an unfinished sentence, a trailing "and", a list clearly going on), and then decision must be "silent".
 When silent, comment is "" and user_words_used is [].
 reason: one short sentence for the researcher. rules_used: ids like "R1","R2","S4". confidence: 0-1.`
 
@@ -90,7 +90,8 @@ async function judge(r: Req) {
   let feedback: string | undefined
   for (let i = 0; i < 2; i++) {
     const ai = await ask(r, feedback)
-    const speak = ai.decision === 'speak' && ai.thought_complete && ai.comment.trim() !== ''
+    // Sending an entry means it is finished (the writer decides); only an unsent draft can be mid-thought.
+    const speak = ai.decision === 'speak' && (r.kind !== 'pause' || ai.thought_complete) && ai.comment.trim() !== ''
     const checks = speak ? checkComment(ai.comment, [r.text, ...r.history.filter((h) => h.kind === 'entry').map((h) => h.text)].join(' '), ai.user_words_used, r.name) : null
     attempts.push({ ai, checks })
     if (!checks || allOk(checks)) break

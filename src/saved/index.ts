@@ -30,7 +30,7 @@ export function build(cfg: SavedConfig): Session {
     const userText = [...items.filter((x) => x.kind === 'entry').map((x) => x.text), s.text].join(' ')
     const attempts = s.ai.drafts.map((comment) => {
       const ai: Judgement = { ...s.ai, comment }
-      const speak = ai.decision === 'speak' && ai.thought_complete && comment.trim() !== ''
+      const speak = ai.decision === 'speak' && (s.kind !== 'pause' || ai.thought_complete) && comment.trim() !== ''
       return { ai, checks: speak ? checkComment(comment, userText, ai.user_words_used, cfg.name) : null }
     })
     if (!attempts.length) attempts.push({ ai: { ...s.ai, comment: '' }, checks: null })

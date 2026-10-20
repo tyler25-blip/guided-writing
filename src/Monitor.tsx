@@ -46,8 +46,13 @@ function AiBlock({ d }: { d: AiData }) {
             <dd />
             <dt>Writer seems</dt>
             <dd>{STATE[ai.user_state] ?? ai.user_state}</dd>
-            <dt>Thought</dt>
-            <dd className={ai.thought_complete ? '' : 'na'}>{ai.thought_complete ? 'finished' : 'unfinished → must stay silent'}</dd>
+            {/* only a pause (unsent draft) can be mid-thought; a sent entry is finished by definition */}
+            {d.kind === 'pause' && (
+              <>
+                <dt>Draft</dt>
+                <dd className={ai.thought_complete ? '' : 'na'}>{ai.thought_complete ? 'thought finished' : 'mid-thought → stay silent'}</dd>
+              </>
+            )}
             <dt>AI wanted to</dt>
             <dd>{ai.decision === 'speak' ? 'speak' : 'stay silent'}</dd>
             <dt>Sure</dt>
