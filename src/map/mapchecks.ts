@@ -7,9 +7,14 @@ const ANALYSIS = /\b(rumina\w*|detected|cognitive distortion|catastrophi[sz]\w*|
 const hit = (re: RegExp, s: string) => s.match(re)?.[0]
 const questions = (s: string) => (s.match(/\?/g) ?? []).length
 
-// Problems found in a piece of AI text; [] = passes. `maxQ` = most questions allowed.
-export function problems(text: string, o: { maxWords?: number; maxQ?: number } = {}): string[] {
+// "It's common / normal / many people…": fine once, a tic after that (the reviewers all noticed it).
+const COMMON = /\b(common|normal|many people|lots of people|a lot of people|most people|very human|not alone)\b/i
+export const saysCommon = (s: string) => COMMON.test(s)
+
+// Problems found in a piece of AI text; [] = passes. `maxQ` = most questions allowed; noCommon = no "this is common".
+export function problems(text: string, o: { maxWords?: number; maxQ?: number; noCommon?: boolean } = {}): string[] {
   const out: string[] = []
+  if (o.noCommon && hit(COMMON, text)) out.push(`says “${hit(COMMON, text)}” again (once per session at most)`)
   const w = text.trim().split(/\s+/).filter(Boolean).length
   for (const [re, what] of [[DIAGNOSE, 'clinical label'], [STRONG, 'strong advice'], [JUDGE, 'judges the person'], [ANALYSIS, 'analysis word']] as const) {
     const h = hit(re, text)

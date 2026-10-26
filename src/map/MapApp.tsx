@@ -1,4 +1,4 @@
-// Thought map MVP (/map): chat → pick cards → connect them yourself → summary. Greyscale on purpose.
+// Thought map MVP (/map): chat → the AI lays out up to 10 of your sentences → connect them yourself → summary. Greyscale on purpose.
 // Step 4: the AI calls go through server/map.ts (checked there). If the server has no key or no answer passes, the stubs below stand in.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isCrisis } from '../triggers.ts'
@@ -7,21 +7,23 @@ import { loops } from './graph.ts'
 import './map.css'
 
 type Src = 'you' | 'ai'
-type Card = { id: string; text: string; src: Src; x: number; y: number; stack: string[] } // stack = texts merged into this card
+type Step = { when: string; where: string } // a card the person wrote to break a loop: what (= text), when, where
+type Card = { id: string; text: string; src: Src; x: number; y: number; stack: string[]; step?: Step } // stack = texts merged into this card
 type Edge = { id: string; from: string; to: string; label: string }
 type Msg = { role: Src; text: string; propose?: boolean; declined?: boolean } // propose: the AI offers to spread it out
-type Cand = { id: string; text: string; src: Src; on: boolean }
-type Phase = 'chat' | 'pick' | 'map'
-type Sum = { restate: string; common: string; step: string } // step = id of a card on the map, or ''
-export type State = { phase: Phase; msgs: Msg[]; cands: Cand[]; cards: Card[]; edges: Edge[]; ended: boolean; sum?: Sum }
+type Phase = 'chat' | 'layout' | 'map'
+type Sum = { restate: string; step: string } // step: a when/where suggestion, only when the person made no step card
+// risk: something they wrote sounded like hopelessness or self-harm → no map, no loop notes, no summary; support numbers instead
+export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; sum?: Sum; risk?: boolean }
 
 const KEY = 'thought-map-v1'
 const W = 180 // card width, px
 const uid = () => Math.random().toString(36).slice(2, 9)
-const fresh = (): State => ({ phase: 'chat', msgs: [], cands: [], cards: [], edges: [], ended: false })
+const fresh = (): State => ({ phase: 'chat', msgs: [], cards: [], edges: [], ended: false })
 const load = (): State => {
   try {
-    return { ...fresh(), ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+    const st = { ...fresh(), ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+    return st.phase === 'pick' ? { ...st, phase: 'chat' } : st // the pick screen is gone
   } catch {
     return fresh()
   }
@@ -40,11 +42,10 @@ const plain = (cards: Card[]) => cards.map(({ id, text, src }) => ({ id, text, s
 // --- stubs: used when the AI is unavailable ---------------------------------------------------
 const stubReply = (n: number): Msg =>
   n < 3 ? { role: 'ai', text: 'That sounds like a lot at once. Which part is taking up the most room right now?' } : { role: 'ai', text: 'There are quite a few threads here now.', propose: true }
-const stubCands = (msgs: Msg[]): Cand[] => [
-  ...msgs.filter((m) => m.role === 'you').flatMap((m) => m.text.split(/(?<=[.!?。！？])\s*/).filter((s) => s.trim()).map((text) => ({ id: uid(), text: text.trim(), src: 'you' as Src, on: false }))),
-  { id: uid(), text: 'Send a one-line status update', src: 'ai', on: false },
-]
-const stubLoopNote = 'Loops like this are very common: one worry feeds the next. Which line in this loop could you most easily cut?'
+const stubCards = (msgs: Msg[]) =>
+  msgs.filter((m) => m.role === 'you').flatMap((m) => m.text.split(/(?<=[.!?。！？])\s*/).map((t) => t.trim()).filter(Boolean)).slice(0, 10)
+const stubLoop = { note: 'One thought here leads to the next and back again. Click any line in the loop to write one thing you could do there.', edge: '' }
+const SAFE = 'Something you wrote sounds really heavy. The map can wait. Please talk to someone now: the numbers are under “Get support”.'
 
 export default function MapApp() {
   const [s, setS] = useState<State>(load)
@@ -57,14 +58,18 @@ export default function MapApp() {
   const [summary, setSummary] = useState(false)
   const say = (t: string) => (setToast(t), setTimeout(() => setToast(''), 2200))
   const restart = () => (setS(fresh()), setSummary(false))
-
+  const risky = (t: string) => isCrisis(t) && (set((p) => ({ ...p, risk: true })), setCrisis(true), true) // any text the person writes
   return (
     <div className="tm">
       <header className="tm-bar">
-        <span className="tm-title">Thought map{s.phase === 'pick' ? ' · pick what goes on the map' : s.phase === 'map' ? (s.ended ? ' · summary' : ' · connect them yourself') : ''}</span>
+        <span className="tm-title">Thought map{s.phase === 'map' ? (s.ended ? ' · summary' : ' · connect them yourself') : ''}</span>
         <span className="tm-actions">
-          {s.phase === 'pick' && <button onClick={() => set((p) => ({ ...p, phase: 'chat' }))}>Back to chat</button>}
-          {s.phase === 'map' && !s.ended && (
+          {s.risk && (
+            <button className="solid" onClick={() => setCrisis(true)}>
+              Get support
+            </button>
+          )}
+          {s.phase === 'map' && !s.ended && !s.risk && (
             <button className="solid" onClick={() => (set((p) => ({ ...p, ended: true, sum: undefined })), setSummary(true))}>
               That’s enough for now
             </button>
@@ -73,9 +78,9 @@ export default function MapApp() {
           {(s.ended || s.phase !== 'chat') && <button onClick={restart}>New map</button>}
         </span>
       </header>
-      {s.phase === 'chat' && <Chat s={s} set={set} onCrisis={() => setCrisis(true)} say={say} />}
-      {s.phase === 'pick' && <Pick s={s} set={set} />}
-      {s.phase === 'map' && <MapCanvas s={s} set={set} />}
+      {s.phase === 'chat' && <Chat s={s} set={set} risky={risky} onRisk={() => setCrisis(true)} say={say} />}
+      {s.phase === 'layout' && <Layout s={s} set={set} />}
+      {s.phase === 'map' && <MapCanvas s={s} set={set} risky={risky} />}
       {summary && <Summary s={s} set={set} close={() => setSummary(false)} />}
       {crisis && <Referral close={() => setCrisis(false)} />}
       {toast && <div className="tm-toast">{toast}</div>}
@@ -85,7 +90,7 @@ export default function MapApp() {
 }
 
 // --- 1 · chat ----------------------------------------------------------------------------------
-function Chat({ s, set, onCrisis, say }: { s: State; set: (f: (s: State) => State) => void; onCrisis: () => void; say: (t: string) => void }) {
+function Chat({ s, set, risky, onRisk, say }: { s: State; set: (f: (s: State) => State) => void; risky: (t: string) => boolean; onRisk: () => void; say: (t: string) => void }) {
   const [draft, setDraft] = useState('')
   const [typing, setTyping] = useState(false)
   const end = useRef<HTMLDivElement>(null)
@@ -94,18 +99,22 @@ function Chat({ s, set, onCrisis, say }: { s: State; set: (f: (s: State) => Stat
   }, [s.msgs.length, typing])
   const last = s.msgs.at(-1)
   const declines = s.msgs.filter((m) => m.declined).length
-  const propose = !typing && last?.role === 'ai' && last.propose && !last.declined && declines < 2 // the AI offers; at most twice declined
+  const propose = !s.risk && !typing && last?.role === 'ai' && last.propose && !last.declined && declines < 2 // the AI offers; at most twice declined
   const send = async () => {
     const text = draft.trim()
     if (!text || typing) return
     setDraft('')
-    if (isCrisis(text)) onCrisis()
+    const risk = risky(text) || !!s.risk
     const msgs: Msg[] = [...s.msgs, { role: 'you', text }]
     set((p) => ({ ...p, msgs }))
     setTyping(true)
-    const r = await ai<{ reply: string; propose: boolean }>('reply', { msgs })
+    const r = await ai<{ reply: string; propose: boolean; risk: boolean }>('reply', { msgs, risk })
     setTyping(false)
-    const reply: Msg = r ? { role: 'ai', text: r.reply, propose: r.propose } : stubReply(msgs.filter((m) => m.role === 'you').length)
+    if (r?.risk && !s.risk) {
+      set((p) => ({ ...p, risk: true })) // the AI heard it even without the words
+      onRisk()
+    }
+    const reply: Msg = r ? { role: 'ai', text: r.reply, propose: r.propose && !r.risk } : risk ? { role: 'ai', text: SAFE } : stubReply(msgs.filter((m) => m.role === 'you').length)
     set((p) => ({ ...p, msgs: [...p.msgs, reply] }))
   }
   const decline = () => set((p) => ({ ...p, msgs: p.msgs.map((m, i) => (i === p.msgs.length - 1 ? { ...m, declined: true } : m)) }))
@@ -122,7 +131,7 @@ function Chat({ s, set, onCrisis, say }: { s: State; set: (f: (s: State) => Stat
         {propose && (
           <div className="tm-propose">
             Want to spread it out and look at it?
-            <button className="solid" onClick={() => set((p) => ({ ...p, phase: 'pick', cands: [] }))}>
+            <button className="solid" onClick={() => set((p) => ({ ...p, phase: 'layout' }))}>
               Spread it out
             </button>
             <button onClick={decline}>Talk a bit more</button>
@@ -153,70 +162,25 @@ function Chat({ s, set, onCrisis, say }: { s: State; set: (f: (s: State) => Stat
   )
 }
 
-// --- 2 · pick ----------------------------------------------------------------------------------
-function Pick({ s, set }: { s: State; set: (f: (s: State) => State) => void }) {
-  const [editing, setEditing] = useState<string | null>(null)
-  const upd = (id: string, f: (c: Cand) => Cand) => set((p) => ({ ...p, cands: p.cands.map((c) => (c.id === id ? f(c) : c)) }))
-  const chosen = s.cands.filter((c) => c.on)
+// --- 2 · layout: the AI picks up to 10 of your sentences and puts them on the map, no lines -------
+function Layout({ s, set }: { s: State; set: (f: (s: State) => State) => void }) {
   const asked = useRef(false)
   useEffect(() => {
-    if (s.cands.length || asked.current) return
+    if (asked.current) return
     asked.current = true
-    ai<{ you: string[]; ai: string[] }>('cards', { msgs: s.msgs }).then((r) =>
-      set((p) => ({
-        ...p,
-        cands: r ? [...r.you.map((text) => ({ id: uid(), text, src: 'you' as Src, on: false })), ...r.ai.map((text) => ({ id: uid(), text, src: 'ai' as Src, on: false }))] : stubCands(p.msgs),
-      })),
+    ai<{ you: string[]; risk?: boolean }>('cards', { msgs: s.msgs }).then((r) =>
+      set((p) => {
+        if (r?.risk) return { ...p, phase: 'chat', risk: true }
+        const texts = r?.you ?? stubCards(p.msgs)
+        const cols = texts.length > 6 ? 4 : 3
+        const cards = texts.map((text, i) => ({ id: uid(), text, src: 'you' as Src, x: 60 + (i % cols) * 300 + (Math.floor(i / cols) % 2) * 60, y: 50 + Math.floor(i / cols) * 230, stack: [] }))
+        return { ...p, phase: 'map', cards: [...p.cards, ...cards] }
+      }),
     )
   })
-  const place = () =>
-    set((p) => ({
-      ...p,
-      phase: 'map',
-      cards: [...p.cards, ...chosen.map((c, i) => ({ id: c.id, text: c.text, src: c.src, x: 60 + (i % 4) * 300, y: 60 + Math.floor(i / 4) * 230, stack: [] }))],
-      cands: [],
-    }))
-  const col = (src: Src, title: string) => (
-    <div className="tm-pcol">
-      <span className="tm-tag">{title}</span>
-      {s.cands
-        .filter((c) => c.src === src)
-        .map((c) => (
-          <div key={c.id} className={`tm-pc ${c.src}${c.on ? ' on' : ''}`} onClick={() => editing !== c.id && upd(c.id, (x) => ({ ...x, on: !x.on }))} onDoubleClick={() => setEditing(c.id)}>
-            <span className="tm-box" aria-hidden="true" />
-            {editing === c.id ? (
-              <input autoFocus defaultValue={c.text} onBlur={(e) => (upd(c.id, (x) => ({ ...x, text: e.target.value || x.text })), setEditing(null))} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
-            ) : (
-              <span>{c.text}</span>
-            )}
-          </div>
-        ))}
-      {src === 'you' && (
-        <button className="tm-add" onClick={() => set((p) => ({ ...p, cands: [...p.cands, { id: uid(), text: 'New card', src: 'you', on: true }] }))}>
-          + Add your own
-        </button>
-      )}
-    </div>
-  )
-  if (!s.cands.length)
-    return (
-      <main className="tm-pick">
-        <p className="tm-empty tm-wait">Laying your words out as cards…</p>
-      </main>
-    )
   return (
     <main className="tm-pick">
-      <p className="tm-hint">{chosen.length ? '' : 'Nothing is selected yet. '}Click to choose, double-click to edit. Cards you don’t choose are discarded.</p>
-      <div className="tm-pgrid">
-        {col('you', 'What you said')}
-        {col('ai', 'AI’s suggestions')}
-      </div>
-      <div className="tm-pfoot">
-        <span>{chosen.length} selected</span>
-        <button className="solid" disabled={!chosen.length} onClick={place}>
-          Put on the map ({chosen.length})
-        </button>
-      </div>
+      <p className="tm-empty tm-wait">Laying your words out as cards…</p>
     </main>
   )
 }
@@ -224,7 +188,7 @@ function Pick({ s, set }: { s: State; set: (f: (s: State) => State) => void }) {
 // --- 3 · map -----------------------------------------------------------------------------------
 type Drag = { kind: 'move'; id: string; dx: number; dy: number } | { kind: 'link'; from: string; x: number; y: number }
 
-function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void }) {
+function MapCanvas({ s, set, risky }: { s: State; set: (f: (s: State) => State) => void; risky: (t: string) => boolean }) {
   const board = useRef<HTMLDivElement>(null)
   const refs = useRef(new Map<string, HTMLDivElement>())
   const [h, setH] = useState<Record<string, number>>({})
@@ -234,7 +198,8 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
   const [editEdge, setEditEdge] = useState<string | null>(null)
   const [openStack, setOpenStack] = useState<string | null>(null)
   const [openLoop, setOpenLoop] = useState<number | null>(null)
-  const [notes, setNotes] = useState<Record<string, string>>({}) // loop note per loop (edge ids joined)
+  const [notes, setNotes] = useState<Record<string, { note: string; edge: string }>>({}) // per loop (edge ids joined): note + the link that looks easiest to loosen
+  const [breaking, setBreaking] = useState<string | null>(null) // the loop line the person clicked to write a step for
   const [labelling, setLabelling] = useState<string[]>([]) // edges waiting for an AI label
   const [pairs, setPairs] = useState<{ a: string; b: string }[]>([]) // AI: these two say the same thing
   const ro = s.ended // read-only after the summary
@@ -351,11 +316,30 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
   }
   const mid = (x: Edge) => geom(x).m
   const openNote = (i: number, g: string[]) => {
+    setBreaking(null)
     setOpenLoop(openLoop === i ? null : i)
     const k = g.join()
     if (notes[k] !== undefined) return
-    setNotes((n) => ({ ...n, [k]: '' }))
-    ai<{ note: string }>('loop', { cards: plain(s.cards), edges: g.map((id) => s.edges.find((x) => x.id === id)!) }).then((r) => setNotes((n) => ({ ...n, [k]: r?.note || stubLoopNote })))
+    if (s.risk) return setNotes((n) => ({ ...n, [k]: { note: SAFE, edge: '' } }))
+    setNotes((n) => ({ ...n, [k]: { note: '', edge: '' } }))
+    ai<{ note: string; break_edge: string; risk?: boolean }>('loop', { cards: plain(s.cards), edges: g.map((id) => s.edges.find((x) => x.id === id)!) }).then((r) => {
+      if (r?.risk) set((p) => ({ ...p, risk: true }))
+      setNotes((n) => ({ ...n, [k]: r?.risk ? { note: SAFE, edge: '' } : r ? { note: r.note, edge: r.break_edge } : stubLoop }))
+    })
+  }
+  const breakable = new Set(Object.values(notes).map((n) => n.edge))
+  const loopOf = (edge: string) => groups.find((g) => g.includes(edge)) ?? []
+  const addStep = (edge: Edge, what: string, step: Step) => {
+    if ([what, step.when, step.where].some(risky)) return setBreaking(null)
+    const m = mid(edge)
+    const id = uid()
+    set((st) => ({
+      ...st,
+      cards: [...st.cards, { id, text: what, src: 'you', x: Math.max(0, m.x - W / 2 + 40), y: m.y + 70, stack: [], step }],
+      edges: [...st.edges, { id: uid(), from: edge.from, to: id, label: 'this time' }],
+    }))
+    setBreaking(null)
+    setOpenLoop(null)
   }
 
   return (
@@ -381,8 +365,18 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
           const a = card(x.from)
           const b = card(x.to)
           if (!a || !b) return null
-          return <path key={x.id} d={geom(x).d} className={inLoop.has(x.id) ? 'loop' : ''} markerEnd="url(#tm-arrow)" />
+          const cls = [inLoop.has(x.id) && 'loop', breakable.has(x.id) && 'breakable', breaking === x.id && 'breaking'].filter(Boolean).join(' ')
+          return <path key={x.id} d={geom(x).d} className={cls} markerEnd="url(#tm-arrow)" />
         })}
+        {!ro &&
+          !s.risk &&
+          s.edges
+            .filter((x) => inLoop.has(x.id))
+            .map((x) => (
+              <path key={x.id} d={geom(x).d} className="hit" onClick={() => (setOpenLoop(null), setBreaking(x.id))}>
+                <title>Write one thing you could do here</title>
+              </path>
+            ))}
         {drag?.kind === 'link' && (() => {
           const a = center(card(drag.from))
           return <line x1={a.x} y1={a.y} x2={drag.x} y2={drag.y} className="temp" />
@@ -394,7 +388,7 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
         const m = mid(x)
         return editEdge === x.id ? (
           <span key={x.id} className="tm-label edit" style={{ left: m.x, top: m.y }}>
-            <input autoFocus defaultValue={x.label} maxLength={60} placeholder="how are they linked?" onBlur={(e) => (set((st) => ({ ...st, edges: st.edges.map((y) => (y.id === x.id ? { ...y, label: e.target.value } : y)) })), setEditEdge(null))} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
+            <input autoFocus defaultValue={x.label} maxLength={60} placeholder="how are they linked?" onBlur={(e) => (risky(e.target.value), set((st) => ({ ...st, edges: st.edges.map((y) => (y.id === x.id ? { ...y, label: e.target.value } : y)) })), setEditEdge(null))} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
             <button aria-label="Delete line" onPointerDown={(e) => (e.preventDefault(), set((st) => ({ ...st, edges: st.edges.filter((y) => y.id !== x.id) })), setEditEdge(null))}>
               ×
             </button>
@@ -416,8 +410,16 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
             </button>
             {openLoop === i && (
               <div className="tm-pop">
-                <p>{notes[g.join()] || '…'}</p>
-                <button onClick={() => setOpenLoop(null)}>Got it</button>
+                <p>{notes[g.join()]?.note || '…'}</p>
+                {!s.risk && notes[g.join()]?.note && <p className="tm-hint">The dashed line looks easiest to loosen. Click any line in the loop to write one thing you could do there.</p>}
+                <span className="tm-actions">
+                  {!ro && !s.risk && notes[g.join()]?.edge && (
+                    <button className="solid" onClick={() => (setOpenLoop(null), setBreaking(notes[g.join()].edge))}>
+                      Start with the dashed line
+                    </button>
+                  )}
+                  <button onClick={() => setOpenLoop(null)}>Close</button>
+                </span>
               </div>
             )}
           </span>
@@ -429,7 +431,7 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
           key={c.id}
           data-card={c.id}
           ref={(el) => void (el ? refs.current.set(c.id, el) : refs.current.delete(c.id))}
-          className={`tm-card ${c.src}${sel === c.id ? ' sel' : ''}${pair && (pair.a === c.id || pair.b === c.id) ? ' hint' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
+          className={`tm-card ${c.src}${c.step ? ' step' : ''}${sel === c.id ? ' sel' : ''}${pair && (pair.a === c.id || pair.b === c.id) ? ' hint' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
           style={{ left: c.x, top: c.y, width: W }}
           onPointerDown={(e) => {
             if (ro || editCard === c.id || (e.target as HTMLElement).closest('button')) return
@@ -445,6 +447,7 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
               defaultValue={c.text}
               onBlur={(e) => {
                 const t = e.target.value.trim()
+                risky(t)
                 if (t) set((st) => ({ ...st, cards: st.cards.map((x) => (x.id === c.id ? { ...x, text: t } : x)) }))
                 else remove(c.id) // an empty new card disappears
                 setEditCard(null)
@@ -454,7 +457,14 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
           ) : (
             <span className="tm-text">{c.text}</span>
           )}
-          <span className="tm-src">{c.src === 'ai' ? 'AI' : 'you'}</span>
+          {c.step ? (
+            <span className="tm-src">
+              step{c.step.when && ` · ${c.step.when}`}
+              {c.step.where && ` · ${c.step.where}`}
+            </span>
+          ) : (
+            <span className="tm-src">{c.src === 'ai' ? 'AI' : 'you'}</span>
+          )}
           {c.stack.length > 0 && (
             <button className="tm-badge" onClick={() => setOpenStack(openStack === c.id ? null : c.id)}>
               ×{c.stack.length + 1}
@@ -486,47 +496,103 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
         </div>
       ))}
 
-      {!ro && pair && openLoop === null && (
+      {breaking && s.edges.some((x) => x.id === breaking) && (
+        <Breaker key={breaking} s={s} edge={s.edges.find((x) => x.id === breaking)!} loop={loopOf(breaking)} done={addStep} cancel={() => setBreaking(null)} />
+      )}
+      {!ro && pair && openLoop === null && !breaking && (
         <div className="tm-tip">
           These two look like the same thought. Drag one onto the other to stack them, or leave them as they are.
           <button onClick={() => setPairs((ps) => ps.filter((x) => x !== pair))}>Leave them</button>
         </div>
       )}
       {!s.cards.length && <p className="tm-empty board">Double-click anywhere to add a card.</p>}
-      {!ro && s.cards.length > 0 && <p className="tm-help">Drag a card to move it · drag a dot on any edge to another card to connect · drop a card onto another to stack · double-click to edit · Delete removes</p>}
+      {!ro && s.cards.length > 0 && !breaking && <p className="tm-help">Drag a card to move it · drag a dot on any edge to another card to connect · drop a card onto another to stack · double-click to edit · Delete removes{groups.length ? ' · click a line in a loop to write one thing you could do' : ''}</p>}
     </main>
+  )
+}
+
+// Click a line in a loop → one guiding question → write what / when / where → a step card next to that line.
+function Breaker({ s, edge, loop, done, cancel }: { s: State; edge: Edge; loop: string[]; done: (e: Edge, what: string, step: Step) => void; cancel: () => void }) {
+  const [g, setG] = useState<{ question: string; example: string } | null>(null)
+  const [what, setWhat] = useState('')
+  const [when, setWhen] = useState('')
+  const [where, setWhere] = useState('')
+  const name = (id: string) => s.cards.find((c) => c.id === id)?.text ?? ''
+  useEffect(() => {
+    let on = true
+    ai<{ question: string; example: string }>('break', { cards: plain(s.cards), edge, loop: loop.map((id) => s.edges.find((x) => x.id === id)!) }).then(
+      (r) => on && setG(r ?? { question: `Between “${name(edge.from)}” and “${name(edge.to)}”, what is one small thing you could do once, soon?`, example: '' }),
+    )
+    return () => void (on = false)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="tm-pop tm-break" role="dialog" aria-label="Write one thing you could do">
+      <span className="tm-tag">
+        {name(edge.from)} → {name(edge.to)}
+      </span>
+      <p>{g ? g.question : '…'}</p>
+      <label className="tm-field">
+        <span>What will you do?</span>
+        <textarea id="tm-step-what" rows={2} value={what} placeholder={g?.example || 'One small thing'} onChange={(e) => setWhat(e.target.value)} autoFocus />
+      </label>
+      <div className="tm-row">
+        <label className="tm-field">
+          <span>When?</span>
+          <input id="tm-step-when" value={when} placeholder="Tomorrow after lunch" onChange={(e) => setWhen(e.target.value)} />
+        </label>
+        <label className="tm-field">
+          <span>Where?</span>
+          <input id="tm-step-where" value={where} placeholder="At my desk" onChange={(e) => setWhere(e.target.value)} />
+        </label>
+      </div>
+      {what.trim() && (!when.trim() || !where.trim()) && <p className="tm-hint">A time and a place make it much more likely to happen.</p>}
+      <span className="tm-actions">
+        <button className="solid" disabled={!what.trim()} onClick={() => done(edge, what.trim(), { when: when.trim(), where: where.trim() })}>
+          Put it on the map
+        </button>
+        <button onClick={cancel}>Not now</button>
+      </span>
+    </div>
   )
 }
 
 // --- 4 · summary -------------------------------------------------------------------------------
 function Summary({ s, set, close }: { s: State; set: (f: (s: State) => State) => void; close: () => void }) {
   const ls = loops(s.edges)
+  const steps = s.cards.filter((c) => c.step)
   const asked = useRef(false)
   useEffect(() => {
     if (s.sum || asked.current) return
     asked.current = true
-    ai<{ restate: string; common: string; step_id: string }>('summary', { cards: plain(s.cards), edges: s.edges, loops: ls.length }).then((r) =>
-      set((p) => ({ ...p, sum: r ? { restate: r.restate, common: r.common, step: r.step_id } : stubSum(p) })),
+    if (s.risk) return set((p) => ({ ...p, sum: { restate: SAFE, step: '' } }))
+    ai<{ restate: string; step: string; risk?: boolean }>('summary', { cards: s.cards.map(({ id, text, src, step }) => ({ id, text, src, step })), edges: s.edges, loops: ls.length }).then((r) =>
+      set((p) => ({ ...p, ...(r?.risk ? { risk: true } : {}), sum: r?.risk ? { restate: SAFE, step: '' } : r ? { restate: r.restate, step: r.step } : stubSum(p) })),
     )
   })
-  const step = s.cards.find((c) => c.id === s.sum?.step)
   return (
     <>
       <div className="tm-dim" onClick={close} />
       <aside className="tm-summary" aria-label="Summary">
         <span className="tm-tag">Tonight’s map</span>
         {!s.sum && <p className="tm-muted">Reading your map…</p>}
-        {s.sum && (
+        {s.sum && <p>{s.sum.restate}</p>}
+        {s.sum && !s.risk && steps.length > 0 && (
           <>
-            <p>{s.sum.restate}</p>
-            <span className="tm-tag">This is common</span>
-            <p>{s.sum.common}</p>
-            {step && (
-              <>
-                <span className="tm-tag">A next step already on your map</span>
-                <p className="tm-step">“{step.text}”</p>
-              </>
-            )}
+            <span className="tm-tag">Your next step</span>
+            {steps.map((c) => (
+              <div key={c.id} className="tm-step">
+                <b>{c.text}</b>
+                <span className="tm-src">
+                  {c.step!.when || 'when?'} · {c.step!.where || 'where?'}
+                </span>
+              </div>
+            ))}
+          </>
+        )}
+        {s.sum && !s.risk && !steps.length && s.sum.step && (
+          <>
+            <span className="tm-tag">A next step you could take</span>
+            <div className="tm-step">{s.sum.step}</div>
           </>
         )}
         <p className="tm-muted">That’s it for tonight. Your map stays here for next time.</p>
@@ -542,8 +608,7 @@ function stubSum(s: State): Sum {
   const n = loops(s.edges).length
   return {
     restate: `You put ${s.cards.length} cards on the map${hub ? `; most lines run through “${hub.text}”` : ''}${n ? `, and ${n === 1 ? 'one loop' : `${n} loops`} showed up` : ''}.`,
-    common: 'When several unfinished things pile up, they keep claiming attention, which is why it gets harder to start.',
-    step: (s.cards.find((c) => c.src === 'ai') ?? s.cards.at(-1))?.id ?? '',
+    step: '',
   }
 }
 

@@ -47,9 +47,14 @@
 .tm-edges { position: absolute; left: 0; top: 0; width: 4000px; height: 3000px; pointer-events: none; color: var(--ink); }
 .tm-edges > path, .tm-edges > line { stroke: var(--ink); stroke-width: 1.4; fill: none; }
 .tm-edges > path.loop { stroke-width: 3; }
+.tm-edges > path.breakable { stroke-dasharray: 7 5; }
+.tm-edges > path.breaking { stroke: var(--mid); }
+.tm-edges > path.hit { stroke: transparent; stroke-width: 18; pointer-events: stroke; cursor: pointer; }
+.tm-edges > path.hit:hover { stroke: var(--line); }
 .tm-edges line.temp { stroke: var(--mid); stroke-dasharray: 4 4; }
 .tm-card { position: absolute; box-sizing: border-box; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 8px; padding: 8px 10px 6px; cursor: grab; touch-action: none; }
 .tm-card.ai { border-style: dashed; }
+.tm-card.step { border-width: 3px; }
 .tm-card.hint { outline: 2px dashed var(--mid); outline-offset: 5px; }
 .tm-card.sel { box-shadow: 0 0 0 3px var(--soft); }
 .tm-card.dragging { cursor: grabbing; opacity: 0.85; z-index: 3; }
@@ -73,6 +78,11 @@
 .tm .tm-loop { position: absolute; transform: translate(-50%, -50%); background: var(--ink); color: var(--paper); font-size: 11px; padding: 2px 10px; z-index: 2; }
 .tm-pop { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); width: min(440px, 90vw); box-sizing: border-box; background: var(--paper); border: 1px solid var(--ink); border-radius: 10px; padding: 12px 14px; z-index: 5; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); font-size: 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .tm-pop p { margin: 0; }
+.tm-break { width: min(480px, 92vw); }
+.tm-field { display: flex; flex-direction: column; gap: 3px; flex: 1; font-size: 12px; color: var(--mid); align-self: stretch; }
+.tm-field input, .tm-field textarea { font: inherit; font-size: 14px; color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; resize: none; }
+.tm-field input:focus, .tm-field textarea:focus { outline: none; border-color: var(--ink); }
+.tm-row { display: flex; gap: 10px; align-self: stretch; }
 .tm-tip { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; background: var(--paper); border: 1px dashed var(--mid); border-radius: 10px; padding: 8px 10px 8px 14px; font-size: 13px; z-index: 5; }
 .tm-help { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--mid); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; white-space: nowrap; }
 .tm-empty.board { position: absolute; left: 0; right: 0; }
@@ -82,7 +92,7 @@
 .tm-dim { position: fixed; inset: 49px 0 0 0; background: rgba(120, 120, 120, 0.3); }
 .tm-summary { position: fixed; top: 49px; right: 0; bottom: 0; width: min(400px, 100%); box-sizing: border-box; background: var(--paper); border-left: 1px solid var(--ink); padding: 28px 24px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .tm-summary p { margin: 0 0 8px; }
-.tm-step { border: 1.5px solid var(--ink); border-radius: 8px; padding: 8px 10px; }
+.tm-step { border: 3px solid var(--ink); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
 .tm-muted { color: var(--mid); margin-top: auto !important; }
 .tm-summary button { align-self: flex-start; }
 

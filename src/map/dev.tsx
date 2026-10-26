@@ -4,16 +4,14 @@ import { SAMPLES, type Sample } from './samples.ts'
 import type { State } from './MapApp.tsx'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
-type Phase = 'chat' | 'pick' | 'map' | 'summary'
+type Phase = 'chat' | 'map' | 'summary'
 
 const build = (x: Sample, to: Phase): State => {
-  const cands = x.cands.map((c) => ({ ...c, id: uid() }))
   const ids = Object.fromEntries(x.cards.map((c) => [c.key, uid()]))
   const cards = x.cards.map((c) => ({ id: ids[c.key], text: c.text, src: c.src, x: c.x, y: c.y, stack: c.stack ?? [] }))
   const edges = x.edges.map(([f, t, label]) => ({ id: uid(), from: ids[f], to: ids[t], label }))
-  if (to === 'chat') return { phase: 'chat', msgs: x.msgs, cands: [], cards: [], edges: [], ended: false }
-  if (to === 'pick') return { phase: 'pick', msgs: x.msgs, cands, cards: [], edges: [], ended: false }
-  return { phase: 'map', msgs: x.msgs, cands: [], cards, edges, ended: to === 'summary' }
+  if (to === 'chat') return { phase: 'chat', msgs: x.msgs, cards: [], edges: [], ended: false }
+  return { phase: 'map', msgs: x.msgs, cards, edges, ended: to === 'summary' }
 }
 
 const read = <T,>(k: string, d: T): T => {
@@ -64,20 +62,13 @@ export function DevPanel({ s, setS, openSummary, crisis }: { s: State; setS: (s:
       <span className="tm-tag">Jump to (loads the sample)</span>
       <div className="tm-dev-btns">
         <button onClick={() => go('chat')}>1 Chat</button>
-        <button onClick={() => go('pick')}>2 Pick</button>
-        <button onClick={() => go('map')}>3 Map</button>
-        <button onClick={() => go('summary')}>4 Summary</button>
+        <button onClick={() => go('map')}>2 Map</button>
+        <button onClick={() => go('summary')}>3 Summary</button>
       </div>
 
       <span className="tm-tag">This screen</span>
       <div className="tm-dev-btns">
-        {s.phase === 'chat' && s.msgs.length > 0 && <button onClick={() => here((p) => ({ ...p, phase: 'pick', cands: [] }))}>Spread it out now</button>}
-        {s.phase === 'pick' && (
-          <>
-            <button onClick={() => here((p) => ({ ...p, cands: p.cands.map((c) => ({ ...c, on: true })) }))}>Select all</button>
-            <button onClick={() => here((p) => ({ ...p, cands: p.cands.map((c) => ({ ...c, on: false })) }))}>Select none</button>
-          </>
-        )}
+        {s.phase === 'chat' && s.msgs.length > 0 && <button onClick={() => here((p) => ({ ...p, phase: 'layout' }))}>Spread it out now</button>}
         {s.phase === 'map' && (
           <>
             <button
@@ -99,7 +90,8 @@ export function DevPanel({ s, setS, openSummary, crisis }: { s: State; setS: (s:
           </>
         )}
         <button onClick={crisis}>Show crisis card</button>
-        <button onClick={() => (setS({ phase: 'chat', msgs: [], cands: [], cards: [], edges: [], ended: false }), openSummary(false))}>Reset (empty)</button>
+        {s.risk && <button onClick={() => here((p) => ({ ...p, risk: false }))}>Clear risk state</button>}
+        <button onClick={() => (setS({ phase: 'chat', msgs: [], cards: [], edges: [], ended: false }), openSummary(false))}>Reset (empty)</button>
       </div>
       <p className="tm-dev-note">Screen: {s.phase}{s.ended ? ' · ended' : ''} · {s.cards.length} cards · {s.edges.length} lines</p>
     </aside>
