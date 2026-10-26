@@ -27,6 +27,7 @@
 .tm-input textarea { flex: 1; border: 0; resize: none; font: inherit; background: transparent; outline: none; }
 .tm .tm-input textarea:focus-visible { outline: none; }
 .tm-input:focus-within { border-color: var(--ink); }
+.tm .tm-early { margin-top: 8px; border-color: var(--line); color: var(--mid); font-size: 12px; }
 .tm .tm-mic { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; }
 
 /* 2 · pick */
@@ -107,4 +108,5 @@
 .tm-dev select { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
 .tm-dev-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .tm .tm-dev-btns button { font-size: 12px; padding: 3px 10px; }
+.tm-dev-notes { display: flex; flex-direction: column; gap: 3px; font-size: 12px; line-height: 1.4; border-top: 1px solid var(--line); padding-top: 8px; }
 .tm-dev-note { margin: 0; font: 11px 'IBM Plex Mono', monospace; color: var(--mid); }

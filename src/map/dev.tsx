@@ -1,7 +1,7 @@
 // Dev panel (bottom-left): load a sample, jump to any screen, poke the current one. Collapses to one icon.
 import { useState } from 'react'
 import { SAMPLES, type Sample } from './samples.ts'
-import type { State } from './MapApp.tsx'
+import { lastNotes, type State } from './MapApp.tsx'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 type Phase = 'chat' | 'map' | 'summary'
@@ -93,6 +93,28 @@ export function DevPanel({ s, setS, openSummary, crisis }: { s: State; setS: (s:
         {s.risk && <button onClick={() => here((p) => ({ ...p, risk: false }))}>Clear risk state</button>}
         <button onClick={() => (setS({ phase: 'chat', msgs: [], cards: [], edges: [], ended: false }), openSummary(false))}>Reset (empty)</button>
       </div>
+      {(() => {
+        const n = lastNotes(s.msgs)
+        return (
+          n && (
+            <div className="tm-dev-notes">
+              <span className="tm-tag">AI’s private notes</span>
+              <span>
+                {Object.entries(n.have)
+                  .map(([k, v]) => (v ? `✓${k}` : `·${k}`))
+                  .join(' ')}
+                {n.ready ? ' · ready' : ''}
+              </span>
+              <span>
+                <b>core</b> {n.core}
+              </span>
+              <span>
+                <b>stuck</b> {n.stuck} · <b>help</b> {n.help}
+              </span>
+            </div>
+          )
+        )
+      })()}
       <p className="tm-dev-note">Screen: {s.phase}{s.ended ? ' · ended' : ''} · {s.cards.length} cards · {s.edges.length} lines</p>
     </aside>
   )

@@ -5,6 +5,12 @@ import { ownWords, problems, saysCommon } from '../src/map/mapchecks.ts'
 import { isCrisis } from '../src/triggers.ts'
 
 type Msg = { role: 'you' | 'ai'; text: string; declined?: boolean }
+// The AI's private understanding, updated every turn. Never shown in the chat; the summary may say the core once.
+export type Notes = { have: Record<Kind, boolean>; core: string; stuck: Stuck; help: string; ready: boolean }
+type Kind = 'event' | 'feeling' | 'thought' | 'worry' | 'action'
+type Stuck = 'unclear' | 'deciding' | 'starting' | 'replaying' | 'what-if' | 'other'
+const KINDS: Kind[] = ['event', 'feeling', 'thought', 'worry', 'action']
+const MAX_TURNS = 8 // after this many of their messages, offer the map anyway
 type Card = { id: string; text: string; src: 'you' | 'ai' }
 type Edge = { id: string; from: string; to: string; label: string }
 
@@ -16,7 +22,13 @@ B1 Natural. Answer what they actually said, with substance: usually 50–130 wor
 B2 No strong advice. Don't tell them what to do. If they ask, you may lay out the options they already named, or one gentle possibility, clearly optional; the choice is theirs.
 B3 No judging — not them and not the people in their story. No praise, no verdicts ("you're overreacting", "he's toxic", "that's great of you").
 B4 Don't keep asking. At most one question per reply, and about half your replies have none. Never a list of questions.
-B5 Steer towards closing. This is not open-ended therapy. Once there is enough material — several distinct events, worries or feelings, usually after 3–5 of their messages — set propose=true. The page then shows a button offering to spread it all out on a map; your reply should lead into that naturally ("There are quite a few threads here now…") and must not ask a question itself. If a message says they chose to keep talking, go on, and propose again only after a couple more of their messages.
+B5 Gather with a purpose, then close. You are collecting material for a map of their thoughts, so keep private notes (never mention them):
+   have — which kinds of material they have given so far: event (what actually happened, concretely), feeling (what they feel), thought (how they read it / what they tell themselves), worry (what they fear will happen), action (anything they could do, or have tried).
+   core — one sentence: your best guess at what they are really stuck on underneath (not a diagnosis).
+   stuck — how they are stuck: unclear (can't tell what it is), deciding (between options), starting (can't begin), replaying (an event keeps replaying), what-if (fear of something not yet happened), other.
+   help — one short phrase: what would help most next (e.g. "get the concrete event", "separate fact from her reading").
+   When a key kind is missing for THIS person's kind of stuck, let your reply gently open room for it (at most one question, often none — a reflection can invite it too). Don't interrogate; don't cover all five mechanically.
+   ready=true when the core is clear and there is enough to map (usually 3–6 of their messages). Then set propose=true: the page shows a button offering to spread it out on a map; your reply should lead into that naturally and must not ask a question itself. If a message says they chose to keep talking, go on, and propose again only after a couple more of their messages.
 B6 Pull back drift. If they wander to something unrelated to what's weighing on them, acknowledge it in a few words and gently bring it back.
 
 risk: true if anything they wrote suggests hopelessness, feeling like a burden, wanting to disappear, not wake up, die or hurt themselves — even indirectly. Otherwise false.
@@ -24,8 +36,8 @@ ${NEVER}`
 
 const SAFETY = `The person may be at risk: something they wrote suggests hopelessness, feeling like a burden, or wanting to die or hurt themselves. Stop the thought-map task. Reply warmly and directly, in 3–5 sentences: say you're glad they told you, take it seriously, ask whether they are safe right now, and ask them to reach a person now — TelefonSeelsorge 0800 111 0 111 (Germany, free, 24/7), 1925 (Taiwan, 24/7), or emergency 112 / 119. Do not analyse, do not offer to map it, do not say it is common. English only.`
 
-const CARDS = `You split a chat into cards for a thought map. The person will pick which cards go on the map.
-"you" cards: pick the thoughts that carry the most weight — events, worries, feelings, things they keep doing — at most 10. One thought per card, in THEIR words: copy or trim their sentences (cut filler, keep first person), never rephrase, never add. Each card must make sense on its own (no "probably chapters 2 and 3"). Skip greetings, filler and repeats. In the order they said them, each under 20 words.
+const CARDS = `You split a chat into cards for a thought map; they go straight onto the map.
+"you" cards: pick the thoughts that carry the most weight for what they are stuck on (you get the AI's private notes on the core issue) — at most 10, with a mix of kinds where the chat has them (event, feeling, thought, worry, action). Tag each with its kind. One thought per card, in THEIR words: copy or trim their sentences (cut filler, keep first person), never rephrase, never add. Each card must make sense on its own (no "probably chapters 2 and 3"). Skip greetings, filler and repeats. In the order they said them, each under 20 words.
 ${NEVER}`
 
 const LABEL = `The person drew an arrow between two cards on their thought map. Write the label for that arrow: how the first card leads to the second, from their side, in 2–6 plain everyday words, lowercase, e.g. "so I put it off", "and it keeps me up", "makes it worse". Use only what the cards say; if the link isn't clear, return "".
@@ -47,6 +59,7 @@ ${NEVER}`
 
 const SUMMARY = `The person has finished their thought map for tonight. Write a closing summary; they cannot reply to it.
 restate: 2–3 sentences restating their map in their words: what most lines run through, and any loop named concretely in order. If they wrote step cards (marked STEP), end by naming the step and its when/where. No interpretation beyond what's on the map.
+stuck: ONE tentative sentence on what seems most stuck tonight, using the AI's private notes and the map ("It looks like what's most stuck is …, more than …"). Tentative, in their words, no diagnosis.
 step: ONLY if there are no STEP cards — one small action drawn from their own cards, with a concrete when and where, as one line: "When · Where · What" (e.g. "Tomorrow after the TA shift · at my desk · draft the email, don't send it yet"). Otherwise "".
 Never say it is common or normal. No questions.
 ${NEVER}`
@@ -96,8 +109,16 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       }
       if (b.risk || isCrisis(msgs.at(-1)?.text ?? '')) return safety()
       const used = msgs.some((m) => m.role === 'ai' && saysCommon(m.text))
-      const o = await ask<{ reply: string; propose: boolean; risk: boolean }>(client, model, CHAT, content, S({ reply: str, propose: { type: 'boolean' }, risk: { type: 'boolean' } }), (o) =>
-        o.risk ? [] : problems(o.reply, { maxWords: 170, maxQ: o.propose ? 0 : 1, noCommon: used }),
+      const turns = msgs.filter((m) => m.role === 'you').length
+      const last = turns >= MAX_TURNS && !msgs.at(-2)?.declined ? `\n\nThis is their ${turns}th message: set propose=true now even if some material is missing.` : ''
+      const NOTES = S({ have: S(Object.fromEntries(KINDS.map((k) => [k, { type: 'boolean' }]))), core: str, stuck: { type: 'string', enum: ['unclear', 'deciding', 'starting', 'replaying', 'what-if', 'other'] }, help: str, ready: { type: 'boolean' } })
+      const o = await ask<{ reply: string; propose: boolean; risk: boolean; notes: Notes }>(
+        client,
+        model,
+        CHAT,
+        content + last,
+        S({ notes: NOTES, reply: str, propose: { type: 'boolean' }, risk: { type: 'boolean' } }),
+        (o) => (o.risk ? [] : problems(o.reply, { maxWords: 170, maxQ: o.propose ? 0 : 1, noCommon: used })),
       )
       return o?.risk ? safety() : o // the AI heard risk without the words → answer with the safety script too
     }
@@ -105,10 +126,12 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       const msgs = b.msgs as Msg[]
       const said = msgs.filter((m) => m.role === 'you').map((m) => m.text).join(' ')
       if (isCrisis(said)) return { you: [], risk: true } // never turn a risk disclosure into a card
-      const o = await ask<{ you: string[] }>(client, model, CARDS, `Chat:\n\n${transcript(msgs)}`, S({ you: { type: 'array', items: str } }), () => [])
+      const n = b.notes as Notes | undefined
+      const notes = n ? `\n\nThe AI's private notes — core: ${n.core}; stuck: ${n.stuck}; what would help: ${n.help}` : ''
+      const o = await ask<{ you: { text: string; kind: Kind }[] }>(client, model, CARDS, `Chat:\n\n${transcript(msgs)}${notes}`, S({ you: { type: 'array', items: S({ text: str, kind: { type: 'string', enum: KINDS } }) } }), () => [])
       if (!o) return null
       // drop, don't rewrite: a card that isn't their words just doesn't appear
-      const you = o.you.filter((t) => ownWords(t, said) && !isCrisis(t)).slice(0, 10)
+      const you = o.you.filter((c) => ownWords(c.text, said) && !isCrisis(c.text)).slice(0, 10)
       return you.length >= 3 ? { you } : null
     }
     case 'label': {
@@ -156,14 +179,15 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       if (risky(cards)) return { risk: true }
       const lines = edges.map((e) => `[${e.from}] → [${e.to}]${e.label ? ` "${e.label}"` : ''}`).join('\n')
       const hasStep = cards.some((c) => c.step)
-      return ask<{ restate: string; step: string }>(
+      const n = b.notes as Notes | undefined
+      return ask<{ restate: string; stuck: string; step: string }>(
         client,
         model,
         SUMMARY,
-        `Cards:\n${list(cards)}\n\nArrows:\n${lines || '(none)'}\n\nLoops found by the program: ${b.loops ?? 0}`,
-        S({ restate: str, step: str }),
+        `Cards:\n${list(cards)}\n\nArrows:\n${lines || '(none)'}\n\nLoops found by the program: ${b.loops ?? 0}${n ? `\n\nThe AI's private notes from the chat — core: ${n.core}; stuck: ${n.stuck}` : ''}`,
+        S({ restate: str, stuck: str, step: str }),
         (o) => [
-          ...problems(`${o.restate} ${o.step}`, { maxWords: 140, maxQ: 0, noCommon: true }),
+          ...problems(`${o.restate} ${o.stuck} ${o.step}`, { maxWords: 170, maxQ: 0, noCommon: true }),
           ...(!hasStep && o.step.split('·').length < 3 ? ['step must be "When · Where · What"'] : []),
         ],
       )

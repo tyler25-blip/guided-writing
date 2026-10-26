@@ -8,11 +8,13 @@ import './map.css'
 
 type Src = 'you' | 'ai'
 type Step = { when: string; where: string } // a card the person wrote to break a loop: what (= text), when, where
-type Card = { id: string; text: string; src: Src; x: number; y: number; stack: string[]; step?: Step } // stack = texts merged into this card
+type Card = { id: string; text: string; src: Src; x: number; y: number; stack: string[]; step?: Step; kind?: string } // stack = texts merged in; kind = event/feeling/thought/worry/action, AI-only for now
 type Edge = { id: string; from: string; to: string; label: string }
-type Msg = { role: Src; text: string; propose?: boolean; declined?: boolean } // propose: the AI offers to spread it out
+// notes: the AI's private understanding after this reply (what material is there, the core, how they're stuck). Never shown in the chat.
+export type Notes = { have: Record<string, boolean>; core: string; stuck: string; help: string; ready: boolean }
+type Msg = { role: Src; text: string; propose?: boolean; declined?: boolean; notes?: Notes } // propose: the AI offers to spread it out
 type Phase = 'chat' | 'layout' | 'map'
-type Sum = { restate: string; step: string } // step: a when/where suggestion, only when the person made no step card
+type Sum = { restate: string; stuck?: string; step: string } // stuck: the one place the AI's read of the core shows; step: only when no step card
 // risk: something they wrote sounded like hopelessness or self-harm → no map, no loop notes, no summary; support numbers instead
 export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; sum?: Sum; risk?: boolean }
 
@@ -38,6 +40,7 @@ const ai = async <T,>(path: string, body: unknown): Promise<T | null> => {
   }
 }
 const plain = (cards: Card[]) => cards.map(({ id, text, src }) => ({ id, text, src }))
+export const lastNotes = (msgs: Msg[]) => msgs.findLast((m) => m.notes)?.notes
 
 // --- stubs: used when the AI is unavailable ---------------------------------------------------
 const stubReply = (n: number): Msg =>
@@ -108,13 +111,13 @@ function Chat({ s, set, risky, onRisk, say }: { s: State; set: (f: (s: State) =>
     const msgs: Msg[] = [...s.msgs, { role: 'you', text }]
     set((p) => ({ ...p, msgs }))
     setTyping(true)
-    const r = await ai<{ reply: string; propose: boolean; risk: boolean }>('reply', { msgs, risk })
+    const r = await ai<{ reply: string; propose: boolean; risk: boolean; notes?: Notes }>('reply', { msgs: msgs.map(({ role, text, declined }) => ({ role, text, declined })), risk })
     setTyping(false)
     if (r?.risk && !s.risk) {
       set((p) => ({ ...p, risk: true })) // the AI heard it even without the words
       onRisk()
     }
-    const reply: Msg = r ? { role: 'ai', text: r.reply, propose: r.propose && !r.risk } : risk ? { role: 'ai', text: SAFE } : stubReply(msgs.filter((m) => m.role === 'you').length)
+    const reply: Msg = r ? { role: 'ai', text: r.reply, propose: r.propose && !r.risk, notes: r.notes } : risk ? { role: 'ai', text: SAFE } : stubReply(msgs.filter((m) => m.role === 'you').length)
     set((p) => ({ ...p, msgs: [...p.msgs, reply] }))
   }
   const decline = () => set((p) => ({ ...p, msgs: p.msgs.map((m, i) => (i === p.msgs.length - 1 ? { ...m, declined: true } : m)) }))
@@ -158,6 +161,11 @@ function Chat({ s, set, risky, onRisk, say }: { s: State; set: (f: (s: State) =>
           Send
         </button>
       </div>
+      {!s.risk && s.msgs.some((m) => m.role === 'you') && !propose && (
+        <button className="tm-early" onClick={() => set((p) => ({ ...p, phase: 'layout' }))}>
+          Spread it out now
+        </button>
+      )}
     </main>
   )
 }
@@ -168,12 +176,12 @@ function Layout({ s, set }: { s: State; set: (f: (s: State) => State) => void })
   useEffect(() => {
     if (asked.current) return
     asked.current = true
-    ai<{ you: string[]; risk?: boolean }>('cards', { msgs: s.msgs }).then((r) =>
+    ai<{ you: { text: string; kind: string }[]; risk?: boolean }>('cards', { msgs: s.msgs.map(({ role, text }) => ({ role, text })), notes: lastNotes(s.msgs) }).then((r) =>
       set((p) => {
         if (r?.risk) return { ...p, phase: 'chat', risk: true }
-        const texts = r?.you ?? stubCards(p.msgs)
-        const cols = texts.length > 6 ? 4 : 3
-        const cards = texts.map((text, i) => ({ id: uid(), text, src: 'you' as Src, x: 60 + (i % cols) * 300 + (Math.floor(i / cols) % 2) * 60, y: 50 + Math.floor(i / cols) * 230, stack: [] }))
+        const got = r?.you ?? stubCards(p.msgs).map((text) => ({ text, kind: '' }))
+        const cols = got.length > 6 ? 4 : 3
+        const cards = got.map(({ text, kind }, i) => ({ id: uid(), text, kind: kind || undefined, src: 'you' as Src, x: 60 + (i % cols) * 300 + (Math.floor(i / cols) % 2) * 60, y: 50 + Math.floor(i / cols) * 230, stack: [] }))
         return { ...p, phase: 'map', cards: [...p.cards, ...cards] }
       }),
     )
@@ -565,8 +573,8 @@ function Summary({ s, set, close }: { s: State; set: (f: (s: State) => State) =>
     if (s.sum || asked.current) return
     asked.current = true
     if (s.risk) return set((p) => ({ ...p, sum: { restate: SAFE, step: '' } }))
-    ai<{ restate: string; step: string; risk?: boolean }>('summary', { cards: s.cards.map(({ id, text, src, step }) => ({ id, text, src, step })), edges: s.edges, loops: ls.length }).then((r) =>
-      set((p) => ({ ...p, ...(r?.risk ? { risk: true } : {}), sum: r?.risk ? { restate: SAFE, step: '' } : r ? { restate: r.restate, step: r.step } : stubSum(p) })),
+    ai<{ restate: string; stuck: string; step: string; risk?: boolean }>('summary', { cards: s.cards.map(({ id, text, src, step }) => ({ id, text, src, step })), edges: s.edges, loops: ls.length, notes: lastNotes(s.msgs) }).then((r) =>
+      set((p) => ({ ...p, ...(r?.risk ? { risk: true } : {}), sum: r?.risk ? { restate: SAFE, step: '' } : r ? { restate: r.restate, stuck: r.stuck, step: r.step } : stubSum(p) })),
     )
   })
   return (
@@ -576,6 +584,12 @@ function Summary({ s, set, close }: { s: State; set: (f: (s: State) => State) =>
         <span className="tm-tag">Tonight’s map</span>
         {!s.sum && <p className="tm-muted">Reading your map…</p>}
         {s.sum && <p>{s.sum.restate}</p>}
+        {s.sum?.stuck && !s.risk && (
+          <>
+            <span className="tm-tag">What seems most stuck</span>
+            <p>{s.sum.stuck}</p>
+          </>
+        )}
         {s.sum && !s.risk && steps.length > 0 && (
           <>
             <span className="tm-tag">Your next step</span>
