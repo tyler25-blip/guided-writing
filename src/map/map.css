@@ -58,7 +58,8 @@
 .tm-stacklist { position: absolute; left: 0; top: calc(100% + 10px); width: 100%; background: var(--paper); border: 1px solid var(--ink); border-radius: 8px; padding: 6px 8px; z-index: 4; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
 .tm-stacklist div { display: flex; justify-content: space-between; gap: 6px; align-items: center; }
 .tm .tm-stacklist button { font-size: 11px; padding: 1px 8px; }
-.tm-handle { position: absolute; right: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--paper); border: 1.5px solid var(--ink); cursor: crosshair; opacity: 0; }
+.tm-handle { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--paper); border: 1.5px solid var(--ink); cursor: crosshair; opacity: 0; }
+.tm-handle.t { left: 50%; top: 0; } .tm-handle.r { left: 100%; top: 50%; } .tm-handle.b { left: 50%; top: 100%; } .tm-handle.l { left: 0; top: 50%; }
 .tm-card:hover .tm-handle, .tm-card.sel .tm-handle { opacity: 1; }
 .tm .tm-label { position: absolute; transform: translate(-50%, -50%); font-size: 12px; padding: 2px 10px; border-color: var(--line); color: var(--mid); white-space: nowrap; z-index: 2; }
 .tm .tm-label.blank { border-style: dashed; color: var(--soft); }

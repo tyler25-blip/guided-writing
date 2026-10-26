@@ -401,22 +401,24 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
               ))}
             </div>
           )}
-          {!ro && (
-            <span
-              className="tm-handle"
-              title="Drag to another card to connect"
-              onPointerDown={(e) => {
-                e.stopPropagation()
-                const p = pt(e)
-                setDrag({ kind: 'link', from: c.id, x: p.x, y: p.y })
-              }}
-            />
-          )}
+          {!ro &&
+            (['t', 'r', 'b', 'l'] as const).map((side) => (
+              <span
+                key={side}
+                className={`tm-handle ${side}`}
+                title="Drag to another card to connect"
+                onPointerDown={(e) => {
+                  e.stopPropagation()
+                  const p = pt(e)
+                  setDrag({ kind: 'link', from: c.id, x: p.x, y: p.y })
+                }}
+              />
+            ))}
         </div>
       ))}
 
       {!s.cards.length && <p className="tm-empty board">Double-click anywhere to add a card.</p>}
-      {!ro && s.cards.length > 0 && <p className="tm-help">Drag a card to move it · drag the dot on its right edge to another card to connect · drop a card onto another to stack · double-click to edit · Delete removes</p>}
+      {!ro && s.cards.length > 0 && <p className="tm-help">Drag a card to move it · drag a dot on any edge to another card to connect · drop a card onto another to stack · double-click to edit · Delete removes</p>}
     </main>
   )
 }
