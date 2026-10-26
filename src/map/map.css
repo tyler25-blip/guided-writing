@@ -81,3 +81,14 @@
 .tm-summary button { align-self: flex-start; }
 
 .tm-referral { position: fixed; left: 50%; top: 80px; transform: translateX(-50%); width: min(520px, 92vw); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; padding: 18px 22px; z-index: 10; }
+
+/* dev panel (dev builds only) */
+.tm .tm-dev-icon { position: fixed; left: 14px; bottom: 14px; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; z-index: 20; }
+.tm-dev { position: fixed; left: 14px; bottom: 14px; width: 270px; z-index: 20; background: var(--paper); border: 1px solid var(--ink); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); }
+.tm-dev-head { display: flex; justify-content: space-between; align-items: center; }
+.tm .tm-dev-head button { padding: 0 10px; }
+.tm-dev-row { display: flex; flex-direction: column; gap: 4px; }
+.tm-dev select { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
+.tm-dev-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.tm .tm-dev-btns button { font-size: 12px; padding: 3px 10px; }
+.tm-dev-note { margin: 0; font: 11px 'IBM Plex Mono', monospace; color: var(--mid); }

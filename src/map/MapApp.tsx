@@ -2,6 +2,7 @@
 // Steps 1–3 of the MVP plan: all UI and canvas behaviour. AI calls are stubbed (marked "stub") and get wired in step 4.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isCrisis } from '../triggers.ts'
+import { DevPanel } from './dev.tsx'
 import { loops } from './graph.ts'
 import './map.css'
 
@@ -11,7 +12,7 @@ type Edge = { id: string; from: string; to: string; label: string }
 type Msg = { role: Src; text: string }
 type Cand = { id: string; text: string; src: Src; on: boolean }
 type Phase = 'chat' | 'pick' | 'map'
-type State = { phase: Phase; msgs: Msg[]; cands: Cand[]; cards: Card[]; edges: Edge[]; ended: boolean }
+export type State = { phase: Phase; msgs: Msg[]; cands: Cand[]; cards: Card[]; edges: Edge[]; ended: boolean }
 
 const KEY = 'thought-map-v1'
 const W = 180 // card width, px
@@ -68,6 +69,7 @@ export default function MapApp() {
       {summary && <Summary s={s} close={() => setSummary(false)} />}
       {crisis && <Referral close={() => setCrisis(false)} />}
       {toast && <div className="tm-toast">{toast}</div>}
+      {import.meta.env.DEV && <DevPanel s={s} setS={setS} openSummary={setSummary} crisis={() => setCrisis(true)} />}
     </div>
   )
 }
