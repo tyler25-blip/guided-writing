@@ -1,0 +1,83 @@
+/* Thought map MVP — greyscale only. Solid border = your words, dashed = AI. */
+.tm { --ink: #1e1e1e; --mid: #6e6e6c; --soft: #b9b9b6; --line: #dadad7; --fill: #ececea; --paper: #fff; --bg: #f4f4f3;
+  position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--ink); font: 15px/1.5 Inter, system-ui, sans-serif; }
+.tm button { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; }
+.tm button.solid { background: var(--ink); color: var(--paper); }
+.tm button:disabled { opacity: 0.35; cursor: default; }
+.tm button:focus-visible, .tm textarea:focus-visible, .tm input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.tm-bar { flex: none; display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--paper); }
+.tm-title { font: 500 12px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mid); }
+.tm-actions { display: flex; gap: 8px; }
+.tm-tag { font: 500 11px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.07em; color: var(--mid); }
+.tm-empty { color: var(--mid); text-align: center; margin-top: 18vh; }
+.tm-hint { color: var(--mid); font-size: 13px; margin: 0; }
+.tm-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 999px; font-size: 13px; }
+
+/* 1 · chat */
+.tm-chat { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; padding: 0 20px 20px; }
+.tm-msgs { flex: 1; overflow-y: auto; width: min(640px, 100%); display: flex; flex-direction: column; gap: 10px; padding: 24px 0; }
+.tm-msg { margin: 0; padding: 8px 12px; border-radius: 12px; max-width: 80%; white-space: pre-wrap; }
+.tm-msg.you { align-self: flex-end; background: var(--fill); }
+.tm-msg.ai { align-self: flex-start; border: 1px solid var(--line); background: var(--paper); }
+.tm-propose { align-self: center; display: flex; gap: 10px; align-items: center; border: 1px dashed var(--mid); border-radius: 12px; padding: 10px 14px; background: var(--paper); margin-top: 6px; }
+.tm-input { width: min(640px, 100%); display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 14px; padding: 8px 8px 8px 14px; background: var(--paper); }
+.tm-input textarea { flex: 1; border: 0; resize: none; font: inherit; background: transparent; outline: none; }
+.tm .tm-input textarea:focus-visible { outline: none; }
+.tm-input:focus-within { border-color: var(--ink); }
+.tm .tm-mic { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; }
+
+/* 2 · pick */
+.tm-pick { flex: 1; min-height: 0; overflow-y: auto; width: min(860px, 100%); margin: 0 auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; }
+.tm-pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.tm-pcol { display: flex; flex-direction: column; gap: 8px; }
+.tm-pc { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); cursor: pointer; user-select: none; }
+.tm-pc.ai { border-style: dashed; border-color: var(--soft); }
+.tm-pc.on { border-color: var(--ink); }
+.tm-pc input { font: inherit; flex: 1; border: 0; border-bottom: 1px solid var(--ink); outline: none; }
+.tm-box { width: 14px; height: 14px; border: 1px solid var(--mid); border-radius: 3px; flex: none; margin-top: 3px; }
+.tm-pc.on .tm-box { background: var(--ink); border-color: var(--ink); }
+.tm .tm-add { align-self: flex-start; border-style: dashed; color: var(--mid); }
+.tm-pfoot { display: flex; justify-content: space-between; align-items: center; color: var(--mid); border-top: 1px solid var(--line); padding-top: 14px; }
+
+/* 3 · map */
+.tm-board { flex: 1; position: relative; overflow: auto; background-color: var(--bg); background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 20px 20px; user-select: none; }
+.tm-edges { position: absolute; left: 0; top: 0; width: 4000px; height: 3000px; pointer-events: none; color: var(--ink); }
+.tm-edges line { stroke: var(--ink); stroke-width: 1.4; }
+.tm-edges line.loop { stroke-width: 3; }
+.tm-edges line.temp { stroke: var(--mid); stroke-dasharray: 4 4; }
+.tm-card { position: absolute; box-sizing: border-box; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 8px; padding: 8px 10px 6px; cursor: grab; touch-action: none; }
+.tm-card.ai { border-style: dashed; }
+.tm-card.sel { box-shadow: 0 0 0 3px var(--soft); }
+.tm-card.dragging { cursor: grabbing; opacity: 0.85; z-index: 3; }
+.tm-card.stacked { box-shadow: 4px 4px 0 -1.5px var(--paper), 4px 4px 0 0 var(--ink), 8px 8px 0 -1.5px var(--paper), 8px 8px 0 0 var(--ink); }
+.tm-card.stacked.sel { box-shadow: 0 0 0 3px var(--soft), 4px 4px 0 -1.5px var(--paper), 4px 4px 0 0 var(--ink); }
+.tm-card textarea { width: 100%; box-sizing: border-box; font: inherit; border: 0; resize: none; outline: none; }
+.tm-text { display: block; }
+.tm-src { display: block; font: 10px 'IBM Plex Mono', monospace; color: var(--mid); margin-top: 2px; }
+.tm .tm-badge { position: absolute; top: -10px; right: -10px; padding: 0 7px; font: 600 11px/20px 'IBM Plex Mono', monospace; background: var(--ink); color: var(--paper); }
+.tm-stacklist { position: absolute; left: 0; top: calc(100% + 10px); width: 100%; background: var(--paper); border: 1px solid var(--ink); border-radius: 8px; padding: 6px 8px; z-index: 4; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
+.tm-stacklist div { display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+.tm .tm-stacklist button { font-size: 11px; padding: 1px 8px; }
+.tm-handle { position: absolute; right: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--paper); border: 1.5px solid var(--ink); cursor: crosshair; opacity: 0; }
+.tm-card:hover .tm-handle, .tm-card.sel .tm-handle { opacity: 1; }
+.tm .tm-label { position: absolute; transform: translate(-50%, -50%); font-size: 12px; padding: 2px 10px; border-color: var(--line); color: var(--mid); white-space: nowrap; z-index: 2; }
+.tm .tm-label.blank { border-style: dashed; color: var(--soft); }
+.tm-label.edit { display: flex; gap: 4px; background: var(--paper); border: 1px solid var(--ink); border-radius: 999px; padding: 2px 4px 2px 10px; }
+.tm-label.edit input { font: inherit; border: 0; outline: none; width: 160px; }
+.tm .tm-label.edit button { padding: 0 7px; border: 0; }
+.tm .tm-loop { position: absolute; transform: translate(-50%, -50%); background: var(--ink); color: var(--paper); font-size: 11px; padding: 2px 10px; z-index: 2; }
+.tm-pop { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); width: min(440px, 90vw); box-sizing: border-box; background: var(--paper); border: 1px solid var(--ink); border-radius: 10px; padding: 12px 14px; z-index: 5; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); font-size: 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.tm-pop p { margin: 0; }
+.tm-help { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--mid); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; white-space: nowrap; }
+.tm-empty.board { position: absolute; left: 0; right: 0; }
+.tm-board.ro .tm-card { cursor: default; }
+
+/* 4 · summary */
+.tm-dim { position: fixed; inset: 49px 0 0 0; background: rgba(120, 120, 120, 0.3); }
+.tm-summary { position: fixed; top: 49px; right: 0; bottom: 0; width: min(400px, 100%); box-sizing: border-box; background: var(--paper); border-left: 1px solid var(--ink); padding: 28px 24px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.tm-summary p { margin: 0 0 8px; }
+.tm-step { border: 1.5px solid var(--ink); border-radius: 8px; padding: 8px 10px; }
+.tm-muted { color: var(--mid); margin-top: auto !important; }
+.tm-summary button { align-self: flex-start; }
+
+.tm-referral { position: fixed; left: 50%; top: 80px; transform: translateX(-50%); width: min(520px, 92vw); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; padding: 18px 22px; z-index: 10; }
