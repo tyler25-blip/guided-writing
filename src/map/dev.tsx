@@ -71,6 +71,7 @@ export function DevPanel({ s, setS, openSummary, crisis }: { s: State; setS: (s:
 
       <span className="tm-tag">This screen</span>
       <div className="tm-dev-btns">
+        {s.phase === 'chat' && s.msgs.length > 0 && <button onClick={() => here((p) => ({ ...p, phase: 'pick', cands: [] }))}>Spread it out now</button>}
         {s.phase === 'pick' && (
           <>
             <button onClick={() => here((p) => ({ ...p, cands: p.cands.map((c) => ({ ...c, on: true })) }))}>Select all</button>

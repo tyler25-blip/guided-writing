@@ -198,9 +198,15 @@ function Pick({ s, set }: { s: State; set: (f: (s: State) => State) => void }) {
       )}
     </div>
   )
+  if (!s.cands.length)
+    return (
+      <main className="tm-pick">
+        <p className="tm-empty tm-wait">Laying your words out as cards…</p>
+      </main>
+    )
   return (
     <main className="tm-pick">
-      <p className="tm-hint">{!s.cands.length ? 'Laying your words out as cards…' : `${chosen.length ? '' : 'Nothing is selected yet. '}Click to choose, double-click to edit. Cards you don’t choose are discarded.`}</p>
+      <p className="tm-hint">{chosen.length ? '' : 'Nothing is selected yet. '}Click to choose, double-click to edit. Cards you don’t choose are discarded.</p>
       <div className="tm-pgrid">
         {col('you', 'What you said')}
         {col('ai', 'AI’s suggestions')}

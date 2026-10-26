@@ -10,6 +10,8 @@
 .tm-actions { display: flex; gap: 8px; }
 .tm-tag { font: 500 11px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.07em; color: var(--mid); }
 .tm-empty { color: var(--mid); text-align: center; margin-top: 18vh; }
+.tm-wait { animation: tm-pulse 1.4s ease-in-out infinite; }
+@keyframes tm-pulse { 50% { opacity: 0.35; } }
 .tm-hint { color: var(--mid); font-size: 13px; margin: 0; }
 .tm-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 999px; font-size: 13px; }
 
