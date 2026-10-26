@@ -3,6 +3,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createServer } from 'node:http'
 import { allOk, checkComment, type Checks, type Judgement } from '../src/checks.ts'
+import { mapRoute } from './map.ts'
 
 const PORT = Number(process.env.JUDGE_PORT ?? 8787)
 const MODEL = 'claude-sonnet-5-5' // cheaper than Opus; enough for a short judgement
@@ -105,6 +106,20 @@ async function judge(r: Req) {
 createServer(async (req, res) => {
   const json = (code: number, body: unknown) => res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify(body))
   if (req.url === '/api/health') return json(200, { key: hasKey, model: MODEL })
+  if (req.url?.startsWith('/api/map/') && req.method === 'POST') {
+    if (!client) return json(503, { error: 'no ANTHROPIC_API_KEY on the server' })
+    let body = ''
+    for await (const chunk of req) body += chunk
+    if (body.length > 200_000) return json(413, { error: 'too large' })
+    try {
+      const out = await mapRoute(client, MODEL, req.url.slice('/api/map/'.length), JSON.parse(body))
+      return out ? json(200, out) : json(422, { error: 'no answer passed the checks' }) // page falls back to its stub
+    } catch (e) {
+      const msg = e instanceof Anthropic.APIError ? `API ${e.status}: ${e.message}` : String(e)
+      console.error('[map]', msg)
+      return json(502, { error: msg })
+    }
+  }
   if (req.url !== '/api/judge' || req.method !== 'POST') return json(404, { error: 'not found' })
   if (!client) return json(503, { error: 'no ANTHROPIC_API_KEY on the server' })
   let body = ''

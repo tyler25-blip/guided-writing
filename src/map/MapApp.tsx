@@ -1,5 +1,5 @@
 // Thought map MVP (/map): chat → pick cards → connect them yourself → summary. Greyscale on purpose.
-// Steps 1–3 of the MVP plan: all UI and canvas behaviour. AI calls are stubbed (marked "stub") and get wired in step 4.
+// Step 4: the AI calls go through server/map.ts (checked there). If the server has no key or no answer passes, the stubs below stand in.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isCrisis } from '../triggers.ts'
 import { DevPanel } from './dev.tsx'
@@ -9,10 +9,11 @@ import './map.css'
 type Src = 'you' | 'ai'
 type Card = { id: string; text: string; src: Src; x: number; y: number; stack: string[] } // stack = texts merged into this card
 type Edge = { id: string; from: string; to: string; label: string }
-type Msg = { role: Src; text: string }
+type Msg = { role: Src; text: string; propose?: boolean; declined?: boolean } // propose: the AI offers to spread it out
 type Cand = { id: string; text: string; src: Src; on: boolean }
 type Phase = 'chat' | 'pick' | 'map'
-export type State = { phase: Phase; msgs: Msg[]; cands: Cand[]; cards: Card[]; edges: Edge[]; ended: boolean }
+type Sum = { restate: string; common: string; step: string } // step = id of a card on the map, or ''
+export type State = { phase: Phase; msgs: Msg[]; cands: Cand[]; cards: Card[]; edges: Edge[]; ended: boolean; sum?: Sum }
 
 const KEY = 'thought-map-v1'
 const W = 180 // card width, px
@@ -26,14 +27,23 @@ const load = (): State => {
   }
 }
 
-// --- stubs, replaced by the AI in step 4 -------------------------------------------------------
-const stubReply = (n: number) =>
-  n < 2 ? 'That sounds like a lot at once. Which part is taking up the most room right now?' : 'It makes sense that it feels heavy when deadlines pile up like this.'
+const ai = async <T,>(path: string, body: unknown): Promise<T | null> => {
+  try {
+    const r = await fetch(`/api/map/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    return r.ok ? ((await r.json()) as T) : null
+  } catch {
+    return null
+  }
+}
+const plain = (cards: Card[]) => cards.map(({ id, text, src }) => ({ id, text, src }))
+
+// --- stubs: used when the AI is unavailable ---------------------------------------------------
+const stubReply = (n: number): Msg =>
+  n < 3 ? { role: 'ai', text: 'That sounds like a lot at once. Which part is taking up the most room right now?' } : { role: 'ai', text: 'There are quite a few threads here now.', propose: true }
 const stubCands = (msgs: Msg[]): Cand[] => [
   ...msgs.filter((m) => m.role === 'you').flatMap((m) => m.text.split(/(?<=[.!?。！？])\s*/).filter((s) => s.trim()).map((text) => ({ id: uid(), text: text.trim(), src: 'you' as Src, on: false }))),
   { id: uid(), text: 'Send a one-line status update', src: 'ai', on: false },
 ]
-const stubLabel = () => ''
 const stubLoopNote = 'Loops like this are very common: one worry feeds the next. Which line in this loop could you most easily cut?'
 
 export default function MapApp() {
@@ -55,7 +65,7 @@ export default function MapApp() {
         <span className="tm-actions">
           {s.phase === 'pick' && <button onClick={() => set((p) => ({ ...p, phase: 'chat' }))}>Back to chat</button>}
           {s.phase === 'map' && !s.ended && (
-            <button className="solid" onClick={() => (set((p) => ({ ...p, ended: true })), setSummary(true))}>
+            <button className="solid" onClick={() => (set((p) => ({ ...p, ended: true, sum: undefined })), setSummary(true))}>
               That’s enough for now
             </button>
           )}
@@ -66,7 +76,7 @@ export default function MapApp() {
       {s.phase === 'chat' && <Chat s={s} set={set} onCrisis={() => setCrisis(true)} say={say} />}
       {s.phase === 'pick' && <Pick s={s} set={set} />}
       {s.phase === 'map' && <MapCanvas s={s} set={set} />}
-      {summary && <Summary s={s} close={() => setSummary(false)} />}
+      {summary && <Summary s={s} set={set} close={() => setSummary(false)} />}
       {crisis && <Referral close={() => setCrisis(false)} />}
       {toast && <div className="tm-toast">{toast}</div>}
       {import.meta.env.DEV && <DevPanel s={s} setS={setS} openSummary={setSummary} crisis={() => setCrisis(true)} />}
@@ -77,21 +87,28 @@ export default function MapApp() {
 // --- 1 · chat ----------------------------------------------------------------------------------
 function Chat({ s, set, onCrisis, say }: { s: State; set: (f: (s: State) => State) => void; onCrisis: () => void; say: (t: string) => void }) {
   const [draft, setDraft] = useState('')
-  const [declined, setDeclined] = useState(0)
+  const [typing, setTyping] = useState(false)
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' })
-  }, [s.msgs.length])
-  const mine = s.msgs.filter((m) => m.role === 'you').length
-  const propose = mine >= 2 + declined * 2 && declined < 2 && s.msgs.at(-1)?.role === 'ai' // offer to spread it out; at most twice
-  const send = () => {
+  }, [s.msgs.length, typing])
+  const last = s.msgs.at(-1)
+  const declines = s.msgs.filter((m) => m.declined).length
+  const propose = !typing && last?.role === 'ai' && last.propose && !last.declined && declines < 2 // the AI offers; at most twice declined
+  const send = async () => {
     const text = draft.trim()
-    if (!text) return
+    if (!text || typing) return
     setDraft('')
     if (isCrisis(text)) onCrisis()
-    set((p) => ({ ...p, msgs: [...p.msgs, { role: 'you', text }] }))
-    setTimeout(() => set((p) => ({ ...p, msgs: [...p.msgs, { role: 'ai', text: stubReply(mine + 1) }] })), 600) // stub
+    const msgs: Msg[] = [...s.msgs, { role: 'you', text }]
+    set((p) => ({ ...p, msgs }))
+    setTyping(true)
+    const r = await ai<{ reply: string; propose: boolean }>('reply', { msgs })
+    setTyping(false)
+    const reply: Msg = r ? { role: 'ai', text: r.reply, propose: r.propose } : stubReply(msgs.filter((m) => m.role === 'you').length)
+    set((p) => ({ ...p, msgs: [...p.msgs, reply] }))
   }
+  const decline = () => set((p) => ({ ...p, msgs: p.msgs.map((m, i) => (i === p.msgs.length - 1 ? { ...m, declined: true } : m)) }))
   return (
     <main className="tm-chat">
       <div className="tm-msgs">
@@ -101,13 +118,14 @@ function Chat({ s, set, onCrisis, say }: { s: State; set: (f: (s: State) => Stat
             {m.text}
           </p>
         ))}
+        {typing && <p className="tm-msg ai tm-typing">…</p>}
         {propose && (
           <div className="tm-propose">
             Want to spread it out and look at it?
-            <button className="solid" onClick={() => set((p) => ({ ...p, phase: 'pick', cands: stubCands(p.msgs) }))}>
+            <button className="solid" onClick={() => set((p) => ({ ...p, phase: 'pick', cands: [] }))}>
               Spread it out
             </button>
-            <button onClick={() => setDeclined((d) => d + 1)}>Talk a bit more</button>
+            <button onClick={decline}>Talk a bit more</button>
           </div>
         )}
         <div ref={end} />
@@ -140,11 +158,22 @@ function Pick({ s, set }: { s: State; set: (f: (s: State) => State) => void }) {
   const [editing, setEditing] = useState<string | null>(null)
   const upd = (id: string, f: (c: Cand) => Cand) => set((p) => ({ ...p, cands: p.cands.map((c) => (c.id === id ? f(c) : c)) }))
   const chosen = s.cands.filter((c) => c.on)
+  const asked = useRef(false)
+  useEffect(() => {
+    if (s.cands.length || asked.current) return
+    asked.current = true
+    ai<{ you: string[]; ai: string[] }>('cards', { msgs: s.msgs }).then((r) =>
+      set((p) => ({
+        ...p,
+        cands: r ? [...r.you.map((text) => ({ id: uid(), text, src: 'you' as Src, on: false })), ...r.ai.map((text) => ({ id: uid(), text, src: 'ai' as Src, on: false }))] : stubCands(p.msgs),
+      })),
+    )
+  })
   const place = () =>
     set((p) => ({
       ...p,
       phase: 'map',
-      cards: [...p.cards, ...chosen.map((c, i) => ({ id: c.id, text: c.text, src: c.src, x: 60 + (i % 4) * 240, y: 60 + Math.floor(i / 4) * 150, stack: [] }))],
+      cards: [...p.cards, ...chosen.map((c, i) => ({ id: c.id, text: c.text, src: c.src, x: 60 + (i % 4) * 300, y: 60 + Math.floor(i / 4) * 230, stack: [] }))],
       cands: [],
     }))
   const col = (src: Src, title: string) => (
@@ -171,7 +200,7 @@ function Pick({ s, set }: { s: State; set: (f: (s: State) => State) => void }) {
   )
   return (
     <main className="tm-pick">
-      <p className="tm-hint">{chosen.length ? '' : 'Nothing is selected yet. '}Click to choose, double-click to edit. Cards you don’t choose are discarded.</p>
+      <p className="tm-hint">{!s.cands.length ? 'Laying your words out as cards…' : `${chosen.length ? '' : 'Nothing is selected yet. '}Click to choose, double-click to edit. Cards you don’t choose are discarded.`}</p>
       <div className="tm-pgrid">
         {col('you', 'What you said')}
         {col('ai', 'AI’s suggestions')}
@@ -199,7 +228,19 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
   const [editEdge, setEditEdge] = useState<string | null>(null)
   const [openStack, setOpenStack] = useState<string | null>(null)
   const [openLoop, setOpenLoop] = useState<number | null>(null)
+  const [notes, setNotes] = useState<Record<string, string>>({}) // loop note per loop (edge ids joined)
+  const [labelling, setLabelling] = useState<string[]>([]) // edges waiting for an AI label
+  const [pairs, setPairs] = useState<{ a: string; b: string }[]>([]) // AI: these two say the same thing
   const ro = s.ended // read-only after the summary
+
+  // once per visit: ask which cards repeat each other; the person stacks them by hand (or not)
+  const askedStack = useRef(false)
+  useEffect(() => {
+    if (ro || askedStack.current || s.cards.length < 2) return
+    askedStack.current = true
+    ai<{ pairs: { a: string; b: string }[] }>('stack', { cards: plain(s.cards) }).then((r) => r && setPairs(r.pairs))
+  })
+  const pair = pairs.find((x) => s.cards.some((c) => c.id === x.a) && s.cards.some((c) => c.id === x.b))
 
   // card heights for edge geometry
   useLayoutEffect(() => {
@@ -237,8 +278,15 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
     }
     const up = (e: PointerEvent) => {
       const target = cardAt(e.clientX, e.clientY, drag.kind === 'move' ? drag.id : drag.from)
-      if (drag.kind === 'link' && target && !s.edges.some((x) => x.from === drag.from && x.to === target))
-        set((st) => ({ ...st, edges: [...st.edges, { id: uid(), from: drag.from, to: target, label: stubLabel() }] })) // stub: AI labels in step 4
+      if (drag.kind === 'link' && target && !s.edges.some((x) => x.from === drag.from && x.to === target)) {
+        const id = uid()
+        set((st) => ({ ...st, edges: [...st.edges, { id, from: drag.from, to: target, label: '' }] }))
+        setLabelling((l) => [...l, id])
+        ai<{ label: string }>('label', { cards: plain(s.cards), from: drag.from, to: target }).then((r) => {
+          setLabelling((l) => l.filter((x) => x !== id))
+          if (r?.label) set((st) => ({ ...st, edges: st.edges.map((x) => (x.id === id && !x.label ? { ...x, label: r.label } : x)) })) // never over a label they typed
+        })
+      }
       if (drag.kind === 'move' && target) stack(drag.id, target) // dropped onto another card → stack
       setDrag(null)
     }
@@ -281,10 +329,27 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
 
   const groups = loops(s.edges)
   const inLoop = new Set(groups.flat())
-  const mid = (x: Edge) => {
-    const a = center(card(x.from))
-    const b = center(card(x.to))
-    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+  // A line, or an arc when the opposite line exists too, so A→B and B→A don't sit on top of each other.
+  // The bend is to the left of the travel direction, so the two arcs fall on opposite sides.
+  const geom = (x: Edge) => {
+    const a = card(x.from)
+    const b = card(x.to)
+    const ca = center(a)
+    const cb = center(b)
+    const bend = s.edges.some((y) => y.from === x.to && y.to === x.from) ? 45 : 0
+    const len = Math.hypot(cb.x - ca.x, cb.y - ca.y) || 1
+    const c = { x: (ca.x + cb.x) / 2 + ((cb.y - ca.y) / len) * bend, y: (ca.y + cb.y) / 2 - ((cb.x - ca.x) / len) * bend }
+    const p = exit(a, c)
+    const q = exit(b, c)
+    return { d: `M${p.x},${p.y} Q${c.x},${c.y} ${q.x},${q.y}`, m: { x: (p.x + 2 * c.x + q.x) / 4, y: (p.y + 2 * c.y + q.y) / 4 } }
+  }
+  const mid = (x: Edge) => geom(x).m
+  const openNote = (i: number, g: string[]) => {
+    setOpenLoop(openLoop === i ? null : i)
+    const k = g.join()
+    if (notes[k] !== undefined) return
+    setNotes((n) => ({ ...n, [k]: '' }))
+    ai<{ note: string }>('loop', { cards: plain(s.cards), edges: g.map((id) => s.edges.find((x) => x.id === id)!) }).then((r) => setNotes((n) => ({ ...n, [k]: r?.note || stubLoopNote })))
   }
 
   return (
@@ -310,9 +375,7 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
           const a = card(x.from)
           const b = card(x.to)
           if (!a || !b) return null
-          const p = exit(a, center(b))
-          const q = exit(b, center(a))
-          return <line key={x.id} x1={p.x} y1={p.y} x2={q.x} y2={q.y} className={inLoop.has(x.id) ? 'loop' : ''} markerEnd="url(#tm-arrow)" />
+          return <path key={x.id} d={geom(x).d} className={inLoop.has(x.id) ? 'loop' : ''} markerEnd="url(#tm-arrow)" />
         })}
         {drag?.kind === 'link' && (() => {
           const a = center(card(drag.from))
@@ -332,7 +395,7 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
           </span>
         ) : (
           <button key={x.id} className={`tm-label${x.label ? '' : ' blank'}`} style={{ left: m.x, top: m.y }} disabled={ro} onClick={() => setEditEdge(x.id)}>
-            {x.label || '+ label'}
+            {x.label || (labelling.includes(x.id) ? '…' : '+ label')}
           </button>
         )
       })}
@@ -342,12 +405,12 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
         const c = { x: ms.reduce((t, m) => t + m.x, 0) / ms.length, y: ms.reduce((t, m) => t + m.y, 0) / ms.length }
         return (
           <span key={g.join()}>
-            <button className="tm-loop" style={{ left: c.x, top: c.y }} onClick={() => setOpenLoop(openLoop === i ? null : i)}>
+            <button className="tm-loop" style={{ left: c.x, top: c.y }} onClick={() => openNote(i, g)}>
               loop
             </button>
             {openLoop === i && (
               <div className="tm-pop">
-                <p>{stubLoopNote}</p>
+                <p>{notes[g.join()] || '…'}</p>
                 <button onClick={() => setOpenLoop(null)}>Got it</button>
               </div>
             )}
@@ -360,7 +423,7 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
           key={c.id}
           data-card={c.id}
           ref={(el) => void (el ? refs.current.set(c.id, el) : refs.current.delete(c.id))}
-          className={`tm-card ${c.src}${sel === c.id ? ' sel' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
+          className={`tm-card ${c.src}${sel === c.id ? ' sel' : ''}${pair && (pair.a === c.id || pair.b === c.id) ? ' hint' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
           style={{ left: c.x, top: c.y, width: W }}
           onPointerDown={(e) => {
             if (ro || editCard === c.id || (e.target as HTMLElement).closest('button')) return
@@ -417,6 +480,12 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
         </div>
       ))}
 
+      {!ro && pair && openLoop === null && (
+        <div className="tm-tip">
+          These two look like the same thought. Drag one onto the other to stack them, or leave them as they are.
+          <button onClick={() => setPairs((ps) => ps.filter((x) => x !== pair))}>Leave them</button>
+        </div>
+      )}
       {!s.cards.length && <p className="tm-empty board">Double-click anywhere to add a card.</p>}
       {!ro && s.cards.length > 0 && <p className="tm-help">Drag a card to move it · drag a dot on any edge to another card to connect · drop a card onto another to stack · double-click to edit · Delete removes</p>}
     </main>
@@ -424,28 +493,52 @@ function MapCanvas({ s, set }: { s: State; set: (f: (s: State) => State) => void
 }
 
 // --- 4 · summary -------------------------------------------------------------------------------
-function Summary({ s, close }: { s: State; close: () => void }) {
+function Summary({ s, set, close }: { s: State; set: (f: (s: State) => State) => void; close: () => void }) {
   const ls = loops(s.edges)
-  const hub = [...s.cards].sort((a, b) => s.edges.filter((x) => x.to === b.id || x.from === b.id).length - s.edges.filter((x) => x.to === a.id || x.from === a.id).length)[0]
-  const step = s.cards.find((c) => c.src === 'ai') ?? s.cards.at(-1) // stub: the AI picks one of your cards in step 4
+  const asked = useRef(false)
+  useEffect(() => {
+    if (s.sum || asked.current) return
+    asked.current = true
+    ai<{ restate: string; common: string; step_id: string }>('summary', { cards: plain(s.cards), edges: s.edges, loops: ls.length }).then((r) =>
+      set((p) => ({ ...p, sum: r ? { restate: r.restate, common: r.common, step: r.step_id } : stubSum(p) })),
+    )
+  })
+  const step = s.cards.find((c) => c.id === s.sum?.step)
   return (
     <>
       <div className="tm-dim" onClick={close} />
       <aside className="tm-summary" aria-label="Summary">
         <span className="tm-tag">Tonight’s map</span>
-        <p>
-          You put {s.cards.length} cards on the map{hub ? `; most lines run through “${hub.text}”` : ''}
-          {ls.length ? `, and ${ls.length === 1 ? 'one loop' : `${ls.length} loops`} showed up` : ''}.
-        </p>
-        <span className="tm-tag">This is common</span>
-        <p>When several unfinished things pile up, they keep claiming working memory, which is why it gets harder to start. (stub)</p>
-        <span className="tm-tag">A next step already on your map</span>
-        {step && <p className="tm-step">“{step.text}”</p>}
+        {!s.sum && <p className="tm-muted">Reading your map…</p>}
+        {s.sum && (
+          <>
+            <p>{s.sum.restate}</p>
+            <span className="tm-tag">This is common</span>
+            <p>{s.sum.common}</p>
+            {step && (
+              <>
+                <span className="tm-tag">A next step already on your map</span>
+                <p className="tm-step">“{step.text}”</p>
+              </>
+            )}
+          </>
+        )}
         <p className="tm-muted">That’s it for tonight. Your map stays here for next time.</p>
         <button onClick={close}>Close</button>
       </aside>
     </>
   )
+}
+
+function stubSum(s: State): Sum {
+  const deg = (id: string) => s.edges.filter((x) => x.to === id || x.from === id).length
+  const hub = [...s.cards].sort((a, b) => deg(b.id) - deg(a.id))[0]
+  const n = loops(s.edges).length
+  return {
+    restate: `You put ${s.cards.length} cards on the map${hub ? `; most lines run through “${hub.text}”` : ''}${n ? `, and ${n === 1 ? 'one loop' : `${n} loops`} showed up` : ''}.`,
+    common: 'When several unfinished things pile up, they keep claiming attention, which is why it gets harder to start.',
+    step: (s.cards.find((c) => c.src === 'ai') ?? s.cards.at(-1))?.id ?? '',
+  }
 }
 
 function Referral({ close }: { close: () => void }) {

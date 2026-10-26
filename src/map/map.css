@@ -18,6 +18,7 @@
 .tm-msgs { flex: 1; overflow-y: auto; width: min(640px, 100%); display: flex; flex-direction: column; gap: 10px; padding: 24px 0; }
 .tm-msg { margin: 0; padding: 8px 12px; border-radius: 12px; max-width: 80%; white-space: pre-wrap; }
 .tm-msg.you { align-self: flex-end; background: var(--fill); }
+.tm-typing { color: var(--mid); }
 .tm-msg.ai { align-self: flex-start; border: 1px solid var(--line); background: var(--paper); }
 .tm-propose { align-self: center; display: flex; gap: 10px; align-items: center; border: 1px dashed var(--mid); border-radius: 12px; padding: 10px 14px; background: var(--paper); margin-top: 6px; }
 .tm-input { width: min(640px, 100%); display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 14px; padding: 8px 8px 8px 14px; background: var(--paper); }
@@ -42,11 +43,12 @@
 /* 3 · map */
 .tm-board { flex: 1; position: relative; overflow: auto; background-color: var(--bg); background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 20px 20px; user-select: none; }
 .tm-edges { position: absolute; left: 0; top: 0; width: 4000px; height: 3000px; pointer-events: none; color: var(--ink); }
-.tm-edges line { stroke: var(--ink); stroke-width: 1.4; }
-.tm-edges line.loop { stroke-width: 3; }
+.tm-edges > path, .tm-edges > line { stroke: var(--ink); stroke-width: 1.4; fill: none; }
+.tm-edges > path.loop { stroke-width: 3; }
 .tm-edges line.temp { stroke: var(--mid); stroke-dasharray: 4 4; }
 .tm-card { position: absolute; box-sizing: border-box; background: var(--paper); border: 1.5px solid var(--ink); border-radius: 8px; padding: 8px 10px 6px; cursor: grab; touch-action: none; }
 .tm-card.ai { border-style: dashed; }
+.tm-card.hint { outline: 2px dashed var(--mid); outline-offset: 5px; }
 .tm-card.sel { box-shadow: 0 0 0 3px var(--soft); }
 .tm-card.dragging { cursor: grabbing; opacity: 0.85; z-index: 3; }
 .tm-card.stacked { box-shadow: 4px 4px 0 -1.5px var(--paper), 4px 4px 0 0 var(--ink), 8px 8px 0 -1.5px var(--paper), 8px 8px 0 0 var(--ink); }
@@ -69,6 +71,7 @@
 .tm .tm-loop { position: absolute; transform: translate(-50%, -50%); background: var(--ink); color: var(--paper); font-size: 11px; padding: 2px 10px; z-index: 2; }
 .tm-pop { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); width: min(440px, 90vw); box-sizing: border-box; background: var(--paper); border: 1px solid var(--ink); border-radius: 10px; padding: 12px 14px; z-index: 5; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); font-size: 14px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .tm-pop p { margin: 0; }
+.tm-tip { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); display: flex; gap: 12px; align-items: center; background: var(--paper); border: 1px dashed var(--mid); border-radius: 10px; padding: 8px 10px 8px 14px; font-size: 13px; z-index: 5; }
 .tm-help { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); margin: 0; font-size: 12px; color: var(--mid); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; white-space: nowrap; }
 .tm-empty.board { position: absolute; left: 0; right: 0; }
 .tm-board.ro .tm-card { cursor: default; }
