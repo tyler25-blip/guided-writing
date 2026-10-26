@@ -14,7 +14,7 @@ const MAX_TURNS = 8 // after this many of their messages, offer the map anyway
 type Card = { id: string; text: string; src: 'you' | 'ai' }
 type Edge = { id: string; from: string; to: string; label: string }
 
-const NEVER = `Never: diagnoses or clinical labels (depression, anxiety disorder, trauma, symptoms…); analysis words (rumination, cognitive distortion, catastrophizing); "you should / you must / I recommend"; verdicts on the person or on people in their story. English only.`
+const NEVER = `Never: diagnoses or clinical labels (depression, anxiety disorder, trauma, symptoms…); analysis words (rumination, cognitive distortion, catastrophizing); "you should / you must / I recommend"; verdicts on the person or on people in their story. Refer to the person as "they" unless they said otherwise. English only.`
 
 const CHAT = `You are the AI inside "Thought map", a tool for the evening when one thing is occupying someone's head and they want to get it out. Talk the way a normal, thoughtful AI assistant talks — warm, natural, full sentences that pick up the specifics they mention — within these limits:
 
@@ -38,6 +38,8 @@ const SAFETY = `The person may be at risk: something they wrote suggests hopeles
 
 const CARDS = `You split a chat into cards for a thought map; they go straight onto the map.
 "you" cards: pick the thoughts that carry the most weight for what they are stuck on (you get the AI's private notes on the core issue) — at most 10, with a mix of kinds where the chat has them (event, feeling, thought, worry, action). Tag each with its kind. One thought per card, in THEIR words: copy or trim their sentences (cut filler, keep first person), never rephrase, never add. Each card must make sense on its own (no "probably chapters 2 and 3"). Skip greetings, filler and repeats. In the order they said them, each under 20 words.
+For each card also give: from = the number of their message it comes from (1 = their first message), why = one short plain sentence for the researcher on why this one earns a card (what it shows about the core).
+skipped: up to 6 things they said that you did NOT turn into a card, each with a short why (repeat, filler, already covered by another card, too vague alone…).
 ${NEVER}`
 
 const LABEL = `The person drew an arrow between two cards on their thought map. Write the label for that arrow: how the first card leads to the second, from their side, in 2–6 plain everyday words, lowercase, e.g. "so I put it off", "and it keeps me up", "makes it worse". Use only what the cards say; if the link isn't clear, return "".
@@ -48,7 +50,7 @@ const STACK = `Cards on a thought map. Find cards that say the same thought twic
 const LOOP = `The person's thought map has a loop: each card leads to the next and back to the first. Write a short note, 2 sentences, under 55 words, no question:
 1. Name the loop concretely, in order, in their words ("Rereading the PR → slower → afraid the managers notice → second-guessing → rereading again").
 2. Point at ONE link that looks easiest to loosen with something small they could do at that moment, and say plainly what happens at that moment (not why they are like this).
-Return that link's id as break_edge. Never say loops are common or normal. No advice.
+Return that link's id as break_edge — only there; never write an id in the note. Never say loops are common or normal. No advice.
 ${NEVER}`
 
 const BREAK = `The person clicked one link in a loop on their thought map, to write a small concrete action that could loosen it. Write:
@@ -67,8 +69,10 @@ ${NEVER}`
 const S = (props: Record<string, unknown>) => ({ type: 'object', additionalProperties: false, required: Object.keys(props), properties: props })
 const str = { type: 'string' }
 
-async function ask<T>(client: Anthropic, model: string, system: string, content: string, schema: Record<string, unknown>, check: (t: T) => string[]): Promise<T | null> {
+// lenient: after a failed rewrite, still return the last answer (the caller filters what failed)
+async function ask<T>(client: Anthropic, model: string, system: string, content: string, schema: Record<string, unknown>, check: (t: T) => string[], lenient = false): Promise<T | null> {
   let feedback = ''
+  let last: T | null = null
   for (let i = 0; i < 2; i++) {
     const res = await client.messages.create({
       model,
@@ -80,12 +84,13 @@ async function ask<T>(client: Anthropic, model: string, system: string, content:
     const b = res.content.find((x) => x.type === 'text')
     if (res.stop_reason === 'refusal' || !b || b.type !== 'text') return null
     const out = JSON.parse(b.text) as T
+    last = out
     const bad = check(out)
     if (!bad.length) return out
     console.log('[map] rewrite:', bad.join('; '))
     feedback = `\n\nYour previous answer failed these checks, rewrite it: ${bad.join('; ')}`
   }
-  return null
+  return lenient ? last : null
 }
 
 const transcript = (msgs: Msg[]) =>
@@ -94,6 +99,13 @@ const transcript = (msgs: Msg[]) =>
     .map((m) => `${m.role === 'you' ? 'PERSON' : 'AI'}: ${m.text.slice(0, 2000)}${m.declined ? '\n(The person chose to keep talking instead of spreading it out.)' : ''}`)
     .join('\n\n')
 type MapCard = Card & { step?: { when: string; where: string } }
+const transcriptNumbered = (msgs: Msg[]) => {
+  let n = 0
+  return msgs
+    .slice(-40)
+    .map((m) => (m.role === 'you' ? `PERSON #${++n}: ${m.text.slice(0, 2000)}` : `AI: ${m.text.slice(0, 2000)}`))
+    .join('\n\n')
+}
 const list = (cards: MapCard[]) => cards.map((c) => `[${c.id}] (${c.step ? 'STEP' : c.src}) ${c.text.slice(0, 300)}${c.step ? ` — when: ${c.step.when || '?'}, where: ${c.step.where || '?'}` : ''}`).join('\n')
 const risky = (cards: Card[]) => cards.some((c) => isCrisis(c.text))
 
@@ -128,11 +140,23 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       if (isCrisis(said)) return { you: [], risk: true } // never turn a risk disclosure into a card
       const n = b.notes as Notes | undefined
       const notes = n ? `\n\nThe AI's private notes — core: ${n.core}; stuck: ${n.stuck}; what would help: ${n.help}` : ''
-      const o = await ask<{ you: { text: string; kind: Kind }[] }>(client, model, CARDS, `Chat:\n\n${transcript(msgs)}${notes}`, S({ you: { type: 'array', items: S({ text: str, kind: { type: 'string', enum: KINDS } }) } }), () => [])
+      type Made = { text: string; kind: Kind; from: number; why: string }
+      const long = (t: string) => t.split(/\s+/).length > 24
+      const o = await ask<{ you: Made[]; skipped: { text: string; why: string }[] }>(
+        client,
+        model,
+        CARDS,
+        `Chat (their messages are numbered):\n\n${transcriptNumbered(msgs)}${notes}`,
+        S({ you: { type: 'array', items: S({ text: str, kind: { type: 'string', enum: KINDS }, from: { type: 'integer' }, why: str }) }, skipped: { type: 'array', items: S({ text: str, why: str }) } }),
+        (o) => o.you.filter((c) => long(c.text)).map((c) => `card too long, trim it to one thought under 20 words: "${c.text.slice(0, 60)}…"`),
+        true,
+      )
       if (!o) return null
-      // drop, don't rewrite: a card that isn't their words just doesn't appear
-      const you = o.you.filter((c) => ownWords(c.text, said) && !isCrisis(c.text)).slice(0, 10)
-      return you.length >= 3 ? { you } : null
+      // drop, don't rewrite: a card that isn't their words just doesn't appear (the back office shows it as dropped)
+      const keep = (c: Made) => ownWords(c.text, said) && !isCrisis(c.text) && !long(c.text)
+      const you = o.you.filter(keep).slice(0, 10)
+      const dropped = o.you.filter((c) => !keep(c)).map((c) => ({ text: c.text, why: isCrisis(c.text) ? 'program: risk words' : long(c.text) ? 'program: too long for one card' : 'program: not their own words (< 75%)' }))
+      return you.length >= 3 ? { you, skipped: [...o.skipped.slice(0, 6), ...dropped] } : null
     }
     case 'label': {
       const cards = b.cards as Card[]
@@ -155,6 +179,7 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       const loop = edges.map((e) => `[${e.id}] "${name(e.from)}" → ${e.label ? `(${e.label}) ` : ''}"${name(e.to)}"`).join('\n')
       return ask<{ note: string; break_edge: string }>(client, model, LOOP, `The loop, link by link:\n${loop}`, S({ note: str, break_edge: str }), (o) => [
         ...problems(o.note, { maxWords: 75, maxQ: 0, noCommon: true }),
+        ...edges.filter((e) => o.note.includes(e.id)).map((e) => `the note shows the id ${e.id}; describe the link in words`),
         ...(edges.some((e) => e.id === o.break_edge) ? [] : [`break_edge ${o.break_edge} is not one of the loop's links`]),
       ])
     }

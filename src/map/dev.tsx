@@ -6,12 +6,12 @@ import { lastNotes, type State } from './MapApp.tsx'
 const uid = () => Math.random().toString(36).slice(2, 9)
 type Phase = 'chat' | 'map' | 'summary'
 
+// A sample's ids (c0…, e0…) are used as they are, so its AI log lines up with its cards and lines.
 const build = (x: Sample, to: Phase): State => {
-  const ids = Object.fromEntries(x.cards.map((c) => [c.key, uid()]))
-  const cards = x.cards.map((c) => ({ id: ids[c.key], text: c.text, src: c.src, x: c.x, y: c.y, stack: c.stack ?? [] }))
-  const edges = x.edges.map(([f, t, label]) => ({ id: uid(), from: ids[f], to: ids[t], label }))
+  const cards = x.cards.map((c) => ({ id: c.key, text: c.text, src: c.src, x: c.x, y: c.y, stack: c.stack ?? [], kind: c.kind }))
+  const edges = x.edges.map(([from, to, label], i) => ({ id: `e${i}`, from, to, label }))
   if (to === 'chat') return { phase: 'chat', msgs: x.msgs, cards: [], edges: [], ended: false }
-  return { phase: 'map', msgs: x.msgs, cards, edges, ended: to === 'summary' }
+  return { phase: 'map', msgs: x.msgs, cards, edges, ended: to === 'summary', log: x.log }
 }
 
 const read = <T,>(k: string, d: T): T => {
