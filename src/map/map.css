@@ -110,3 +110,23 @@
 .tm .tm-dev-btns button { font-size: 12px; padding: 3px 10px; }
 .tm-dev-notes { display: flex; flex-direction: column; gap: 3px; font-size: 12px; line-height: 1.4; border-top: 1px solid var(--line); padding-top: 8px; }
 .tm-dev-note { margin: 0; font: 11px 'IBM Plex Mono', monospace; color: var(--mid); }
+
+/* conversation beside the map, AI key, "Arrange for me" */
+.tm-talk { position: fixed; top: 49px; right: 0; bottom: 0; width: min(400px, 100%); background: var(--paper); border-left: 1px solid var(--ink); z-index: 6; display: flex; }
+.tm-chat.compact { padding: 0 14px 14px; }
+.tm-chat.compact .tm-msgs { width: 100%; padding: 8px 0; }
+.tm-chat.compact .tm-msg { max-width: 92%; font-size: 14px; }
+.tm-chat.compact .tm-input { width: 100%; box-sizing: border-box; }
+.tm-talkhead { align-self: stretch; display: flex; justify-content: space-between; align-items: center; padding: 12px 0 6px; }
+.tm .tm-talkhead button { padding: 0 10px; }
+.tm .tm-addnew { margin-bottom: 10px; align-self: stretch; }
+.tm-needkey { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: var(--paper); border: 1px solid var(--ink); border-radius: 10px; padding: 8px 10px 8px 14px; z-index: 8; font-size: 13px; }
+.tm-keypanel { position: fixed; left: 50%; top: 90px; transform: translateX(-50%); width: min(460px, 92vw); box-sizing: border-box; background: var(--paper); border: 1px solid var(--ink); border-radius: 12px; padding: 18px 20px; z-index: 9; display: flex; flex-direction: column; gap: 12px; }
+.tm-keypanel p { margin: 0; }
+.tm-keynotes { margin: 0; padding-left: 1.1em; color: var(--mid); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.tm .tm-keybtn { border-color: var(--line); color: var(--mid); }
+.tm-area { position: absolute; display: flex; gap: 4px; align-items: center; font: 500 11px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.07em; color: var(--mid); }
+.tm .tm-area button { border: 0; padding: 0 4px; font-size: 12px; color: var(--soft); background: transparent; }
+.tm-edges > path.ai { stroke: var(--mid); stroke-dasharray: 2 5; stroke-linecap: round; }
+.tm .tm-label.ai { border-style: dotted; }
+.tm-by { font: 600 9px 'IBM Plex Mono', monospace; margin-right: 6px; padding: 0 4px; border-radius: 4px; background: var(--fill); color: var(--mid); }

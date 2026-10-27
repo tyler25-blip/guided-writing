@@ -1,8 +1,9 @@
-// Step 4 · Thought-map AI: chat, card split, line labels, stack hints, loop note, summary.
-// Every output passes the program checks in src/map/mapchecks.ts; one rewrite, otherwise the page falls back to its stub.
+// Thought-map AI: chat, card split, line labels, stack hints, loop note, arrange, summary. Runs in two places:
+// the local server (server/index.ts, key from .env) or straight from the browser with the person's own key (public site).
+// Every output passes the program checks in mapchecks.ts; one rewrite, otherwise the page falls back to its stub.
 import type Anthropic from '@anthropic-ai/sdk'
-import { ownWords, problems, saysCommon } from '../src/map/mapchecks.ts'
-import { isCrisis } from '../src/triggers.ts'
+import { ownWords, problems, saysCommon } from './mapchecks.ts'
+import { isCrisis } from '../triggers.ts'
 
 type Msg = { role: 'you' | 'ai'; text: string; declined?: boolean }
 // The AI's private understanding, updated every turn. Never shown in the chat; the summary may say the core once.
@@ -43,6 +44,12 @@ skipped: up to 6 things they said that you did NOT turn into a card, each with a
 ${NEVER}`
 
 const LABEL = `The person drew an arrow between two cards on their thought map. Write the label for that arrow: how the first card leads to the second, from their side, in 2–6 plain everyday words, lowercase, e.g. "so I put it off", "and it keeps me up", "makes it worse". Use only what the cards say; if the link isn't clear, return "".
+${NEVER}`
+
+const ARRANGE = `The person is tired and pressed "Arrange for me" on their thought map. Do the arranging they'd otherwise do by hand:
+groups: 2–4 groups of cards by what they are about (for example what happened / what I tell myself / what I fear / what I could do). Name each group in 1–3 plain words. Every card id goes in exactly one group.
+lines: the 2–4 links that matter most (from → to, card ids), each with a label of 2–6 plain words in their voice, like "so I put it off". Don't repeat a line that already exists. Don't invent links the cards don't support.
+No advice.
 ${NEVER}`
 
 const STACK = `Cards on a thought map. Find cards that say the same thought twice (near-duplicates, not merely related topics). Return at most 3 pairs of ids; return none if there are none.`
@@ -109,6 +116,7 @@ const transcriptNumbered = (msgs: Msg[]) => {
 const list = (cards: MapCard[]) => cards.map((c) => `[${c.id}] (${c.step ? 'STEP' : c.src}) ${c.text.slice(0, 300)}${c.step ? ` — when: ${c.step.when || '?'}, where: ${c.step.where || '?'}` : ''}`).join('\n')
 const risky = (cards: Card[]) => cards.some((c) => isCrisis(c.text))
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function mapRoute(client: Anthropic, model: string, path: string, b: any): Promise<unknown> {
   switch (path) {
     case 'reply': {
@@ -139,7 +147,12 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       const said = msgs.filter((m) => m.role === 'you').map((m) => m.text).join(' ')
       if (isCrisis(said)) return { you: [], risk: true } // never turn a risk disclosure into a card
       const n = b.notes as Notes | undefined
-      const notes = n ? `\n\nThe AI's private notes — core: ${n.core}; stuck: ${n.stuck}; what would help: ${n.help}` : ''
+      const since = Number(b.since) || 0 // > 0: they kept talking after the map was made; only the new part becomes cards
+      const notes =
+        (n ? `\n\nThe AI's private notes — core: ${n.core}; stuck: ${n.stuck}; what would help: ${n.help}` : '') +
+        (since
+          ? `\n\nThe map already exists. Pick ONLY from their messages after #${since}, at most 5 new cards, and don't repeat these cards already on it:\n${(b.existing as string[]).map((t) => `- ${t}`).join('\n')}`
+          : '')
       type Made = { text: string; kind: Kind; from: number; why: string }
       const long = (t: string) => t.split(/\s+/).length > 24
       const o = await ask<{ you: Made[]; skipped: { text: string; why: string }[] }>(
@@ -156,7 +169,7 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       const keep = (c: Made) => ownWords(c.text, said) && !isCrisis(c.text) && !long(c.text)
       const you = o.you.filter(keep).slice(0, 10)
       const dropped = o.you.filter((c) => !keep(c)).map((c) => ({ text: c.text, why: isCrisis(c.text) ? 'program: risk words' : long(c.text) ? 'program: too long for one card' : 'program: not their own words (< 75%)' }))
-      return you.length >= 3 ? { you, skipped: [...o.skipped.slice(0, 6), ...dropped] } : null
+      return you.length >= (since ? 1 : 3) ? { you: since ? you.filter((c) => c.from > since).slice(0, 5) : you, skipped: [...o.skipped.slice(0, 6), ...dropped] } : null
     }
     case 'label': {
       const cards = b.cards as Card[]
@@ -164,6 +177,33 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       const t = cards.find((c) => c.id === b.to)
       if (!f || !t) return null
       return ask<{ label: string }>(client, model, LABEL, `All cards:\n${list(cards)}\n\nArrow: "${f.text}" → "${t.text}"`, S({ label: str }), (o) => problems(o.label, { maxWords: 8, maxQ: 0 }))
+    }
+    case 'arrange': {
+      const cards = b.cards as (Card & { kind?: string })[]
+      const edges = b.edges as Edge[]
+      if (risky(cards)) return { risk: true }
+      const ids = new Set(cards.map((c) => c.id))
+      const have = edges.map((e) => `[${e.from}] → [${e.to}]`).join('\n')
+      const o = await ask<{ groups: { name: string; ids: string[] }[]; lines: { from: string; to: string; label: string }[] }>(
+        client,
+        model,
+        ARRANGE,
+        `Cards:\n${cards.map((c) => `[${c.id}]${c.kind ? ` (${c.kind})` : ''} ${c.text.slice(0, 300)}`).join('\n')}\n\nLines already drawn:\n${have || '(none)'}`,
+        S({ groups: { type: 'array', items: S({ name: str, ids: { type: 'array', items: str } }) }, lines: { type: 'array', items: S({ from: str, to: str, label: str }) } }),
+        (o) => [
+          ...o.lines.flatMap((l) => problems(l.label, { maxWords: 8, maxQ: 0 })),
+          ...o.groups.flatMap((g) => problems(g.name, { maxWords: 4, maxQ: 0 })),
+          ...o.lines.filter((l) => !ids.has(l.from) || !ids.has(l.to) || l.from === l.to).map((l) => `line ${l.from}→${l.to} uses an unknown card`),
+        ],
+      )
+      if (!o) return null
+      // every card in exactly one group (the program fixes what the AI missed or doubled)
+      const seen = new Set<string>()
+      const groups = o.groups.map((g) => ({ name: g.name, ids: g.ids.filter((id) => ids.has(id) && !seen.has(id) && (seen.add(id), true)) })).filter((g) => g.ids.length)
+      const left = cards.filter((c) => !seen.has(c.id)).map((c) => c.id)
+      if (left.length) groups.push({ name: 'Also here', ids: left })
+      const lines = o.lines.filter((l) => !edges.some((e) => e.from === l.from && e.to === l.to)).slice(0, 4)
+      return { groups, lines }
     }
     case 'stack': {
       const cards = b.cards as Card[]

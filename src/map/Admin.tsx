@@ -1,6 +1,6 @@
 // Back office for the thought map (/map/admin): how the AI read the chat, why each card exists, what it did on the map.
 // Reads the map saved in this browser (live: updates when the map tab changes it) or an exported JSON file.
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { loops } from './graph.ts'
 import { KEY, lastNotes, type Log, type Made, type Notes, type State } from './MapApp.tsx'
 import './admin.css'
@@ -61,7 +61,7 @@ export default function Admin() {
           <button disabled={!s} onClick={save}>
             Export JSON
           </button>
-          <a className="ad-btn" href="/map" target="_blank" rel="noreferrer">
+          <a className="ad-btn" href={`${import.meta.env.BASE_URL}map`} target="_blank" rel="noreferrer">
             Open the map ↗
           </a>
         </span>
@@ -78,10 +78,11 @@ export default function Admin() {
 function Report({ s }: { s: State }) {
   const log = s.log ?? []
   const you = s.msgs.filter((m) => m.role === 'you')
-  const cardsLog = log.filter((l): l is Extract<Log, { t: 'cards' }> => l.t === 'cards').at(-1)
+  const spreads = log.filter((l): l is Extract<Log, { t: 'cards' }> => l.t === 'cards')
+  const cardsLog = spreads[0]
   const steps = s.cards.filter((c) => c.step)
   const ls = loops(s.edges)
-  const name = (id: string) => s.cards.find((c) => c.id === id)?.text ?? cardsLog?.made.find((c) => c.id === id)?.text ?? '(removed card)'
+  const name = (id: string) => s.cards.find((c) => c.id === id)?.text ?? spreads.flatMap((x) => x.made).find((c) => c.id === id)?.text ?? '(removed card)'
   return (
     <main className="ad-main">
       <section className="ad-facts" aria-label="This session">
@@ -98,10 +99,19 @@ function Report({ s }: { s: State }) {
       </Section>
 
       <Section n="2" title="From the chat to the cards" note="The AI picks at most 10 of the person’s own sentences, centred on its last guess at the core. The program then drops any card that isn’t ≥ 75% their words, is too long, or holds risk words.">
-        {cardsLog ? <Cards s={s} entry={cardsLog} you={you.map((m) => m.text)} /> : <p className="ad-muted">The chat hasn’t been spread out yet.</p>}
+        {cardsLog ? (
+          spreads.map((e, i) => (
+            <div key={i} className="ad-spread">
+              {spreads.length > 1 && <h3>{e.since ? `Added later from the continued conversation (after their message #${e.since})` : 'When the chat was spread out'}</h3>}
+              <Cards s={s} entry={e} you={you.map((m) => m.text)} />
+            </div>
+          ))
+        ) : (
+          <p className="ad-muted">The chat hasn’t been spread out yet.</p>
+        )}
       </Section>
 
-      <Section n="3" title="On the map" note="The person moves, connects and stacks. The AI only labels lines, points at near-duplicates, describes loops when clicked, and asks one guiding question when a loop line is clicked.">
+      <Section n="3" title="On the map" note="The person moves, connects and stacks. The AI labels lines, points at near-duplicates, describes loops when clicked, asks one guiding question when a loop line is clicked, and arranges only when asked (“Arrange for me”).">
         <MapLog s={s} log={log} name={name} />
       </Section>
 
@@ -301,8 +311,34 @@ function MapLog({ s, log, name }: { s: State; log: Log[]; name: (id: string) => 
   const stacks = log.filter((l): l is Extract<Log, { t: 'stack' }> => l.t === 'stack').at(-1)
   const loopNotes = log.filter((l): l is Extract<Log, { t: 'loop' }> => l.t === 'loop')
   const breaks = log.filter((l): l is Extract<Log, { t: 'break' }> => l.t === 'break')
+  const arranges = log.filter((l): l is Extract<Log, { t: 'arrange' }> => l.t === 'arrange')
   return (
     <>
+      {arranges.map((a, i) => (
+        <div key={i} className="ad-loop">
+          <p className="ad-path">“Arrange for me” pressed {time(a.at)}</p>
+          <dl className="ad-dl">
+            {a.groups.map((g, j) => (
+              <Fragment key={j}>
+                <dt>Group “{g.name}”</dt>
+                <dd>{g.ids.map(name).join(' · ')}</dd>
+              </Fragment>
+            ))}
+            {a.lines.map((l) => {
+              const e = s.edges.find((x) => x.id === l.id)
+              const now = !e ? 'deleted by the person' : e.by === 'ai' ? 'kept as the AI drew it' : `taken over: “${e.label}”`
+              return (
+                <Fragment key={l.id}>
+                  <dt>AI line</dt>
+                  <dd>
+                    {name(l.from)} → {name(l.to)} “{l.label}” <span className="ad-muted">{now}</span>
+                  </dd>
+                </Fragment>
+              )
+            })}
+          </dl>
+        </div>
+      ))}
       <h3>Line labels</h3>
       {labels.length ? (
         <div className="ad-scroll">

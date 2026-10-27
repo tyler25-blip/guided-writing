@@ -11,7 +11,7 @@ const build = (x: Sample, to: Phase): State => {
   const cards = x.cards.map((c) => ({ id: c.key, text: c.text, src: c.src, x: c.x, y: c.y, stack: c.stack ?? [], kind: c.kind }))
   const edges = x.edges.map(([from, to, label], i) => ({ id: `e${i}`, from, to, label }))
   if (to === 'chat') return { phase: 'chat', msgs: x.msgs, cards: [], edges: [], ended: false }
-  return { phase: 'map', msgs: x.msgs, cards, edges, ended: to === 'summary', log: x.log }
+  return { phase: 'map', msgs: x.msgs, cards, edges, ended: to === 'summary', log: x.log, spreadAt: x.msgs.length }
 }
 
 const read = <T,>(k: string, d: T): T => {

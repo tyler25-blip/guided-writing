@@ -4,12 +4,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isCrisis } from '../triggers.ts'
 import { DevPanel } from './dev.tsx'
 import { loops } from './graph.ts'
+import { ai, getKey, hasServer, NEED_KEY, setKey } from './link.ts'
 import './map.css'
 
 type Src = 'you' | 'ai'
 type Step = { when: string; where: string } // a card the person wrote to break a loop: what (= text), when, where
 type Card = { id: string; text: string; src: Src; x: number; y: number; stack: string[]; step?: Step; kind?: string } // stack = texts merged in; kind = event/feeling/thought/worry/action, AI-only for now
-type Edge = { id: string; from: string; to: string; label: string }
+type Edge = { id: string; from: string; to: string; label: string; by?: 'ai' } // by: drawn by "Arrange for me" until the person edits it
 // notes: the AI's private understanding after this reply (what material is there, the core, how they're stuck). Never shown in the chat.
 export type Notes = { have: Record<string, boolean>; core: string; stuck: string; help: string; ready: boolean }
 type Msg = { role: Src; text: string; propose?: boolean; declined?: boolean; notes?: Notes } // propose: the AI offers to spread it out
@@ -19,14 +20,16 @@ type Sum = { restate: string; stuck?: string; step: string } // stuck: the one p
 // log: every AI decision on this map, for the back office (/map/admin). Stays in this browser like the map.
 export type Made = { id: string; text: string; kind: string; from: number; why: string }
 export type Log =
-  | { t: 'cards'; at: number; notes?: Notes; made: Made[]; skipped: { text: string; why: string }[]; fallback?: boolean }
+  | { t: 'cards'; at: number; notes?: Notes; made: Made[]; skipped: { text: string; why: string }[]; fallback?: boolean; since?: number }
+  | { t: 'arrange'; at: number; groups: { name: string; ids: string[] }[]; lines: { id: string; from: string; to: string; label: string }[] }
   | { t: 'label'; at: number; edge: string; from: string; to: string; label: string } // label '' = the AI left it blank
   | { t: 'stack'; at: number; pairs: { a: string; b: string }[] }
   | { t: 'loop'; at: number; edges: string[]; note: string; breakEdge: string }
   | { t: 'break'; at: number; edge: string; question: string; example: string; card: string; what: string; when: string; where: string }
   | { t: 'summary'; at: number; restate: string; stuck: string; step: string }
   | { t: 'risk'; at: number; where: string; text: string }
-export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; sum?: Sum; risk?: boolean; log?: Log[] }
+// spreadAt: how many messages had been sent when the last cards were made; areas: group names from "Arrange for me"
+export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; sum?: Sum; risk?: boolean; log?: Log[]; spreadAt?: number; areas?: { name: string; x: number; y: number }[] }
 export const KEY = 'thought-map-v1'
 type Set = (f: (s: State) => State) => void
 type Entry = Log extends infer L ? (L extends Log ? Omit<L, 'at'> : never) : never
@@ -38,20 +41,13 @@ const fresh = (): State => ({ phase: 'chat', msgs: [], cards: [], edges: [], end
 const load = (): State => {
   try {
     const st = { ...fresh(), ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
-    return st.phase === 'pick' ? { ...st, phase: 'chat' } : st // the pick screen is gone
+    if (st.phase === 'pick') return { ...st, phase: 'chat' } // the pick screen is gone
+    return st.phase === 'map' && st.spreadAt === undefined ? { ...st, spreadAt: st.msgs.length } : st // older maps: all of the chat is already on it
   } catch {
     return fresh()
   }
 }
 
-const ai = async <T,>(path: string, body: unknown): Promise<T | null> => {
-  try {
-    const r = await fetch(`/api/map/${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-    return r.ok ? ((await r.json()) as T) : null
-  } catch {
-    return null
-  }
-}
 const plain = (cards: Card[]) => cards.map(({ id, text, src }) => ({ id, text, src }))
 export const lastNotes = (msgs: Msg[]) => msgs.findLast((m) => m.notes)?.notes
 
@@ -72,6 +68,39 @@ export default function MapApp() {
   const [toast, setToast] = useState('')
   const [crisis, setCrisis] = useState(false)
   const [summary, setSummary] = useState(false)
+  const [talk, setTalk] = useState(false) // the conversation panel beside the map
+  const [keyOpen, setKeyOpen] = useState(false)
+  const [needKey, setNeedKey] = useState(false)
+  const [arranging, setArranging] = useState(false)
+  useEffect(() => {
+    const on = () => setNeedKey(true)
+    addEventListener(NEED_KEY, on)
+    return () => removeEventListener(NEED_KEY, on)
+  }, [])
+  // "Arrange for me": the AI groups the cards and draws a few lines, all of it editable
+  const arrange = async () => {
+    setArranging(true)
+    const r = await ai<{ groups: { name: string; ids: string[] }[]; lines: { from: string; to: string; label: string }[]; risk?: boolean }>('arrange', {
+      cards: s.cards.map(({ id, text, src, kind }) => ({ id, text, src, kind })),
+      edges: s.edges,
+    })
+    setArranging(false)
+    if (!r) return say('The AI couldn’t arrange it this time. Your map is unchanged.')
+    if (r.risk) return set((p) => ({ ...p, risk: true }))
+    set((p) => {
+      const pos: Record<string, { x: number; y: number }> = {}
+      r.groups.forEach((g, gi) => g.ids.forEach((id, k) => (pos[id] = { x: 60 + gi * 320 + (k % 2) * 24, y: 96 + k * 175 })))
+      const lines = r.lines.map((l) => ({ id: uid(), ...l, by: 'ai' as const }))
+      const entry: Log = { t: 'arrange', at: Date.now(), groups: r.groups, lines }
+      return {
+        ...p,
+        cards: p.cards.map((c) => (pos[c.id] ? { ...c, ...pos[c.id] } : c)),
+        edges: [...p.edges, ...lines],
+        areas: r.groups.map((g, gi) => ({ name: g.name, x: 60 + gi * 320, y: 52 })),
+        log: [...(p.log ?? []), entry],
+      }
+    })
+  }
   const say = (t: string) => (setToast(t), setTimeout(() => setToast(''), 2200))
   const restart = () => (setS(fresh()), setSummary(false))
   // any text the person writes
@@ -86,6 +115,16 @@ export default function MapApp() {
               Get support
             </button>
           )}
+          {s.phase === 'map' && (
+            <button aria-pressed={talk} onClick={() => setTalk(!talk)}>
+              Conversation
+            </button>
+          )}
+          {s.phase === 'map' && !s.ended && !s.risk && s.cards.length > 1 && (
+            <button disabled={arranging} onClick={arrange} title="The AI groups your cards and draws a few lines. You can change all of it.">
+              {arranging ? 'Arranging…' : 'Arrange for me'}
+            </button>
+          )}
           {s.phase === 'map' && !s.ended && !s.risk && (
             <button className="solid" onClick={() => (set((p) => ({ ...p, ended: true, sum: undefined })), setSummary(true))}>
               That’s enough for now
@@ -93,11 +132,29 @@ export default function MapApp() {
           )}
           {s.phase === 'map' && s.ended && <button onClick={() => setSummary(true)}>Summary</button>}
           {(s.ended || s.phase !== 'chat') && <button onClick={restart}>New map</button>}
+          <button className="tm-keybtn" onClick={() => setKeyOpen(true)} title="Your Anthropic API key">
+            AI key
+          </button>
         </span>
       </header>
       {s.phase === 'chat' && <Chat s={s} set={set} risky={risky} onRisk={() => setCrisis(true)} say={say} />}
       {s.phase === 'layout' && <Layout s={s} set={set} />}
       {s.phase === 'map' && <MapCanvas s={s} set={set} risky={risky} />}
+      {s.phase === 'map' && talk && (
+        <aside className="tm-talk" aria-label="Conversation">
+          <Chat s={s} set={set} risky={risky} onRisk={() => setCrisis(true)} say={say} compact close={() => setTalk(false)} />
+        </aside>
+      )}
+      {keyOpen && <KeyPanel close={() => (setKeyOpen(false), setNeedKey(false))} />}
+      {needKey && !keyOpen && (
+        <div className="tm-needkey" role="status">
+          The AI needs an Anthropic API key to answer.
+          <button className="solid" onClick={() => setKeyOpen(true)}>
+            Add your key
+          </button>
+          <button onClick={() => setNeedKey(false)}>Not now</button>
+        </div>
+      )}
       {summary && <Summary s={s} set={set} close={() => setSummary(false)} />}
       {crisis && <Referral close={() => setCrisis(false)} />}
       {toast && <div className="tm-toast">{toast}</div>}
@@ -107,8 +164,32 @@ export default function MapApp() {
 }
 
 // --- 1 · chat ----------------------------------------------------------------------------------
-function Chat({ s, set, risky, onRisk, say }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onRisk: () => void; say: (t: string) => void }) {
+function Chat({ s, set, risky, onRisk, say, compact, close }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onRisk: () => void; say: (t: string) => void; compact?: boolean; close?: () => void }) {
   const [draft, setDraft] = useState('')
+  const [adding, setAdding] = useState(false)
+  // compact = the panel beside the map: whatever they say after the map was made can become new cards
+  const newTurns = compact ? s.msgs.slice(s.spreadAt ?? s.msgs.length).filter((m) => m.role === 'you').length : 0
+  const addNew = async () => {
+    setAdding(true)
+    const since = s.msgs.slice(0, s.spreadAt ?? 0).filter((m) => m.role === 'you').length
+    const r = await ai<{ you: Omit<Made, 'id'>[]; skipped: { text: string; why: string }[]; risk?: boolean }>('cards', {
+      msgs: s.msgs.map(({ role, text }) => ({ role, text })),
+      notes: lastNotes(s.msgs),
+      since,
+      existing: s.cards.map((c) => c.text),
+    })
+    setAdding(false)
+    if (r?.risk) return set((p) => ({ ...p, risk: true }))
+    if (!r?.you.length) return say('Nothing new to add as a card this time.')
+    set((p) => {
+      const bottom = Math.max(0, ...p.cards.map((c) => c.y)) + 230
+      const made = r.you.map((c) => ({ ...c, id: uid() }))
+      const cards = made.map(({ id, text, kind }, i) => ({ id, text, kind, src: 'you' as Src, x: 60 + i * 260, y: bottom, stack: [] }))
+      const entry: Log = { t: 'cards', at: Date.now(), notes: lastNotes(p.msgs), made, skipped: r.skipped, since }
+      return { ...p, cards: [...p.cards, ...cards], spreadAt: p.msgs.length, log: [...(p.log ?? []), entry] }
+    })
+    say(`Added ${r.you.length} new card${r.you.length > 1 ? 's' : ''} at the bottom of the map.`)
+  }
   const [typing, setTyping] = useState(false)
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -116,7 +197,7 @@ function Chat({ s, set, risky, onRisk, say }: { s: State; set: Set; risky: (t: s
   }, [s.msgs.length, typing])
   const last = s.msgs.at(-1)
   const declines = s.msgs.filter((m) => m.declined).length
-  const propose = !s.risk && !typing && last?.role === 'ai' && last.propose && !last.declined && declines < 2 // the AI offers; at most twice declined
+  const propose = !compact && !s.risk && !typing && last?.role === 'ai' && last.propose && !last.declined && declines < 2 // the AI offers; at most twice declined
   const send = async () => {
     const text = draft.trim()
     if (!text || typing) return
@@ -137,7 +218,15 @@ function Chat({ s, set, risky, onRisk, say }: { s: State; set: Set; risky: (t: s
   }
   const decline = () => set((p) => ({ ...p, msgs: p.msgs.map((m, i) => (i === p.msgs.length - 1 ? { ...m, declined: true } : m)) }))
   return (
-    <main className="tm-chat">
+    <main className={`tm-chat${compact ? ' compact' : ''}`}>
+      {compact && (
+        <div className="tm-talkhead">
+          <span className="tm-tag">The whole conversation</span>
+          <button aria-label="Close the conversation" onClick={close}>
+            ×
+          </button>
+        </div>
+      )}
       <div className="tm-msgs">
         {!s.msgs.length && <p className="tm-empty">What’s taking up room in your head tonight?</p>}
         {s.msgs.map((m, i) => (
@@ -176,7 +265,12 @@ function Chat({ s, set, risky, onRisk, say }: { s: State; set: Set; risky: (t: s
           Send
         </button>
       </div>
-      {!s.risk && s.msgs.some((m) => m.role === 'you') && !propose && (
+      {compact && newTurns > 0 && !s.risk && !s.ended && (
+        <button className="solid tm-addnew" disabled={adding} onClick={addNew}>
+          {adding ? 'Making cards…' : 'Add what’s new to the map'}
+        </button>
+      )}
+      {!compact && !s.risk && s.msgs.some((m) => m.role === 'you') && !propose && (
         <button className="tm-early" onClick={() => set((p) => ({ ...p, phase: 'layout' }))}>
           Spread it out now
         </button>
@@ -199,7 +293,7 @@ function Layout({ s, set }: { s: State; set: Set }) {
         const made = got.map((c) => ({ ...c, id: uid() }))
         const cards = made.map(({ id, text, kind }, i) => ({ id, text, kind: kind || undefined, src: 'you' as Src, x: 60 + (i % cols) * 300 + (Math.floor(i / cols) % 2) * 60, y: 50 + Math.floor(i / cols) * 230, stack: [] }))
         const entry: Log = { t: 'cards', at: Date.now(), notes: lastNotes(p.msgs), made, skipped: r?.skipped ?? [], fallback: !r }
-        return { ...p, phase: 'map', cards: [...p.cards, ...cards], log: [...(p.log ?? []), entry] }
+        return { ...p, phase: 'map', cards: [...p.cards, ...cards], log: [...(p.log ?? []), entry], spreadAt: p.msgs.length }
       }),
     )
   })
@@ -398,7 +492,7 @@ function MapCanvas({ s, set, risky }: { s: State; set: Set; risky: (t: string, w
           const a = card(x.from)
           const b = card(x.to)
           if (!a || !b) return null
-          const cls = [inLoop.has(x.id) && 'loop', breakable.has(x.id) && 'breakable', breaking === x.id && 'breaking'].filter(Boolean).join(' ')
+          const cls = [inLoop.has(x.id) && 'loop', breakable.has(x.id) && 'breakable', breaking === x.id && 'breaking', x.by === 'ai' && 'ai'].filter(Boolean).join(' ')
           return <path key={x.id} d={geom(x).d} className={cls} markerEnd="url(#tm-arrow)" />
         })}
         {!ro &&
@@ -421,17 +515,29 @@ function MapCanvas({ s, set, risky }: { s: State; set: Set; risky: (t: string, w
         const m = mid(x)
         return editEdge === x.id ? (
           <span key={x.id} className="tm-label edit" style={{ left: m.x, top: m.y }}>
-            <input autoFocus defaultValue={x.label} maxLength={60} placeholder="how are they linked?" onBlur={(e) => (risky(e.target.value, 'line label'), set((st) => ({ ...st, edges: st.edges.map((y) => (y.id === x.id ? { ...y, label: e.target.value } : y)) })), setEditEdge(null))} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
+            <input autoFocus defaultValue={x.label} maxLength={60} placeholder="how are they linked?" onBlur={(e) => (risky(e.target.value, 'line label'), set((st) => ({ ...st, edges: st.edges.map((y) => (y.id === x.id ? { ...y, label: e.target.value, by: e.target.value === y.label ? y.by : undefined } : y)) })), setEditEdge(null))} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
             <button aria-label="Delete line" onPointerDown={(e) => (e.preventDefault(), set((st) => ({ ...st, edges: st.edges.filter((y) => y.id !== x.id) })), setEditEdge(null))}>
               ×
             </button>
           </span>
         ) : (
-          <button key={x.id} className={`tm-label${x.label ? '' : ' blank'}`} style={{ left: m.x, top: m.y }} disabled={ro} onClick={() => setEditEdge(x.id)}>
+          <button key={x.id} className={`tm-label${x.label ? '' : ' blank'}${x.by === 'ai' ? ' ai' : ''}`} style={{ left: m.x, top: m.y }} disabled={ro} onClick={() => setEditEdge(x.id)} title={x.by === 'ai' ? 'Drawn by “Arrange for me”. Click to change or delete it.' : undefined}>
+            {x.by === 'ai' && <span className="tm-by">AI</span>}
             {x.label || (labelling.includes(x.id) ? '…' : '+ label')}
           </button>
         )
       })}
+
+      {(s.areas ?? []).map((a, i) => (
+        <span key={i} className="tm-area" style={{ left: a.x, top: a.y }}>
+          {a.name}
+          {!ro && (
+            <button aria-label={`Remove the group name ${a.name}`} onClick={() => set((p) => ({ ...p, areas: (p.areas ?? []).filter((_, j) => j !== i) }))}>
+              ×
+            </button>
+          )}
+        </span>
+      ))}
 
       {groups.map((g, i) => {
         const ms = g.map((id) => mid(s.edges.find((x) => x.id === id)!))
@@ -541,6 +647,39 @@ function MapCanvas({ s, set, risky }: { s: State; set: Set; risky: (t: string, w
       {!s.cards.length && <p className="tm-empty board">Double-click anywhere to add a card.</p>}
       {!ro && s.cards.length > 0 && !breaking && <p className="tm-help">Drag a card to move it · drag a dot on any edge to another card to connect · drop a card onto another to stack · double-click to edit · Delete removes{groups.length ? ' · click a line in a loop to write one thing you could do' : ''}</p>}
     </main>
+  )
+}
+
+// The person's own Anthropic key: kept in this browser only, sent only to Anthropic.
+function KeyPanel({ close }: { close: () => void }) {
+  const [v, setV] = useState('')
+  const [has, setHas] = useState(Boolean(getKey()))
+  const [srv, setSrv] = useState(false)
+  useEffect(() => void hasServer().then(setSrv), [])
+  return (
+    <>
+      <div className="tm-dim" onClick={close} />
+      <div className="tm-keypanel" role="dialog" aria-label="Your Anthropic API key">
+        <span className="tm-tag">AI key</span>
+        <p>{has ? 'Your key is saved in this browser.' : srv ? 'No key of your own: the AI runs on this computer’s server.' : 'No key yet. The AI needs your own Anthropic API key.'}</p>
+        <label className="tm-field">
+          <span>Anthropic API key</span>
+          <input id="tm-key" type="password" autoComplete="off" spellCheck={false} placeholder="sk-ant-…" value={v} onChange={(e) => setV(e.target.value)} />
+        </label>
+        <ul className="tm-keynotes">
+          <li>The key stays in this browser and is sent only to Anthropic. Your conversation goes straight from here to Anthropic too; this site has no server.</li>
+          <li>Use a key with a monthly spending limit. On a shared computer, press “Forget my key” when you are done.</li>
+          <li>Get a key at console.anthropic.com → API keys.</li>
+        </ul>
+        <span className="tm-actions">
+          <button className="solid" disabled={!v.trim().startsWith('sk-')} onClick={() => (setKey(v.trim()), setHas(true), setV(''), close())}>
+            Save key
+          </button>
+          {has && <button onClick={() => (setKey(''), setHas(false))}>Forget my key</button>}
+          <button onClick={close}>Close</button>
+        </span>
+      </div>
+    </>
   )
 }
 

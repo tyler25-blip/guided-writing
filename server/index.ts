@@ -3,7 +3,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createServer } from 'node:http'
 import { allOk, checkComment, type Checks, type Judgement } from '../src/checks.ts'
-import { mapRoute } from './map.ts'
+import { mapRoute } from '../src/map/brain.ts'
 
 const PORT = Number(process.env.JUDGE_PORT ?? 8787)
 const MODEL = 'claude-sonnet-5-5' // cheaper than Opus; enough for a short judgement
