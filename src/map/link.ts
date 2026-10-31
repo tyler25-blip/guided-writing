@@ -34,7 +34,12 @@ export const hasServer = () =>
 // The page listens for this to ask for a key.
 export const NEED_KEY = 'tm-need-key'
 
+// demo mode: the page never reaches the AI (and never asks for a key); the script and the stubs answer everything
+let demo = false
+export const setDemo = (on: boolean) => void (demo = on)
+
 export async function ai<T>(path: string, body: unknown): Promise<T | null> {
+  if (demo) return null
   const key = getKey()
   try {
     if (key) {

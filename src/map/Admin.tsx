@@ -5,8 +5,8 @@ import { loops } from './graph.ts'
 import { KEY, lastNotes, type Log, type Made, type Notes, type State } from './MapApp.tsx'
 import './admin.css'
 
-const KINDS = ['event', 'feeling', 'thought', 'worry', 'action'] as const
-const KIND: Record<string, string> = { event: 'what happened', feeling: 'feeling', thought: 'how they read it', worry: 'fear of what comes', action: 'something they could do' }
+const KINDS = ['A', 'B', 'C', 'DE'] as const
+const KIND: Record<string, string> = { A: 'what happened', B: 'what they told themselves', C: 'what they felt', DE: 'another way to see it', NEXT: 'next step' }
 const STUCK: Record<string, string> = {
   unclear: 'can’t tell what it is',
   deciding: 'stuck between options',
@@ -125,7 +125,7 @@ function Report({ s }: { s: State }) {
               <dt>What seems most stuck</dt>
               <dd>{sum.stuck || '—'}</dd>
               <dt>Next step</dt>
-              <dd>{steps.length ? steps.map((c) => `${c.text} · ${c.step!.when || 'when?'} · ${c.step!.where || 'where?'}`).join(' / ') : sum.step || '—'}</dd>
+              <dd>{steps.length ? steps.map((c) => `${c.text} · ${c.step!.when || 'when?'} · ${c.step!.will || 'will?'}`).join(' / ') : sum.step || '—'}</dd>
             </dl>
           ) : (
             <p className="ad-muted">No summary yet.</p>
