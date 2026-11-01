@@ -55,3 +55,34 @@ Open http://localhost:5173.
 - [ ] M6 · Pilot
 
 The API key must never live in the front end or in git — it lives only in `.env`, read by `server/index.ts`.
+
+## Thought map v2 (ABCDE)
+
+`/map` is rebuilt around one mechanism: in the chat, separate what happened (A), what the person told themselves (B) and what they felt (C), let them name the feeling, then invite them to see it another way (D/E). Spec: `thoughtmap_spec_v2.md`.
+
+- **Chat** is one full-width screen. Replies reflect the latest message in the person's words; a feeling gets two different word options as chips (plus "+ my own word"); the AI never names the feeling, never says why. Then "Want to see it as a map?" → *Lay it out for me* (AI draws dashed lines, loops allowed) or *I'll arrange it myself* (piles by kind).
+- **Map** is two panes: a read-only conversation (shut by default; click a card to open it at the source message, kept words in ink, trimmed words faded) and the canvas. Cards are delete-only trims of the person's words (`trimmed()` in `mapchecks.ts`); no AI cards, no line labels. Gap hints, the "another way to see it" guide for a new thought card, loop → "When ___, I will ___", and a summary built by the program from the person's own cards (`summaryOf()` in `place.ts`).
+- Storage key is now `thought-map-v2`. Old maps are not migrated.
+- Demo without a key: open `/map?demo` (any build, including the GitHub Pages one). The page never calls the AI there and never asks for a key; a script answers. The dev panel has the same story as jump buttons.
+- Try it without a key: `npx vite` and open `/map` (the stubs in `MapApp.tsx` answer: turn 1 asks how it feels, turn 2 offers `dread`/`overwhelmed`, a naming asks "doesn't quite fit", the next turn proposes). The dev panel (bottom-right) can load a sample, spread the chat as piles or connected, make a loop, and open the summary.
+- Self-checks: `node src/map/mapchecks.check.ts`, `node src/map/graph.check.ts`, `node src/map/place.check.ts`, `node src/map/demo.check.ts`.
+
+### Demo walkthrough (`/map?demo`)
+
+The box is pre-filled with the next line of the story (editable); send it and the scripted reply follows after a short typing delay. Anything else you write gets the program stubs.
+
+1. "Um, so I have a presentation on Thursday…" → the reply separates what's coming up from the thought that keeps returning (reflection in the person's words).
+2. "I keep thinking I'm going to totally mess it up…" → the thought is reflected; the one question asks how it feels (what/how, never why).
+3. "I feel like I'm just not good enough…" → a feeling-shaped thought, asked about once: is it something you tell yourself or a feeling?
+4. "I guess it's more what I tell myself. What I feel is my chest getting really tight." → two different words (dread / overwhelmed) as chips; multi-select, "+ my own word", "That's it" makes the naming pill and the AI answers without typed text.
+5. "Then I lie awake half the night, and I'll be too tired to present well." → a new thing that happened (the loop's second lap) and a new thought.
+6. "Honestly I'm kind of scared. I'm going to screw this up." → a second naming (afraid / ashamed); naming here skips step 7, then the invitation to see it another way.
+7. "I don't know what to call it." (only if the feeling was not named) → skipping a name is fine; the same invitation follows.
+8. "Well, maybe last time I prepared properly, it actually went okay." → the person's evidence against the thought (a D card). The AI only invites: "When you say “totally mess it up”, what would that actually look like?" (logic).
+9. "Probably I'd stumble on a slide or two, but that's not the whole thing falling apart." → the person's own logic check (a second D/E card). The AI invites a new belief: "If a friend had this thought…, what would you want them to tell themselves?"
+10. "That I can be nervous and still get through it." → the person's new belief (a third D/E card, the E). The AI proposes the map. "Talk a bit more" brings the script's "Of course…" and the offer returns after the next message; "Yes" leads to the arrangement choice.
+11. **I'll arrange it myself** → piles on the right (What happened, What I told myself, What I felt, Another way to see it); drag cards out one by one, the pile re-tidies. Unnamed feeling cards show "+ name it"; a feeling nothing leads into gets "What happened before this?".
+12. **Lay it out for me** → layered top to bottom, every line horizontal and vertical runs only, no crossing lines, the loop closes as an arc outside the layout; dashed AI lines can be kept or removed. Select a card and press the eye to open the conversation at its source with the trimmed words faded. Double-click a card to edit it. The kind label opens a menu to change the kind. Hold B1 or B4 and the other lights up with "Drop here to stack"; drop it there for ×2 (dropping on any other card just moves it). Lines are rerouted while you move a card.
+13. The loop chip explains the circle; clicking a line in the loop opens "When ___ / I will ___" and puts a Next step card at a free spot. Double-click empty canvas to add a card: a thought-shaped card opens the "another way to see it" guide. Drag a dot between an A and a C card to see "What did you tell yourself in between?".
+14. "That's enough for now" asks for one small next step if there is none, then shows the summary built from the person's own cards; closing it pins a small summary card.
+15. Pan (drag the empty canvas or two-finger scroll), zoom (pinch, ⌘/Ctrl + scroll, − / + / Fit), all at the bottom right.

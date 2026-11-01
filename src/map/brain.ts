@@ -1,76 +1,60 @@
-// Thought-map AI: chat, card split, line labels, stack hints, loop note, arrange, summary. Runs in two places:
+// Thought-map AI: chat (with naming options), card trimming, arrange, kind of a new card, loop-step question, stack hints. Runs in two places:
 // the local server (server/index.ts, key from .env) or straight from the browser with the person's own key (public site).
 // Every output passes the program checks in mapchecks.ts; one rewrite, otherwise the page falls back to its stub.
 import type Anthropic from '@anthropic-ai/sdk'
-import { ownWords, problems, saysCommon } from './mapchecks.ts'
+import { problems, replyProblems, saysCommon, trimmed } from './mapchecks.ts'
 import { isCrisis } from '../triggers.ts'
 
-type Msg = { role: 'you' | 'ai'; text: string; declined?: boolean }
-// The AI's private understanding, updated every turn. Never shown in the chat; the summary may say the core once.
-export type Notes = { have: Record<Kind, boolean>; core: string; stuck: Stuck; help: string; ready: boolean }
-type Kind = 'event' | 'feeling' | 'thought' | 'worry' | 'action'
+type Msg = { role: 'you' | 'ai'; text: string; declined?: boolean; naming?: boolean }
+// The AI's private understanding, updated every turn. Never shown in the chat.
+// have: which of A what happened / B what they tell themselves / C what they feel / DE another way to see it have appeared; named: they put a word to the feeling; deAsked: how many of the three invitations to see it another way (evidence, logic, a new belief) were made.
+export type Notes = { have: Record<Kind, boolean>; named: boolean; deAsked: number; core: string; stuck: Stuck; help: string; ready: boolean }
+type Kind = 'A' | 'B' | 'C' | 'DE'
 type Stuck = 'unclear' | 'deciding' | 'starting' | 'replaying' | 'what-if' | 'other'
-const KINDS: Kind[] = ['event', 'feeling', 'thought', 'worry', 'action']
+const KINDS: Kind[] = ['A', 'B', 'C', 'DE']
 const MAX_TURNS = 8 // after this many of their messages, offer the map anyway
-type Card = { id: string; text: string; src: 'you' | 'ai' }
-type Edge = { id: string; from: string; to: string; label: string }
+type Card = { id: string; text: string; kind?: string }
+type Edge = { id: string; from: string; to: string }
 
 const NEVER = `Never: diagnoses or clinical labels (depression, anxiety disorder, trauma, symptoms…); analysis words (rumination, cognitive distortion, catastrophizing); "you should / you must / I recommend"; verdicts on the person or on people in their story. Refer to the person as "they" unless they said otherwise. English only.`
 
-const CHAT = `You are the AI inside "Thought map", a tool for the evening when one thing is occupying someone's head and they want to get it out. Talk the way a normal, thoughtful AI assistant talks — warm, natural, full sentences that pick up the specifics they mention — within these limits:
+const CHAT = `You are the AI inside "Thought map", a tool for the evening when one thing is occupying someone's head and they want to get it out. Talk like a warm counsellor, in the person's own words, within these limits:
 
-B1 Natural. Answer what they actually said, with substance: usually 50–130 words, 2–5 sentences. Reflect the concrete details back. You may add one perspective or one piece of general knowledge when it helps them see it. Do not tell them their experience is common or normal — at most once in the whole conversation, and only if it adds real information.
-B2 No strong advice. Don't tell them what to do. If they ask, you may lay out the options they already named, or one gentle possibility, clearly optional; the choice is theirs.
-B3 No judging — not them and not the people in their story. No praise, no verdicts ("you're overreacting", "he's toxic", "that's great of you").
-B4 Don't keep asking. At most one question per reply, and about half your replies have none. Never a list of questions.
-B5 Gather with a purpose, then close. You are collecting material for a map of their thoughts, so keep private notes (never mention them):
-   have — which kinds of material they have given so far: event (what actually happened, concretely), feeling (what they feel), thought (how they read it / what they tell themselves), worry (what they fear will happen), action (anything they could do, or have tried).
-   core — one sentence: your best guess at what they are really stuck on underneath (not a diagnosis).
-   stuck — how they are stuck: unclear (can't tell what it is), deciding (between options), starting (can't begin), replaying (an event keeps replaying), what-if (fear of something not yet happened), other.
-   help — one short phrase: what would help most next (e.g. "get the concrete event", "separate fact from her reading").
-   When a key kind is missing for THIS person's kind of stuck, let your reply gently open room for it (at most one question, often none — a reflection can invite it too). Don't interrogate; don't cover all five mechanically.
-   ready=true when the core is clear and there is enough to map (usually 3–6 of their messages). Then set propose=true: the page shows a button offering to spread it out on a map; your reply should lead into that naturally and must not ask a question itself. If a message says they chose to keep talking, go on, and propose again only after a couple more of their messages.
-B6 Pull back drift. If they wander to something unrelated to what's weighing on them, acknowledge it in a few words and gently bring it back.
+B1 Reflect, don't lecture. Usually 40–110 words, 2–5 sentences. Every reply says back, woven into ordinary sentences, which parts of THEIR LATEST message are what happened, which are what they are telling themselves, and which are what they feel. Never "A: …", never letters, never the word "fact" (say "what happened" or "what's coming up"). Reflect only what is new this turn, not what you already reflected. Vary how you open; do not start every reply with "I notice" or "I hear".
+B2 No strong advice. Don't tell them what to do.
+B3 No judging, not them and not the people in their story. No praise, no verdicts. Don't tell them their experience is common or normal.
+B4 At most one question per reply, and only "what" or "how", never "why" or "because". Use the one question to fill whichever of these is still missing: what happened ("What happened right before it started?"), what they tell themselves ("When that happens, what goes through your mind?"), what they feel ("How does that leave you feeling?") — phrase it naturally.
+B5 Naming a feeling. When their latest message holds a feeling or body sensation that they have not put a word to yet: reflect it, end the reply by inviting them to put a word to it (e.g. "If you put a word to it, which is closer?"), ask NO question mark in that reply, and return options: exactly two emotion words that are clearly different from each other (not synonyms), 1–2 words each, lowercase, e.g. ["dread","overwhelmed"]. A behaviour ("stayed up all night") is not a feeling; it is something that happened. Otherwise options is [].
+   A line starting "PERSON (put a word to the feeling): …" means they chose the word(s) themselves. Take them as given and never rename the feeling.
+B6 Another way to see it (dispute, then a new belief). Once they have named a feeling and what happened, what they tell themselves and what they feel have all appeared, you may invite them up to THREE times, one open question per reply, in this order, each only as an invitation: (1) evidence — "Is there anything about this that doesn't quite fit that thought?"; (2) logic — "When you say <their words>, what would that actually look like?"; (3) a new belief — "If a friend had this thought, what would you want them to tell themselves?". Whatever they answer is theirs. Never offer the other view yourself, never argue with their thought, and when an invitation has been answered move on to the next or stop; do not repeat one.
+B7 Pull back drift. If they wander to something unrelated to what's weighing on them, acknowledge it in a few words and gently bring it back.
+B8 Private notes, never mentioned: have — which of A, B, C, DE have appeared at least once; named — they put a word to the feeling; deAsked — how many of the three B6 invitations you have made so far (0–3); core — one sentence, your best guess at what they are really stuck on (not a diagnosis); stuck — unclear, deciding, starting, replaying, what-if or other; help — a short phrase for what would help next; ready.
+   propose=true as soon as A, B and C have each appeared at least once (naming and DE are not required). The page then offers to spread it out as a map: your reply should lead into that naturally and must not ask a question. If a message says they chose to keep talking, go on, and propose again only after a couple more of their messages.
 
 risk: true if anything they wrote suggests hopelessness, feeling like a burden, wanting to disappear, not wake up, die or hurt themselves — even indirectly. Otherwise false.
 ${NEVER}`
 
 const SAFETY = `The person may be at risk: something they wrote suggests hopelessness, feeling like a burden, or wanting to die or hurt themselves. Stop the thought-map task. Reply warmly and directly, in 3–5 sentences: say you're glad they told you, take it seriously, ask whether they are safe right now, and ask them to reach a person now — TelefonSeelsorge 0800 111 0 111 (Germany, free, 24/7), 1925 (Taiwan, 24/7), or emergency 112 / 119. Do not analyse, do not offer to map it, do not say it is common. English only.`
 
-const CARDS = `You split a chat into cards for a thought map; they go straight onto the map.
-"you" cards: pick the thoughts that carry the most weight for what they are stuck on (you get the AI's private notes on the core issue) — at most 10, with a mix of kinds where the chat has them (event, feeling, thought, worry, action). Tag each with its kind. One thought per card, in THEIR words: copy or trim their sentences (cut filler, keep first person), never rephrase, never add. Each card must make sense on its own (no "probably chapters 2 and 3"). Skip greetings, filler and repeats. In the order they said them, each under 20 words.
-For each card also give: from = the number of their message it comes from (1 = their first message), why = one short plain sentence for the researcher on why this one earns a card (what it shows about the core).
-skipped: up to 6 things they said that you did NOT turn into a card, each with a short why (repeat, filler, already covered by another card, too vague alone…).
+const CARDS = `You turn a chat into cards for a thought map; they go straight onto the map. Cards come only from the PERSON's messages (never the AI's), at most 10, each tagged A (what happened), B (what they told themselves), C (what they felt: feelings and body sensations only; a behaviour like "stayed up all night" is A), or DE (what they said when the AI invited them to see it another way).
+Each card is ONE thought and is delete-only: copy their words in order, and only delete fillers (um, like, you know, I mean, kind of as filler), repeats, and clauses unrelated to this card. Never add, reorder or substitute a word. Never delete: hedges (maybe, might, kind of, probably, I guess, sort of, perhaps), negations (not, no, never, n't, nothing, nobody), intensity words (so, totally, really, very, always, every, completely, extremely, keep) or first person (I, me, my, mine, myself). Under 24 words, in the order they said them, each making sense on its own.
+Messages marked as putting a word to the feeling are not material; ignore them.
+For each card give: from = the number of their message it comes from (1 = their first), why = one short plain sentence for the researcher on why it earns a card.
+skipped: up to 6 things they said that you did NOT turn into a card, each with a short why.
 ${NEVER}`
 
-const LABEL = `The person drew an arrow between two cards on their thought map. Write the label for that arrow: how the first card leads to the second, from their side, in 2–6 plain everyday words, lowercase, e.g. "so I put it off", "and it keeps me up", "makes it worse". Use only what the cards say; if the link isn't clear, return "".
-${NEVER}`
-
-const ARRANGE = `The person is tired and pressed "Arrange for me" on their thought map. Do the arranging they'd otherwise do by hand:
-groups: 2–4 groups of cards by what they are about (for example what happened / what I tell myself / what I fear / what I could do). Name each group in 1–3 plain words. Every card id goes in exactly one group.
-lines: the 2–4 links that matter most (from → to, card ids), each with a label of 2–6 plain words in their voice, like "so I put it off". Don't repeat a line that already exists. Don't invent links the cards don't support.
-No advice.
+const ARRANGE = `The person pressed "Lay it out for me" on their thought map. Return lines: {from, to} card ids that make a complete map. A line means "and then": what happened → what they told themselves → what they felt; a feeling may lead to the next thing that happened, which may close a loop (loops are allowed); an "another way to see it" card links from the thought it answers. Only links the cards support. No labels, no groups, no advice.
 ${NEVER}`
 
 const STACK = `Cards on a thought map. Find cards that say the same thought twice (near-duplicates, not merely related topics). Return at most 3 pairs of ids; return none if there are none.`
 
-const LOOP = `The person's thought map has a loop: each card leads to the next and back to the first. Write a short note, 2 sentences, under 55 words, no question:
-1. Name the loop concretely, in order, in their words ("Rereading the PR → slower → afraid the managers notice → second-guessing → rereading again").
-2. Point at ONE link that looks easiest to loosen with something small they could do at that moment, and say plainly what happens at that moment (not why they are like this).
-Return that link's id as break_edge — only there; never write an id in the note. Never say loops are common or normal. No advice.
-${NEVER}`
+const KIND = `Decide what kind of thing a short text is, as written by a person about what is on their mind: A = something that happened; B = something they tell themselves (a thought, a reading of it, a prediction); C = a feeling or body sensation (a behaviour is A); DE = another way of seeing it that doesn't quite fit their thought. Return only the kind.`
 
-const BREAK = `The person clicked one link in a loop on their thought map, to write a small concrete action that could loosen it. Write:
-question: ONE short guiding question (under 30 words) that names this link in their words and invites something small and doable at that moment — something they could try once, soon.
-example: one short example action (under 12 words) shown greyed as a placeholder, written as an option in first person ("Send Jonas one line on Friday morning"). It must fit their situation.
+const BREAK = `The person clicked one link in a loop on their thought map, to write a small concrete step that could loosen it as "When ___, I will ___". Write:
+question: ONE short guiding question (under 30 words) that names this link in their words and invites one small thing at that moment.
+when_example: a short example for the "When" field (under 10 words, a moment, e.g. "it's 11 pm and I'm still replaying it"), shown greyed as a placeholder.
+will_example: a short example for the "I will" field (under 12 words, first person, e.g. "write the one open item on a card and close the laptop"). Both must fit their situation.
 No advice beyond that, no "should".
-${NEVER}`
-
-const SUMMARY = `The person has finished their thought map for tonight. Write a closing summary; they cannot reply to it.
-restate: 2–3 sentences restating their map in their words: what most lines run through, and any loop named concretely in order. If they wrote step cards (marked STEP), end by naming the step and its when/where. No interpretation beyond what's on the map.
-stuck: ONE tentative sentence on what seems most stuck tonight, using the AI's private notes and the map ("It looks like what's most stuck is …, more than …"). Tentative, in their words, no diagnosis.
-step: ONLY if there are no STEP cards — one small action drawn from their own cards, with a concrete when and where, as one line: "When · Where · What" (e.g. "Tomorrow after the TA shift · at my desk · draft the email, don't send it yet"). Otherwise "".
-Never say it is common or normal. No questions.
 ${NEVER}`
 
 const S = (props: Record<string, unknown>) => ({ type: 'object', additionalProperties: false, required: Object.keys(props), properties: props })
@@ -100,20 +84,22 @@ async function ask<T>(client: Anthropic, model: string, system: string, content:
   return lenient ? last : null
 }
 
+const line = (m: Msg) => (m.role === 'you' ? (m.naming ? `PERSON (put a word to the feeling): ${m.text}` : `PERSON: ${m.text.slice(0, 2000)}`) : `AI: ${m.text.slice(0, 2000)}`)
 const transcript = (msgs: Msg[]) =>
   msgs
     .slice(-40)
-    .map((m) => `${m.role === 'you' ? 'PERSON' : 'AI'}: ${m.text.slice(0, 2000)}${m.declined ? '\n(The person chose to keep talking instead of spreading it out.)' : ''}`)
+    .map((m) => `${line(m)}${m.declined ? '\n(The person chose to keep talking instead of spreading it out.)' : ''}`)
     .join('\n\n')
-type MapCard = Card & { step?: { when: string; where: string } }
+// naming messages are not material: they get no number
 const transcriptNumbered = (msgs: Msg[]) => {
   let n = 0
   return msgs
     .slice(-40)
+    .filter((m) => !m.naming)
     .map((m) => (m.role === 'you' ? `PERSON #${++n}: ${m.text.slice(0, 2000)}` : `AI: ${m.text.slice(0, 2000)}`))
     .join('\n\n')
 }
-const list = (cards: MapCard[]) => cards.map((c) => `[${c.id}] (${c.step ? 'STEP' : c.src}) ${c.text.slice(0, 300)}${c.step ? ` — when: ${c.step.when || '?'}, where: ${c.step.where || '?'}` : ''}`).join('\n')
+const list = (cards: Card[]) => cards.map((c) => `[${c.id}]${c.kind ? ` (${c.kind})` : ''} ${c.text.slice(0, 300)}`).join('\n')
 const risky = (cards: Card[]) => cards.some((c) => isCrisis(c.text))
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,85 +111,73 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       const safety = async () => {
         // safety text is exempt from the no-"you need to" rule: asking them to call someone is the point
         const o = await ask<{ reply: string }>(client, model, SAFETY, content, S({ reply: str }), (o) => problems(o.reply, { maxWords: 140 }).filter((x) => !x.startsWith('strong advice')))
-        return { reply: o?.reply ?? 'I’m really glad you told me. Please reach a person now: TelefonSeelsorge 0800 111 0 111 (Germany, 24/7), 1925 (Taiwan, 24/7), or 112 / 119 in an emergency. Are you safe right now?', propose: false, risk: true }
+        return { reply: o?.reply ?? 'I’m really glad you told me. Please reach a person now: TelefonSeelsorge 0800 111 0 111 (Germany, 24/7), 1925 (Taiwan, 24/7), or 112 / 119 in an emergency. Are you safe right now?', options: [], propose: false, risk: true }
       }
       if (b.risk || isCrisis(msgs.at(-1)?.text ?? '')) return safety()
       const used = msgs.some((m) => m.role === 'ai' && saysCommon(m.text))
-      const turns = msgs.filter((m) => m.role === 'you').length
+      const prev = msgs.findLast((m) => m.role === 'ai')?.text
+      const turns = msgs.filter((m) => m.role === 'you' && !m.naming).length
       const last = turns >= MAX_TURNS && !msgs.at(-2)?.declined ? `\n\nThis is their ${turns}th message: set propose=true now even if some material is missing.` : ''
-      const NOTES = S({ have: S(Object.fromEntries(KINDS.map((k) => [k, { type: 'boolean' }]))), core: str, stuck: { type: 'string', enum: ['unclear', 'deciding', 'starting', 'replaying', 'what-if', 'other'] }, help: str, ready: { type: 'boolean' } })
-      const o = await ask<{ reply: string; propose: boolean; risk: boolean; notes: Notes }>(
+      const NOTES = S({ have: S(Object.fromEntries(KINDS.map((k) => [k, { type: 'boolean' }]))), named: { type: 'boolean' }, deAsked: { type: 'integer' }, core: str, stuck: { type: 'string', enum: ['unclear', 'deciding', 'starting', 'replaying', 'what-if', 'other'] }, help: str, ready: { type: 'boolean' } })
+      const o = await ask<{ reply: string; options: string[]; propose: boolean; risk: boolean; notes: Notes }>(
         client,
         model,
         CHAT,
         content + last,
-        S({ notes: NOTES, reply: str, propose: { type: 'boolean' }, risk: { type: 'boolean' } }),
-        (o) => (o.risk ? [] : problems(o.reply, { maxWords: 170, maxQ: o.propose ? 0 : 1, noCommon: used })),
+        S({ notes: NOTES, reply: str, options: { type: 'array', items: str }, propose: { type: 'boolean' }, risk: { type: 'boolean' } }),
+        (o) => (o.risk ? [] : [...problems(o.reply, { maxWords: 170, maxQ: o.propose || o.options.length ? 0 : 1, noCommon: used }), ...replyProblems(o, prev)]),
       )
-      return o?.risk ? safety() : o // the AI heard risk without the words → answer with the safety script too
+      if (o?.risk) return safety() // the AI heard risk without the words → answer with the safety script too
+      return o && { ...o, options: o.options.map((x) => x.toLowerCase().trim()) }
     }
     case 'cards': {
       const msgs = b.msgs as Msg[]
-      const said = msgs.filter((m) => m.role === 'you').map((m) => m.text).join(' ')
-      if (isCrisis(said)) return { you: [], risk: true } // never turn a risk disclosure into a card
+      const mine = msgs.filter((m) => m.role === 'you' && !m.naming).map((m) => m.text)
+      if (isCrisis(msgs.filter((m) => m.role === 'you').map((m) => m.text).join(' '))) return { you: [], risk: true } // never turn a risk disclosure into a card
       const n = b.notes as Notes | undefined
-      const since = Number(b.since) || 0 // > 0: they kept talking after the map was made; only the new part becomes cards
-      const notes =
-        (n ? `\n\nThe AI's private notes — core: ${n.core}; stuck: ${n.stuck}; what would help: ${n.help}` : '') +
-        (since
-          ? `\n\nThe map already exists. Pick ONLY from their messages after #${since}, at most 5 new cards, and don't repeat these cards already on it:\n${(b.existing as string[]).map((t) => `- ${t}`).join('\n')}`
-          : '')
+      const notes = n ? `\n\nThe AI's private notes — core: ${n.core}; stuck: ${n.stuck}; what would help: ${n.help}` : ''
       type Made = { text: string; kind: Kind; from: number; why: string }
       const long = (t: string) => t.split(/\s+/).length > 24
+      const bad = (c: Made) => trimmed(c.text, mine[c.from - 1] ?? mine.join(' '))
       const o = await ask<{ you: Made[]; skipped: { text: string; why: string }[] }>(
         client,
         model,
         CARDS,
         `Chat (their messages are numbered):\n\n${transcriptNumbered(msgs)}${notes}`,
         S({ you: { type: 'array', items: S({ text: str, kind: { type: 'string', enum: KINDS }, from: { type: 'integer' }, why: str }) }, skipped: { type: 'array', items: S({ text: str, why: str }) } }),
-        (o) => o.you.filter((c) => long(c.text)).map((c) => `card too long, trim it to one thought under 20 words: "${c.text.slice(0, 60)}…"`),
+        (o) => o.you.flatMap((c) => [...(long(c.text) ? [`card too long, trim it to one thought under 24 words: "${c.text.slice(0, 60)}…"`] : []), ...bad(c).map((r) => `card "${c.text.slice(0, 60)}" ${r}`)]),
         true,
       )
       if (!o) return null
-      // drop, don't rewrite: a card that isn't their words just doesn't appear (the back office shows it as dropped)
-      const keep = (c: Made) => ownWords(c.text, said) && !isCrisis(c.text) && !long(c.text)
-      const you = o.you.filter(keep).slice(0, 10)
-      const dropped = o.you.filter((c) => !keep(c)).map((c) => ({ text: c.text, why: isCrisis(c.text) ? 'program: risk words' : long(c.text) ? 'program: too long for one card' : 'program: not their own words (< 75%)' }))
-      return you.length >= (since ? 1 : 3) ? { you: since ? you.filter((c) => c.from > since).slice(0, 5) : you, skipped: [...o.skipped.slice(0, 6), ...dropped] } : null
-    }
-    case 'label': {
-      const cards = b.cards as Card[]
-      const f = cards.find((c) => c.id === b.from)
-      const t = cards.find((c) => c.id === b.to)
-      if (!f || !t) return null
-      return ask<{ label: string }>(client, model, LABEL, `All cards:\n${list(cards)}\n\nArrow: "${f.text}" → "${t.text}"`, S({ label: str }), (o) => problems(o.label, { maxWords: 8, maxQ: 0 }))
+      // drop, don't rewrite: a card that isn't a delete-only trim of their words just doesn't appear (the back office shows it as dropped)
+      const why = (c: Made) => (isCrisis(c.text) ? 'program: risk words' : long(c.text) ? 'program: too long for one card' : bad(c).length ? `program: not a delete-only trim (${bad(c).join('; ')})` : '')
+      const you = o.you.filter((c) => !why(c)).slice(0, 10)
+      const dropped = o.you.filter((c) => why(c)).map((c) => ({ text: c.text, why: why(c) }))
+      return you.length >= 3 ? { you, skipped: [...o.skipped.slice(0, 6), ...dropped] } : null
     }
     case 'arrange': {
-      const cards = b.cards as (Card & { kind?: string })[]
-      const edges = b.edges as Edge[]
+      const cards = b.cards as Card[]
       if (risky(cards)) return { risk: true }
       const ids = new Set(cards.map((c) => c.id))
-      const have = edges.map((e) => `[${e.from}] → [${e.to}]`).join('\n')
-      const o = await ask<{ groups: { name: string; ids: string[] }[]; lines: { from: string; to: string; label: string }[] }>(
+      const o = await ask<{ lines: { from: string; to: string }[] }>(
         client,
         model,
         ARRANGE,
-        `Cards:\n${cards.map((c) => `[${c.id}]${c.kind ? ` (${c.kind})` : ''} ${c.text.slice(0, 300)}`).join('\n')}\n\nLines already drawn:\n${have || '(none)'}`,
-        S({ groups: { type: 'array', items: S({ name: str, ids: { type: 'array', items: str } }) }, lines: { type: 'array', items: S({ from: str, to: str, label: str }) } }),
+        `Cards:\n${list(cards)}`,
+        S({ lines: { type: 'array', items: S({ from: str, to: str }) } }),
         (o) => [
-          ...o.lines.flatMap((l) => problems(l.label, { maxWords: 8, maxQ: 0 })),
-          ...o.groups.flatMap((g) => problems(g.name, { maxWords: 4, maxQ: 0 })),
-          ...o.lines.filter((l) => !ids.has(l.from) || !ids.has(l.to) || l.from === l.to).map((l) => `line ${l.from}→${l.to} uses an unknown card`),
+          ...o.lines.filter((l) => !ids.has(l.from) || !ids.has(l.to)).map((l) => `line ${l.from}→${l.to} uses an unknown card`),
+          ...o.lines.filter((l) => l.from === l.to).map((l) => `line ${l.from}→${l.to} links a card to itself`),
+          ...o.lines.filter((l, i) => o.lines.findIndex((x) => x.from === l.from && x.to === l.to) !== i).map((l) => `line ${l.from}→${l.to} appears twice`),
         ],
       )
       if (!o) return null
-      // every card in exactly one group (the program fixes what the AI missed or doubled)
-      const seen = new Set<string>()
-      const groups = o.groups.map((g) => ({ name: g.name, ids: g.ids.filter((id) => ids.has(id) && !seen.has(id) && (seen.add(id), true)) })).filter((g) => g.ids.length)
-      const left = cards.filter((c) => !seen.has(c.id)).map((c) => c.id)
-      if (left.length) groups.push({ name: 'Also here', ids: left })
-      const lines = o.lines.filter((l) => !edges.some((e) => e.from === l.from && e.to === l.to)).slice(0, 4)
-      return { groups, lines }
+      return { lines: o.lines.filter((l, i) => ids.has(l.from) && ids.has(l.to) && l.from !== l.to && o.lines.findIndex((x) => x.from === l.from && x.to === l.to) === i) }
+    }
+    case 'kind': {
+      const text = String(b.text ?? '')
+      if (isCrisis(text)) return null
+      return ask<{ kind: Kind }>(client, model, KIND, `Text: "${text.slice(0, 300)}"`, S({ kind: { type: 'string', enum: KINDS } }), () => [])
     }
     case 'stack': {
       const cards = b.cards as Card[]
@@ -211,50 +185,19 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       const o = await ask<{ pairs: { a: string; b: string }[] }>(client, model, STACK, list(cards), S({ pairs: { type: 'array', items: S({ a: str, b: str }) } }), () => [])
       return o && { pairs: o.pairs.filter((p) => p.a !== p.b && ids.has(p.a) && ids.has(p.b)).slice(0, 3) }
     }
-    case 'loop': {
-      const cards = b.cards as Card[]
-      const edges = b.edges as Edge[]
-      if (risky(cards)) return { risk: true }
-      const name = (id: string) => cards.find((c) => c.id === id)?.text ?? '?'
-      const loop = edges.map((e) => `[${e.id}] "${name(e.from)}" → ${e.label ? `(${e.label}) ` : ''}"${name(e.to)}"`).join('\n')
-      return ask<{ note: string; break_edge: string }>(client, model, LOOP, `The loop, link by link:\n${loop}`, S({ note: str, break_edge: str }), (o) => [
-        ...problems(o.note, { maxWords: 75, maxQ: 0, noCommon: true }),
-        ...edges.filter((e) => o.note.includes(e.id)).map((e) => `the note shows the id ${e.id}; describe the link in words`),
-        ...(edges.some((e) => e.id === o.break_edge) ? [] : [`break_edge ${o.break_edge} is not one of the loop's links`]),
-      ])
-    }
     case 'break': {
       const cards = b.cards as Card[]
       if (risky(cards)) return { risk: true }
       const name = (id: string) => cards.find((c) => c.id === id)?.text ?? '?'
       const e = b.edge as Edge
       const loop = (b.loop as Edge[]).map((x) => `"${name(x.from)}" → "${name(x.to)}"`).join('\n')
-      return ask<{ question: string; example: string }>(
+      return ask<{ question: string; when_example: string; will_example: string }>(
         client,
         model,
         BREAK,
-        `Their loop:\n${loop}\n\nThe link they clicked: "${name(e.from)}" → ${e.label ? `(${e.label}) ` : ''}"${name(e.to)}"`,
-        S({ question: str, example: str }),
-        (o) => [...problems(o.question, { maxWords: 35, maxQ: 1, noCommon: true }), ...problems(o.example, { maxWords: 14, maxQ: 0 })],
-      )
-    }
-    case 'summary': {
-      const cards = b.cards as MapCard[]
-      const edges = b.edges as Edge[]
-      if (risky(cards)) return { risk: true }
-      const lines = edges.map((e) => `[${e.from}] → [${e.to}]${e.label ? ` "${e.label}"` : ''}`).join('\n')
-      const hasStep = cards.some((c) => c.step)
-      const n = b.notes as Notes | undefined
-      return ask<{ restate: string; stuck: string; step: string }>(
-        client,
-        model,
-        SUMMARY,
-        `Cards:\n${list(cards)}\n\nArrows:\n${lines || '(none)'}\n\nLoops found by the program: ${b.loops ?? 0}${n ? `\n\nThe AI's private notes from the chat — core: ${n.core}; stuck: ${n.stuck}` : ''}`,
-        S({ restate: str, stuck: str, step: str }),
-        (o) => [
-          ...problems(`${o.restate} ${o.stuck} ${o.step}`, { maxWords: 170, maxQ: 0, noCommon: true }),
-          ...(!hasStep && o.step.split('·').length < 3 ? ['step must be "When · Where · What"'] : []),
-        ],
+        `Their loop:\n${loop}\n\nThe link they clicked: "${name(e.from)}" → "${name(e.to)}"`,
+        S({ question: str, when_example: str, will_example: str }),
+        (o) => [...problems(o.question, { maxWords: 35, maxQ: 1, noCommon: true }), ...problems(o.when_example, { maxWords: 12, maxQ: 0 }), ...problems(o.will_example, { maxWords: 14, maxQ: 0 })],
       )
     }
   }

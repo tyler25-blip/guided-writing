@@ -1,18 +1,9 @@
-// Dev panel (bottom-left): load a sample, jump to any screen, poke the current one. Collapses to one icon.
+// Dev panel (bottom-right, dev builds only): jump to any screen of the demo story, poke the current one. Collapses to one icon.
 import { useState } from 'react'
-import { SAMPLES, type Sample } from './samples.ts'
+import { demoState } from './demo.ts'
 import { lastNotes, type State } from './MapApp.tsx'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
-type Phase = 'chat' | 'map' | 'summary'
-
-// A sample's ids (c0…, e0…) are used as they are, so its AI log lines up with its cards and lines.
-const build = (x: Sample, to: Phase): State => {
-  const cards = x.cards.map((c) => ({ id: c.key, text: c.text, src: c.src, x: c.x, y: c.y, stack: c.stack ?? [], kind: c.kind }))
-  const edges = x.edges.map(([from, to, label], i) => ({ id: `e${i}`, from, to, label }))
-  if (to === 'chat') return { phase: 'chat', msgs: x.msgs, cards: [], edges: [], ended: false }
-  return { phase: 'map', msgs: x.msgs, cards, edges, ended: to === 'summary', log: x.log, spreadAt: x.msgs.length }
-}
 
 const read = <T,>(k: string, d: T): T => {
   try {
@@ -22,13 +13,11 @@ const read = <T,>(k: string, d: T): T => {
   }
 }
 
-export function DevPanel({ s, setS, openSummary, crisis }: { s: State; setS: (s: State) => void; openSummary: (o: boolean) => void; crisis: () => void }) {
+export function DevPanel({ s, setS, openSummary, crisis, pane }: { s: State; setS: (s: State) => void; openSummary: (o: boolean) => void; crisis: () => void; pane: (open: boolean) => void }) {
   const [open, setOpen] = useState(() => read('tm-dev-open', true))
-  const [pick, setPick] = useState(() => read('tm-dev-sample', 0))
   const toggle = (o: boolean) => (setOpen(o), localStorage.setItem('tm-dev-open', JSON.stringify(o)))
-  const choose = (i: number) => (setPick(i), localStorage.setItem('tm-dev-sample', JSON.stringify(i)))
-  const go = (to: Phase) => (setS(build(SAMPLES[pick], to)), openSummary(to === 'summary'))
   const here = (f: (s: State) => State) => setS(f(s))
+  const jump = (to: 'chat' | 'piles' | 'laid' | 'summary') => (setS(demoState(to)), openSummary(to === 'summary'), pane(to === 'chat'))
 
   if (!open)
     return (
@@ -48,27 +37,22 @@ export function DevPanel({ s, setS, openSummary, crisis }: { s: State; setS: (s:
         </button>
       </div>
 
-      <label className="tm-dev-row">
-        <span className="tm-tag">Sample</span>
-        <select id="tm-dev-sample" value={pick} onChange={(e) => choose(Number(e.target.value))}>
-          {SAMPLES.map((x, i) => (
-            <option key={x.name} value={i}>
-              {x.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <span className="tm-tag">Jump to (loads the sample)</span>
+      <span className="tm-tag">Demo story (also at /map?demo)</span>
       <div className="tm-dev-btns">
-        <button onClick={() => go('chat')}>1 Chat</button>
-        <button onClick={() => go('map')}>2 Map</button>
-        <button onClick={() => go('summary')}>3 Summary</button>
+        <button onClick={() => jump('chat')}>Start chat</button>
+        <button onClick={() => jump('piles')}>Jump to map — piles</button>
+        <button onClick={() => jump('laid')}>Jump to map — laid out</button>
+        <button onClick={() => jump('summary')}>Jump to summary</button>
       </div>
 
       <span className="tm-tag">This screen</span>
       <div className="tm-dev-btns">
-        {s.phase === 'chat' && s.msgs.length > 0 && <button onClick={() => here((p) => ({ ...p, phase: 'layout' }))}>Spread it out now</button>}
+        {s.phase === 'chat' && s.msgs.length > 0 && (
+          <>
+            <button onClick={() => here((p) => ({ ...p, phase: 'layout', mode: 'manual' }))}>Spread: piles</button>
+            <button onClick={() => here((p) => ({ ...p, phase: 'layout', mode: 'auto' }))}>Spread: lay it out</button>
+          </>
+        )}
         {s.phase === 'map' && (
           <>
             <button
@@ -77,14 +61,13 @@ export function DevPanel({ s, setS, openSummary, crisis }: { s: State; setS: (s:
                 here((p) => {
                   const [a, b, c] = p.cards
                   const add = [[a, b], [b, c], [c, a]].filter(([x, y]) => !p.edges.some((e) => e.from === x.id && e.to === y.id))
-                  return { ...p, edges: [...p.edges, ...add.map(([x, y]) => ({ id: uid(), from: x.id, to: y.id, label: '' }))] }
+                  return { ...p, edges: [...p.edges, ...add.map(([x, y]) => ({ id: uid(), from: x.id, to: y.id }))] }
                 })
               }
             >
               Make a loop
             </button>
             <button onClick={() => here((p) => ({ ...p, edges: [] }))}>Clear lines</button>
-            <button onClick={() => here((p) => ({ ...p, edges: p.edges.map((e) => ({ ...e, label: '' })) }))}>Clear labels</button>
             <button onClick={() => here((p) => ({ ...p, cards: p.cards.map((c) => ({ ...c, stack: [] })) }))}>Unstack all</button>
             {s.ended && <button onClick={() => (here((p) => ({ ...p, ended: false })), openSummary(false))}>Unlock map</button>}
           </>
@@ -115,7 +98,7 @@ export function DevPanel({ s, setS, openSummary, crisis }: { s: State; setS: (s:
           )
         )
       })()}
-      <p className="tm-dev-note">Screen: {s.phase}{s.ended ? ' · ended' : ''} · {s.cards.length} cards · {s.edges.length} lines</p>
+      <p className="tm-dev-note">Screen: {s.phase}{s.ended ? ' · ended' : ''}{s.demo ? ' · demo' : ''} · {s.cards.length} cards · {s.edges.length} lines</p>
     </aside>
   )
 }
