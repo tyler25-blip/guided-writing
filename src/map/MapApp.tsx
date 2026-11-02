@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isCrisis } from '../triggers.ts'
 import { DevPanel } from './dev.tsx'
 import { loops } from './graph.ts'
-import { afterNaming, demoBreak, demoState, demoLines, demoMade, demoPair, MORE, norm, SCRIPT } from './demo.ts'
+import { afterNaming, demoBreak, demoState, demoLines, demoMade, demoPair, MORE, norm, SCRIPT, setStory, STORIES } from './demo.ts'
 import { lay, makeCards, reroute } from './build.ts'
 import { ai, getKey, hasServer, NEED_KEY, setDemo, setKey } from './link.ts'
 import { describe, estH, feels, fitView, freeSpot, freeSpotLinked, guessKind, LABEL, optionsFor, routeMid, routeOrtho, segments, smoothPath, summaryOf, tidyPiles, zoomAt, layered, type Kind, type Piles, type View } from './place.ts'
@@ -33,19 +33,22 @@ export type Log =
   | { t: 'risk'; at: number; where: string; text: string }
 // spreadAt: how many messages had been sent when the cards were made; areas: column titles; mode: how the person chose to arrange
 // demo: the scripted story (/map?demo), demoStep: the next script line; piles: where the piles lie (manual layout); view: pan and zoom
-export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; mode?: 'auto' | 'manual'; risk?: boolean; log?: Log[]; spreadAt?: number; areas?: { name: string; x: number; y: number }[]; demo?: boolean; demoStep?: number; piles?: Piles; view?: View }
+export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; mode?: 'auto' | 'manual'; risk?: boolean; log?: Log[]; spreadAt?: number; areas?: { name: string; x: number; y: number }[]; demo?: boolean; demoStep?: number; story?: number; piles?: Piles; view?: View }
 export const KEY = 'thought-map-v2'
 type Set = (f: (s: State) => State) => void
 type Entry = Log extends infer L ? (L extends Log ? Omit<L, 'at'> : never) : never
 const logIt = (set: Set, e: Entry) => set((p) => ({ ...p, log: [...(p.log ?? []), { ...e, at: Date.now() } as Log] }))
 
 const W = 180 // card width, px
+// the short kind tag on a card (the design system's tags); LABEL stays the long name in menus and row labels
+const TAG: Record<Kind, string> = { A: 'What happened', B: 'Told myself', C: 'Felt', DE: 'Another way', NEXT: 'Next step' }
 const uid = () => Math.random().toString(36).slice(2, 9)
 const fresh = (): State => ({ phase: 'chat', msgs: [], cards: [], edges: [], ended: false })
 // /map?demo opens the scripted story, fresh; the address is tidied after the first render so a reload keeps going from the saved state
 const ENTER_DEMO = typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo')
+const ENTER_STORY = ENTER_DEMO ? Number(new URLSearchParams(location.search).get('demo')) || 0 : 0 // /map?demo=2 opens story 2
 const load = (): State => {
-  if (ENTER_DEMO) return { ...fresh(), demo: true, demoStep: 0 }
+  if (ENTER_DEMO) return { ...fresh(), demo: true, demoStep: 0, story: ENTER_STORY }
   try {
     return { ...fresh(), ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
   } catch {
@@ -131,6 +134,7 @@ const SAFE = 'Something you wrote sounds really heavy. The map can wait. Please 
 export default function MapApp() {
   const [s, setS] = useState<State>(load)
   setDemo(!!s.demo) // before any child asks the AI: in demo mode nothing ever does
+  setStory(s.story ?? 0) // which scripted story the demo plays
   const set = (f: (s: State) => State) => setS((p) => tidyPiles(f(p)))
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(s))
@@ -208,8 +212,8 @@ export default function MapApp() {
     </div>
   )
   // the demo menu (any build): jump to a screen of the story
-  const jump = (to: 'chat' | 'piles' | 'laid' | 'summary') => {
-    setS(demoState(to))
+  const jump = (to: 'chat' | 'piles' | 'laid' | 'summary', story = s.story ?? 0) => {
+    setS(demoState(to, undefined, story))
     setSummary(to === 'summary')
     setTalk(to === 'chat')
     setFocus(null)
@@ -310,6 +314,12 @@ export default function MapApp() {
               <button role="menuitem" onClick={() => (setDemoMenu(false), setCrisis(true))}>
                 Show crisis card
               </button>
+              <span className="tm-tag">Story</span>
+              {STORIES.map((x, i) => (
+                <button key={x.name} role="menuitemradio" aria-checked={(s.story ?? 0) === i} className={(s.story ?? 0) === i ? 'solid' : ''} onClick={() => jump('chat', i)}>
+                  {x.name}
+                </button>
+              ))}
             </div>
           )}
           <button className="tm-demotag" aria-expanded={demoMenu} onClick={() => setDemoMenu(!demoMenu)}>
@@ -955,7 +965,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
             )}
             {naming === c.id && <NameIt options={optionsFor(s.msgs, c.from ?? -1)} save={(w) => nameIt(c.id, w)} />}
             <button className="tm-kind" disabled={ro || c.kind === 'NEXT'} onClick={() => setKindMenu(kindMenu === c.id ? null : c.id)} title={c.kind === 'NEXT' ? undefined : 'Change what kind of card this is'}>
-              {c.kind ? LABEL[c.kind] : 'Pick a kind'}
+              {c.kind ? TAG[c.kind] : 'Pick a kind'}
             </button>
             {kindMenu === c.id && (
               <div className="tm-kindmenu">

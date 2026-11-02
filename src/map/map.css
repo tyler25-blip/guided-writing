@@ -1,11 +1,12 @@
-/* Thought map MVP — greyscale only. Solid border = your words, dashed = AI. */
-.tm { --ink: #1e1e1e; --mid: #6e6e6c; --soft: #b9b9b6; --line: #dadad7; --fill: #ececea; --paper: #fff; --bg: #f4f4f3;
-  position: fixed; inset: 0; display: flex; flex-direction: row; background: var(--paper); color: var(--ink); font: 15px/1.5 Inter, system-ui, sans-serif; }
+/* Thought map MVP — the Figma design system (Thought map library): tokens, Geist, shadows for every hover and lift. No grid, no dots. */
+.tm { --ink: #1b1b19; --mid: #66645f; --soft: #8c8a85; --line: #e6e5e1; --fill: #f0f0ed; --paper: #fff; --bg: #f7f7f5; --ctl: #85837e; --hover: #33332f; --told: #ffb350; --another: #78b0db;
+  --sh-sm: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.06); --sh-md: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.06); --sh-lg: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 12px 32px rgba(0, 0, 0, 0.12);
+  position: fixed; inset: 0; display: flex; flex-direction: row; background: var(--bg); color: var(--ink); font: 15px/1.5 Geist, Inter, system-ui, sans-serif; }
 .tm button { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; }
 .tm button.solid { background: var(--ink); color: var(--paper); }
 .tm button:disabled { opacity: 0.35; cursor: default; }
 .tm button:focus-visible, .tm textarea:focus-visible, .tm input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.tm-tag { font: 500 11px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.07em; color: var(--mid); }
+.tm-tag { font: 500 11px 'Geist Mono', 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.07em; color: var(--mid); }
 .tm-empty { color: var(--mid); text-align: center; margin-top: 18vh; }
 .tm-wait { animation: tm-pulse 1.4s ease-in-out infinite; }
 @keyframes tm-pulse { 50% { opacity: 0.35; } }
@@ -35,8 +36,8 @@
 .tm-card.stacked.sel { box-shadow: 0 0 0 3px var(--soft), 4px 4px 0 -1.5px var(--paper), 4px 4px 0 0 var(--ink); }
 .tm-card textarea { width: 100%; box-sizing: border-box; font: inherit; border: 0; resize: none; outline: none; }
 .tm-text { display: block; }
-.tm-src { display: block; font: 10px 'IBM Plex Mono', monospace; color: var(--mid); margin-top: 2px; }
-.tm .tm-badge { position: absolute; bottom: -10px; right: -10px; padding: 0 7px; font: 600 11px/20px 'IBM Plex Mono', monospace; background: var(--ink); color: var(--paper); }
+.tm-src { display: block; font: 10px 'Geist Mono', 'IBM Plex Mono', monospace; color: var(--mid); margin-top: 2px; }
+.tm .tm-badge { position: absolute; bottom: -10px; right: -10px; padding: 0 7px; font: 600 11px/20px 'Geist Mono', 'IBM Plex Mono', monospace; background: var(--ink); color: var(--paper); }
 .tm-stacklist { position: absolute; left: 0; top: calc(100% + 10px); width: 100%; background: var(--paper); border: 1px solid var(--ink); border-radius: 8px; padding: 6px 8px; z-index: 4; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
 .tm-stacklist div { display: flex; justify-content: space-between; gap: 6px; align-items: center; }
 .tm .tm-stacklist button { font-size: 11px; padding: 1px 8px; }
@@ -64,7 +65,7 @@
 .tm-dev-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .tm .tm-dev-btns button { font-size: 12px; padding: 3px 10px; }
 .tm-dev-notes { display: flex; flex-direction: column; gap: 3px; font-size: 12px; line-height: 1.4; border-top: 1px solid var(--line); padding-top: 8px; }
-.tm-dev-note { margin: 0; font: 11px 'IBM Plex Mono', monospace; color: var(--mid); }
+.tm-dev-note { margin: 0; font: 11px 'Geist Mono', 'IBM Plex Mono', monospace; color: var(--mid); }
 
 /* conversation beside the map, AI key, "Arrange for me" */
 .tm-needkey { position: fixed; left: 50%; top: 62px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; background: var(--paper); border: 1px solid var(--ink); border-radius: 10px; padding: 8px 10px 8px 14px; z-index: 8; font-size: 13px; }
@@ -72,7 +73,7 @@
 .tm-keypanel p { margin: 0; }
 .tm-keynotes { margin: 0; padding-left: 1.1em; color: var(--mid); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
 .tm .tm-keybtn { border-color: var(--line); color: var(--mid); }
-.tm-area { position: absolute; display: flex; gap: 4px; align-items: center; font: 500 11px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.07em; color: var(--mid); }
+.tm-area { position: absolute; display: flex; gap: 4px; align-items: center; font: 500 11px 'Geist Mono', 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.07em; color: var(--mid); }
 .tm .tm-area button { border: 0; padding: 0 4px; font-size: 12px; color: var(--soft); background: transparent; }
 .tm-edges > path.ai { stroke-dasharray: 2 5; stroke-linecap: round; }
 
@@ -126,7 +127,7 @@
 /* canvas details */
 .tm-card.k-NEXT { border-width: 3px; }
 .tm-card.k-DE { border-style: dashed; border-color: var(--mid); }
-.tm .tm-kind { display: inline-block; margin-top: 6px; font: 10px 'IBM Plex Mono', monospace; padding: 1px 8px; border-color: var(--line); color: var(--mid); }
+.tm .tm-kind { display: inline-block; margin-top: 6px; font: 10px 'Geist Mono', 'IBM Plex Mono', monospace; padding: 1px 8px; border-color: var(--line); color: var(--mid); }
 .tm .tm-kind:disabled { opacity: 1; }
 .tm-kindmenu { position: absolute; z-index: 6; left: 0; top: calc(100% + 4px); display: flex; flex-direction: column; gap: 4px; background: var(--paper); border: 1px solid var(--ink); border-radius: 10px; padding: 6px; }
 .tm-names { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
@@ -181,7 +182,7 @@
 
 /* demo menu, stack hint banner inside the canvas pane (bottom centre, above the zoom controls), hint pills left of a pile, inputs stay typeable inside the board */
 .tm-demo { position: fixed; left: 10px; bottom: 8px; z-index: 30; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-.tm .tm-demotag { font: 500 10px 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mid); border-color: var(--line); padding: 1px 10px; pointer-events: auto; }
+.tm .tm-demotag { font: 500 10px 'Geist Mono', 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mid); border-color: var(--line); padding: 1px 10px; pointer-events: auto; }
 .tm-demomenu { display: flex; flex-direction: column; gap: 4px; background: var(--paper); border: 1px solid var(--ink); border-radius: 12px; padding: 6px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); }
 .tm .tm-demomenu button { text-align: left; border-color: transparent; }
 .tm .tm-demomenu button:hover { border-color: var(--ink); }
@@ -189,3 +190,85 @@
 .tm-board input, .tm-board textarea { user-select: text; -webkit-user-select: text; }
 
 .tm-droplabel { position: absolute; z-index: 6; font-size: 12px; background: var(--ink); color: var(--paper); border-radius: 999px; padding: 2px 10px; white-space: nowrap; pointer-events: none; }
+
+/* ---- design system layer (overrides the greyscale rules above) ---- */
+/* buttons: slim (28 px), no outlines; hover = one shadow step up, pressed = one step down */
+.tm button { font: 500 13px/20px Geist, Inter, system-ui, sans-serif; padding: 4px 12px; border: 0; border-radius: 10px; background: var(--paper); color: var(--ink); box-shadow: var(--sh-sm); transition: box-shadow 0.12s, background-color 0.12s; }
+.tm button:hover:not(:disabled) { box-shadow: var(--sh-md); }
+.tm button:active:not(:disabled) { box-shadow: var(--sh-sm); }
+.tm button.solid { background: var(--ink); color: var(--paper); }
+.tm button.solid:hover:not(:disabled) { background: var(--hover); }
+.tm button:disabled { opacity: 1; background: var(--fill); color: var(--soft); box-shadow: none; }
+.tm .tm-quiet, .tm .tm-conv, .tm .tm-keybtn, .tm .tm-early, .tm .tm-demotag, .tm .tm-zoom button, .tm .tm-area button, .tm .tm-gap button, .tm .tm-demomenu button { background: transparent; box-shadow: none; border: 0; }
+.tm .tm-quiet:hover:not(:disabled), .tm .tm-conv:hover, .tm .tm-keybtn:hover, .tm .tm-early:hover, .tm .tm-demotag:hover, .tm .tm-zoom button:hover, .tm .tm-demomenu button:hover { background: var(--paper); box-shadow: var(--sh-sm); }
+.tm .tm-conv { padding-left: 8px; }
+.tm .tm-mic, .tm .tm-send, .tm .tm-q { width: 32px; height: 32px; border-radius: 999px; }
+.tm .tm-mic { background: var(--fill); box-shadow: none; }
+.tm .tm-send { background: var(--ink); color: var(--paper); box-shadow: none; }
+.tm .tm-send:hover:not(:disabled), .tm .tm-mic:hover { box-shadow: var(--sh-md); }
+
+/* inputs: hairline at rest, a soft shadow on hover and focus, never a black frame */
+.tm-field input, .tm-field textarea, .tm-ownrow input, .tm-dev select { border: 1px solid var(--line); transition: box-shadow 0.12s; }
+.tm-field input:hover, .tm-field textarea:hover, .tm-ownrow input:hover, .tm-field input:focus, .tm-field textarea:focus, .tm-ownrow input:focus { border-color: var(--line); box-shadow: var(--sh-md); outline: none; }
+.tm-input { border: 0; border-radius: 14px; box-shadow: var(--sh-sm); }
+.tm-input:hover, .tm-input:focus-within { border-color: transparent; box-shadow: var(--sh-md); }
+/* the next-step fields shrink to fit the popover (they used to run past its edge) */
+.tm-field { min-width: 0; }
+.tm-field input, .tm-field textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+
+/* floating panels: no ink frames, a large shadow */
+.tm-pop, .tm-guide, .tm-summary, .tm-dev, .tm-referral, .tm-keypanel, .tm-demomenu { border: 0; border-radius: 14px; box-shadow: var(--sh-lg); }
+.tm-kindmenu, .tm-stacklist, .tm-linepop, .tm-needkey, .tm-zoom, .tm-help, .tm-gap { border: 0; border-radius: 10px; box-shadow: var(--sh-md); }
+.tm-linepop, .tm-zoom, .tm-gap { border-radius: 999px; }
+.tm-referral { box-shadow: 0 0 0 2px #b23a2e, var(--sh-lg); }
+.tm-summary hr { border-top-color: var(--line); }
+.tm-dim { background: rgba(27, 27, 25, 0.25); }
+
+/* chat: the person's words on the right as plain text, the AI's muted on the left (as in the Figma chat example) */
+.tm-msg { font-size: 16px; line-height: 24px; padding: 0; border-radius: 0; }
+.tm-msg.you { background: transparent; text-align: right; max-width: 80%; }
+.tm-msg.ai { border: 0; background: transparent; color: var(--mid); max-width: 75%; }
+.tm-msg.lit { outline: 0; background: var(--paper); box-shadow: 0 0 0 8px var(--paper), 0 0 0 9px var(--line), var(--sh-lg); border-radius: 4px; }
+.tm-pill { border: 0; background: var(--fill); }
+.tm-propose { border: 0; border-radius: 14px; box-shadow: var(--sh-md); }
+.tm:not(.solo) .tm-left { background: var(--bg); }
+.tm-board { background-color: var(--bg); }
+.tm .tm-chip { flex: 0 0 auto; min-width: 0; border-radius: 999px; padding: 6px 14px; font-weight: 400; font-size: 14px; box-shadow: 0 0 0 1px var(--ctl), var(--sh-sm); }
+.tm .tm-chip:hover:not(:disabled) { box-shadow: 0 0 0 1px var(--ctl), var(--sh-md); }
+.tm .tm-chip.on { background: var(--paper); color: var(--ink); box-shadow: 0 0 0 1.5px var(--ink), var(--sh-md); }
+.tm-ownrow input { border-style: dashed; border-color: var(--soft); border-radius: 999px; }
+
+/* thought cards: one shape per kind, drawn by ::before so the shadow (a filter) follows the shape */
+.tm-card { border: 0; border-radius: 0; background: transparent; padding: 10px 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; font-size: 14px; line-height: 20px;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.1)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.06)); transition: filter 0.12s; }
+.tm-card::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--paper); border-radius: 6px; }
+.tm-card.k-B::before { border-radius: 14px / 11px; clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 12px, 100% 100%, 0 100%); }
+.tm-card.k-C::before { border-radius: 14px / 11px; -webkit-mask: radial-gradient(circle 8px at 0 50%, #0000 96%, #000); mask: radial-gradient(circle 8px at 0 50%, #0000 96%, #000); }
+.tm-card.k-DE::before { border-radius: 14px / 11px; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 12px) 100%, 0 100%, 0 9px); }
+.tm-card.k-NEXT::before { border-radius: 14px / 11px; clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 0 100%); }
+.tm-card.k-NEXT { padding-right: 30px; border-width: 0; }
+.tm-card.k-DE { border-style: none; }
+.tm-card.step { border-width: 0; }
+.tm-card:hover, .tm-card.sel { box-shadow: none; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.12)) drop-shadow(0 8px 14px rgba(0, 0, 0, 0.12)); }
+.tm-card.dragging { opacity: 1; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.12)) drop-shadow(0 16px 24px rgba(0, 0, 0, 0.18)); }
+.tm-card.lit { box-shadow: none; filter: drop-shadow(0 0 2px var(--ink)) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2)); }
+.tm-card.stacked, .tm-card.stacked.sel { box-shadow: none; filter: drop-shadow(5px 5px 0 var(--line)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.14)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.06)); }
+.tm-text { color: var(--ink); }
+.tm-card textarea { font-size: 14px; line-height: 20px; background: transparent; }
+/* the kind tag sits on top, coloured by kind (button, so the kind can still be changed) */
+.tm .tm-kind { order: -1; margin: 0; height: 22px; padding: 0 8px; border-radius: 999px; font: 500 11px/22px 'Geist Mono', 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; box-shadow: none; background: var(--fill); color: var(--ink); white-space: nowrap; }
+.tm .tm-kind:hover:not(:disabled) { box-shadow: var(--sh-md); }
+.tm .tm-kind:disabled { background: var(--fill); color: var(--ink); }
+.tm .k-A .tm-kind, .tm .k-A .tm-kind:disabled { background: var(--ink); color: var(--paper); }
+.tm .k-B .tm-kind { background: var(--told); }
+.tm .k-C .tm-kind { background: transparent; box-shadow: inset 0 0 0 1px var(--ink); }
+.tm .k-DE .tm-kind { background: var(--another); }
+.tm .k-NEXT .tm-kind, .tm .k-NEXT .tm-kind:disabled { background: transparent; outline: 1px dashed var(--ink); outline-offset: -1px; }
+.tm .tm-names { margin-top: 0; }
+.tm-name { background: var(--fill); }
+.tm .tm-nameit { font-size: 12px; padding: 0 10px; height: 22px; line-height: 22px; border-radius: 999px; }
+.tm-handle { border: 1.5px solid var(--ctl); }
+.tm-handle:hover { box-shadow: var(--sh-md); }
+.tm .tm-eye { width: 26px; height: 26px; padding: 0; border-radius: 999px; }
+.tm .tm-badge { border-radius: 999px; }
+.tm-edges > path, .tm-edges > line { stroke-width: 1.2; }

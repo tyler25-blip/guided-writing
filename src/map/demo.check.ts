@@ -1,6 +1,6 @@
 // node src/map/demo.check.ts
 import assert from 'node:assert/strict'
-import { CARDS, SCRIPT, afterNaming, demoLines, demoMade } from './demo.ts'
+import { CARDS, SCRIPT, STORIES, afterNaming, demoLines, demoMade, setStory } from './demo.ts'
 import { trimmed } from './mapchecks.ts'
 
 // every scripted card is a delete-only trim of the line it comes from
@@ -16,4 +16,16 @@ assert.equal(demoMade(msgs).length, 11)
 assert.equal(demoMade(msgs.filter((_, i) => i !== 6)).find((c) => c.text.startsWith('maybe'))!.from, 7)
 const cards = demoMade(msgs).map((c, i) => ({ id: `c${i}`, text: c.text }))
 assert.equal(demoLines(cards).length, 12)
+// the recorded stories: every card trims a line of its own script, every line joins two of its cards, the last reply offers the map
+for (let i = 1; i < STORIES.length; i++) {
+  setStory(i)
+  const st = STORIES[i]
+  assert.ok(st.script.length >= 8 && st.script.at(-1)!.propose, st.name)
+  assert.ok(st.script.filter((x) => x.options).length >= 1, `${st.name}: at least one feeling to name`)
+  for (const c of CARDS) assert.deepEqual(trimmed(c.text, SCRIPT[c.step].p), [], `${st.name} ${c.key}`)
+  const made = demoMade(SCRIPT.map((x) => ({ role: 'you' as const, text: x.p })))
+  assert.equal(made.length, st.cards.length, st.name)
+  assert.equal(demoLines(made.map((c, j) => ({ id: `c${j}`, text: c.text }))).length, st.lines.length, st.name)
+}
+setStory(0)
 console.log('demo ok')

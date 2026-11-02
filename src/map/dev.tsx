@@ -1,8 +1,7 @@
 // Dev panel (dev builds only, drag it anywhere): jump to any screen of the demo story, poke the current one. Collapses to one icon.
 import { useRef, useState } from 'react'
-import { demoState } from './demo.ts'
+import { demoState, STORIES } from './demo.ts'
 import { lastNotes, type State } from './MapApp.tsx'
-import { SAMPLES, sampleState } from './samples.ts'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -54,7 +53,7 @@ export function DevPanel({ s, setS, openSummary, crisis, pane }: { s: State; set
         </button>
       </div>
 
-      <span className="tm-tag">Demo story (also at /map?demo)</span>
+      <span className="tm-tag">Demo story (also at /map?demo; others at /map?demo=1…3)</span>
       <div className="tm-dev-btns">
         <button onClick={() => jump('chat')}>Start chat</button>
         <button onClick={() => jump('piles')}>Jump to map — piles</button>
@@ -62,15 +61,14 @@ export function DevPanel({ s, setS, openSummary, crisis, pane }: { s: State; set
         <button onClick={() => jump('summary')}>Jump to summary</button>
       </div>
 
-      <span className="tm-tag">Samples (real AI, real posts)</span>
-      {SAMPLES.map((x, i) => (
-        <div key={x.name} className="tm-dev-btns" title={x.source}>
-          <span>{x.name}</span>
-          <button onClick={() => (setS(sampleState(i, 'chat')), openSummary(false), pane(true))}>Chat</button>
-          <button onClick={() => (setS(sampleState(i, 'piles')), openSummary(false), pane(false))}>Piles</button>
-          <button onClick={() => (setS(sampleState(i, 'laid')), openSummary(false), pane(false))}>Laid out</button>
-        </div>
-      ))}
+      <span className="tm-tag">More stories (real AI, real posts)</span>
+      <div className="tm-dev-btns">
+        {STORIES.slice(1).map((x, i) => (
+          <button key={x.name} onClick={() => (setS(demoState('chat', undefined, i + 1)), openSummary(false), pane(true))}>
+            {x.name}
+          </button>
+        ))}
+      </div>
 
       <span className="tm-tag">This screen</span>
       <div className="tm-dev-btns">

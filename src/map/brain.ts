@@ -16,7 +16,7 @@ const MAX_TURNS = 8 // after this many of their messages, offer the map anyway
 type Card = { id: string; text: string; kind?: string }
 type Edge = { id: string; from: string; to: string }
 
-const NEVER = `Never: diagnoses or clinical labels (depression, anxiety disorder, trauma, symptoms…); analysis words (rumination, cognitive distortion, catastrophizing); "you should / you must / I recommend"; verdicts on the person or on people in their story. Refer to the person as "they" unless they said otherwise. English only.`
+const NEVER = `Never: diagnoses or clinical labels (depression, anxiety disorder, trauma, symptoms…); analysis words (rumination, cognitive distortion, catastrophizing); "you should / you must / I recommend"; verdicts on the person or on people in their story. When writing ABOUT the person (cards, notes, summaries), refer to them as "they" unless they said otherwise; when talking TO them in the chat, always say "you". English only.`
 
 const CHAT = `You are the AI inside "Thought map", a tool for the evening when one thing is occupying someone's head and they want to get it out. Talk like a warm counsellor, in the person's own words, within these limits:
 
