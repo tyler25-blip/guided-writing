@@ -57,7 +57,7 @@
 .tm-referral { position: fixed; left: 50%; top: 80px; transform: translateX(-50%); width: min(520px, 92vw); background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; padding: 18px 22px; z-index: 10; }
 
 /* dev panel (dev builds only) */
-.tm-dev-head { display: flex; justify-content: space-between; align-items: center; }
+.tm-dev-head { cursor: move; touch-action: none; user-select: none;  display: flex; justify-content: space-between; align-items: center; }
 .tm .tm-dev-head button { padding: 0 10px; }
 .tm-dev-row { display: flex; flex-direction: column; gap: 4px; }
 .tm-dev select { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
@@ -78,7 +78,9 @@
 
 /* layout: chat phase = one full-width chat; map phase = grey conversation pane left + white canvas right */
 .tm-left { flex: 1; min-width: 0; min-height: 0; display: flex; background: var(--paper); }
-.tm:not(.solo) .tm-left { flex: none; width: 350px; background: #f5f5f5; border-right: 1px solid var(--line); }
+.tm:not(.solo) .tm-left { flex: none; width: 380px; position: relative; background: var(--paper); border-right: 1px solid var(--line); }
+.tm-resize { position: absolute; top: 0; right: -4px; bottom: 0; width: 8px; cursor: col-resize; z-index: 8; touch-action: none; }
+.tm-resize:hover, .tm-resize:active { background: linear-gradient(to right, transparent 3px, var(--soft) 3px, var(--soft) 5px, transparent 5px); }
 .tm:not(.solo) .tm-left.shut { display: none; }
 .tm-right { position: absolute; left: 0; right: 0; top: 0; bottom: 0; pointer-events: none; display: flex; flex-direction: column; }
 .tm:not(.solo) .tm-right { position: relative; flex: 1; min-width: 0; background: var(--paper); }
@@ -157,8 +159,8 @@
 .tm .tm-pinned { position: absolute; left: 16px; bottom: 16px; z-index: 6; border-radius: 10px; text-align: left; display: flex; flex-direction: column; gap: 2px; pointer-events: auto; }
 
 /* dev panel (dev builds only), bottom-left: the piles and the zoom controls live on the right */
-.tm .tm-dev-icon { position: fixed; left: 50%; top: 8px; transform: translateX(-50%); width: 40px; height: 40px; padding: 0; display: grid; place-items: center; z-index: 20; }
-.tm-dev { position: fixed; left: 50%; top: 56px; transform: translateX(-50%); width: 270px; z-index: 20; background: var(--paper); border: 1px solid var(--ink); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); }
+.tm .tm-dev-icon { position: fixed; touch-action: none; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; z-index: 20; }
+.tm-dev { position: fixed; width: 270px; max-height: calc(100vh - 20px); overflow-y: auto; z-index: 20; background: var(--paper); border: 1px solid var(--ink); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); }
 
 /* popovers live in the canvas pane (bottom-left of it), clear of the open conversation pane; the missing-key notice stays out of the content */
 .tm .tm-pop { left: 16px; bottom: 16px; transform: none; }

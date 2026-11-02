@@ -8,7 +8,7 @@ import { loops } from './graph.ts'
 import { afterNaming, demoBreak, demoState, demoLines, demoMade, demoPair, MORE, norm, SCRIPT } from './demo.ts'
 import { lay, makeCards, reroute } from './build.ts'
 import { ai, getKey, hasServer, NEED_KEY, setDemo, setKey } from './link.ts'
-import { describe, feels, fitView, freeSpot, freeSpotLinked, guessKind, LABEL, optionsFor, routeMid, routeOrtho, segments, smoothPath, summaryOf, tidyPiles, zoomAt, type Kind, type Piles, type View } from './place.ts'
+import { describe, estH, feels, fitView, freeSpot, freeSpotLinked, guessKind, LABEL, optionsFor, routeMid, routeOrtho, segments, smoothPath, summaryOf, tidyPiles, zoomAt, layered, type Kind, type Piles, type View } from './place.ts'
 import './map.css'
 
 type Src = 'you' | 'ai' // 'ai' only exists in older saved maps
@@ -106,6 +106,26 @@ const stubArrange = (cards: { id: string; kind?: Kind }[]) =>
     const b = c.kind === 'DE' ? cards.slice(0, i).findLast((x) => x.kind === 'B') : undefined
     return t ? [{ from: c.id, to: t.id }] : b ? [{ from: b.id, to: c.id }] : []
   })
+// "Arrange for me" on the map: cards that have a line stay where the person put them; the rest are laid out in rows (A, B, C, DE, Next),
+// to the right of the connected cards (or alone, when nothing is connected yet)
+export function arrangeLoose(st: State, size: { w: number; h: number }): State | null {
+  const linked = new Set(st.edges.flatMap((e) => [e.from, e.to]))
+  const loose = st.cards.filter((c) => !linked.has(c.id))
+  if (!loose.length) return null
+  const fixed = st.cards.filter((c) => linked.has(c.id))
+  const r = layered(loose.map((c) => ({ id: c.id, text: c.text, kind: c.kind })), [])
+  const LBL = 170 // room for the row labels
+  const ox = fixed.length ? Math.max(...fixed.map((c) => c.x + W)) + 120 + LBL : LBL
+  const oy = fixed.length ? Math.min(...fixed.map((c) => c.y)) : 0
+  const pos = Object.fromEntries(loose.map((c) => [c.id, { x: r.pos[c.id].x + ox, y: r.pos[c.id].y + oy }]))
+  const cards = st.cards.map((c) => (pos[c.id] ? { ...c, ...pos[c.id], pile: undefined } : c))
+  const rows = new Map<string, number>()
+  for (const c of loose) rows.set(c.kind ?? 'A', Math.min(rows.get(c.kind ?? 'A') ?? Infinity, pos[c.id].y))
+  const areas = [...(fixed.length ? (st.areas ?? []) : []), ...[...rows].map(([k, y]) => ({ name: LABEL[k as Kind], x: ox - LBL + 16, y }))]
+  const boxes = [...cards.map((c) => ({ x: c.x, y: c.y, w: W, h: estH(c.text, c.kind) })), ...areas.map((a) => ({ x: a.x, y: a.y, w: 0, h: 0 }))]
+  return { ...st, cards, areas, piles: cards.some((c) => c.pile) ? st.piles : undefined, view: { ...fitView(boxes, size.w, size.h), n: Date.now() } }
+}
+
 const SAFE = 'Something you wrote sounds really heavy. The map can wait. Please talk to someone now: the numbers are under “Get support”.'
 
 export default function MapApp() {
@@ -128,6 +148,32 @@ export default function MapApp() {
   const [needKey, setNeedKey] = useState(false)
   const [demoMenu, setDemoMenu] = useState(false)
   const [asking, setAsking] = useState(false) // "Before you go, is there one small thing…"
+  const [undo, setUndo] = useState<State | null>(null) // the map as it was before "Arrange for me"
+  // the conversation pane's width, dragged by its edge and remembered
+  const [paneW, setPaneW] = useState(() => {
+    try {
+      return Number(localStorage.getItem('tm-pane-w')) || 380
+    } catch {
+      return 380
+    }
+  })
+  const resize = (e: React.PointerEvent) => {
+    e.preventDefault()
+    const x0 = e.clientX
+    const w0 = paneW
+    let w = w0
+    const move = (ev: PointerEvent) => setPaneW((w = Math.min(Math.max(280, w0 + ev.clientX - x0), innerWidth - 360)))
+    const up = () => (removeEventListener('pointermove', move), removeEventListener('pointerup', up), localStorage.setItem('tm-pane-w', String(Math.round(w))))
+    addEventListener('pointermove', move)
+    addEventListener('pointerup', up)
+  }
+  const arrange = () => {
+    const next = arrangeLoose(s, { w: innerWidth - (talk ? paneW : 0), h: innerHeight })
+    if (!next) return say('Every card already has a line, so there is nothing to arrange.')
+    setUndo(s)
+    setS(next)
+    logIt(set, { t: 'arrange', groups: [], lines: [] })
+  }
   const noKeyNag = useRef(false) // "Not now" keeps the notice away until a key is saved
   useEffect(() => {
     const on = () => !noKeyNag.current && setNeedKey(true) // never fires in demo mode (ai() is silent there)
@@ -135,7 +181,7 @@ export default function MapApp() {
     return () => removeEventListener(NEED_KEY, on)
   }, [])
   const say = (t: string) => (setToast(t), setTimeout(() => setToast(''), 2200))
-  const restart = () => (setS(fresh()), setSummary(false), setFocus(null), setTalk(true), setAsking(false))
+  const restart = () => (setS(fresh()), setSummary(false), setFocus(null), setTalk(true), setAsking(false), setUndo(null))
   // any text the person writes
   const risky = (t: string, where = 'chat') => isCrisis(t) && (set((p) => ({ ...p, risk: true })), logIt(set, { t: 'risk', where: `${where} (risk words)`, text: t }), setCrisis(true), true)
   const openSource = (c: Card) => {
@@ -173,8 +219,9 @@ export default function MapApp() {
   const finish = () => (s.risk || s.cards.some((c) => c.kind === 'NEXT') ? end() : setAsking(true))
   return (
     <div className={`tm${s.phase === 'map' ? (talk ? ' talk-open' : '') : ' solo'}`}>
-      <aside className={`tm-left${talk || s.phase !== 'map' ? '' : ' shut'}`} aria-label="Conversation">
+      <aside className={`tm-left${talk || s.phase !== 'map' ? '' : ' shut'}`} aria-label="Conversation" style={s.phase === 'map' ? { width: paneW } : undefined}>
         <Chat s={s} set={set} risky={risky} onRisk={() => setCrisis(true)} say={say} ro={s.phase !== 'chat'} focus={focus} notice={s.phase === 'chat' && notice} />
+        {s.phase === 'map' && <div className="tm-resize" role="separator" aria-orientation="vertical" aria-label="Drag to resize the conversation" onPointerDown={resize} />}
       </aside>
       <div className="tm-right">
         <div className="tm-top">
@@ -195,6 +242,16 @@ export default function MapApp() {
                 Get support
               </button>
             )}
+            {s.phase === 'map' && !s.ended && undo && (
+              <button onClick={() => (setS(undo), setUndo(null))} title="Put the cards back where they were">
+                Undo arrange
+              </button>
+            )}
+            {s.phase === 'map' && !s.ended && !s.risk && (
+              <button onClick={arrange} title="Cards you have connected stay put; the others are laid out for you">
+                Arrange for me
+              </button>
+            )}
             {s.phase === 'map' && !s.ended && (
               <button className="solid" onClick={finish}>
                 That’s enough for now
@@ -208,7 +265,7 @@ export default function MapApp() {
           </span>
         </div>
         {s.phase === 'layout' && <Layout s={s} set={set} done={() => setTalk(false)} />}
-        {s.phase === 'map' && <MapCanvas key={JSON.stringify(s.view)} s={s} set={set} risky={risky} onOpen={openSource} />}
+        {s.phase === 'map' && <MapCanvas key={JSON.stringify(s.view)} s={s} set={set} risky={risky} onOpen={openSource} onPick={(c) => talk && openSource(c)} />}
         {s.phase === 'map' && s.ended && !summary && (
           <button className="tm-pinned" onClick={() => setSummary(true)} title="Open the summary">
             <span className="tm-tag">Tonight’s summary</span>
@@ -491,7 +548,8 @@ type Pan = { sx: number; sy: number; vx: number; vy: number }
 const PICKABLE: Kind[] = ['A', 'B', 'C', 'DE']
 
 // The canvas is a board with an inner layer that is panned and zoomed (transform); everything inside the layer is in canvas coordinates.
-function MapCanvas({ s, set, risky, onOpen }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onOpen: (c: Card) => void }) {
+// onPick: a card was clicked (the app jumps the open conversation to where it came from)
+function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onOpen: (c: Card) => void; onPick: (c: Card) => void }) {
   const board = useRef<HTMLDivElement>(null)
   const refs = useRef(new Map<string, HTMLDivElement>())
   const [h, setH] = useState<Record<string, number>>({})
@@ -853,6 +911,7 @@ function MapCanvas({ s, set, risky, onOpen }: { s: State; set: Set; risky: (t: s
             onPointerDown={(e) => {
               if (editCard === c.id || (e.target as HTMLElement).closest('button,input')) return
               setSel(c.id)
+              onPick(c)
               if (ro) return
               const p = pt(e)
               moved.current = false
