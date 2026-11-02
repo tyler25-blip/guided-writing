@@ -272,3 +272,12 @@
 .tm .tm-eye { width: 26px; height: 26px; padding: 0; border-radius: 999px; }
 .tm .tm-badge { border-radius: 999px; }
 .tm-edges > path, .tm-edges > line { stroke-width: 1.2; }
+
+/* summary "Tonight's map" (Figma 5 · Summary): a sheet on the right, the map stays visible under a light dim */
+.tm-dim { background: rgba(27, 27, 25, 0.18); }
+.tm .tm-summary { left: auto; right: 32px; top: 96px; transform: none; width: min(440px, calc(100vw - 64px)); max-height: calc(100vh - 128px); padding: 24px; gap: 16px; border-radius: 14px; box-shadow: var(--sh-lg); }
+.tm-summary h2 { margin: 0; font: 500 28px/32px Geist, Inter, system-ui, sans-serif; letter-spacing: -0.03em; }
+.tm-sgroup { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.tm-sgroup p { margin: 0; font-size: 14px; line-height: 20px; }
+.tm-sgroup .tm-kind { display: inline-flex; align-items: center; }
+.tm .tm-summary > button { align-self: flex-start; margin-top: 0; padding: 6px 14px; }

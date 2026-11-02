@@ -1228,53 +1228,35 @@ function NextAsk({ risky, add, skip }: { risky: (t: string, where?: string) => b
 }
 
 // --- 4 · summary: the person's own cards, laid out by the program (no AI sentence) ---------------
+// "Tonight's map" (Figma 5 · Summary): every card in the person's own words, grouped by kind in the map's reading order, feelings with the word they chose
 function Summary({ s, close }: { s: State; close: () => void }) {
-  const sum = summaryOf(s.cards, s.edges)
+  const groups = (['A', 'B', 'C', 'DE', 'NEXT'] as Kind[])
+    .map((k) => ({ k, cards: s.cards.filter((c) => c.kind === k).sort((a, b) => a.y - b.y || a.x - b.x) }))
+    .filter((g) => g.cards.length)
   return (
     <>
       <div className="tm-dim" onClick={close} />
       <aside className="tm-summary" aria-label="Summary">
+        <h2>Tonight’s map</h2>
         {s.risk ? (
           <p>{SAFE}</p>
+        ) : groups.length ? (
+          groups.map(({ k, cards }) => (
+            <section key={k} className={`tm-sgroup k-${k}`}>
+              <span className="tm-kind">{TAG[k]}</span>
+              {cards.map((c) => (
+                <p key={c.id}>
+                  {c.text}
+                  {c.names?.length ? ` (${c.names.join(', ')})` : ''}
+                </p>
+              ))}
+            </section>
+          ))
         ) : (
-          <>
-            {sum.hasC && (
-              <>
-                <span className="tm-tag">Tonight you called it</span>
-                {sum.unnamed ? <p className="tm-big tm-muted-t">You left the feeling unnamed. That’s okay.</p> : <p className="tm-big">{sum.names.join(' · ')}</p>}
-              </>
-            )}
-            {sum.rows.map((r) => (
-              <div key={r.label} className="tm-srow">
-                <span className="tm-tag">{r.label}</span>
-                <p>{r.text}</p>
-              </div>
-            ))}
-            {sum.de.length > 0 && (
-              <div className="tm-srow">
-                <span className="tm-tag">Another way to see it</span>
-                {sum.de.map((t) => (
-                  <p key={t}>{t}</p>
-                ))}
-              </div>
-            )}
-            {sum.next.length > 0 && (
-              <>
-                <hr />
-                <span className="tm-tag">Your next step</span>
-                {sum.next.map((t) => (
-                  <p key={t} className="tm-big2">
-                    {t}
-                  </p>
-                ))}
-              </>
-            )}
-            {sum.more > 0 && <p className="tm-hint">There’s {sum.more} more on your map.</p>}
-            {!sum.hasC && !sum.next.length && <p className="tm-hint">Nothing was named or planned tonight, and that’s okay.</p>}
-          </>
+          <p className="tm-hint">Nothing was put on the map tonight, and that’s okay.</p>
         )}
         <button className="solid" onClick={close}>
-          Done for tonight
+          That’s it
         </button>
       </aside>
     </>
