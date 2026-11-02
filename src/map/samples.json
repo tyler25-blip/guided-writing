@@ -5,844 +5,28 @@
   "msgs": [
    {
     "role": "you",
-    "text": "hey. idk if this is a weird thing to bring up, but there's something from work that's been stuck in my head all evening. my chest has been kinda tight about it since I got home"
+    "text": "hey, so... idk if this is a weird thing to bring up, but there's something from work that's been stuck in my head for like two weeks. I keep opening this file at night and then just staring at it, my chest gets kind of tight."
    },
    {
     "role": "ai",
-    "text": "Thanks for bringing it here, it's welcome. Something from work has stayed with you all evening, and your chest has been tight since you got home. That tightness is something your body is carrying about it. If you put a word to it, see which of these is closer.",
-    "options": [
-     "dread",
-     "tense"
-    ],
-    "notes": {
-     "have": {
-      "A": false,
-      "B": false,
-      "C": true,
-      "DE": false
-     },
-     "named": false,
-     "deAsked": 0,
-     "core": "Something from work is looping in their head and leaving them tense, but they haven't said what it is yet.",
-     "stuck": "unclear",
-     "help": "hearing what actually happened at work",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "dread, tense",
-    "naming": true
-   },
-   {
-    "role": "ai",
-    "text": "Dread and tense, that fits with the tightness in your chest you've carried since getting home. Those are the words you picked, so I'll keep them as they are. I don't yet know what the thing from work actually was. What happened right before it started staying with you?",
-    "notes": {
-     "have": {
-      "A": false,
-      "B": false,
-      "C": true,
-      "DE": false
-     },
-     "named": true,
-     "deAsked": 0,
-     "core": "Something from work is lingering and has left them tense and dreading, but they haven't said what happened yet.",
-     "stuck": "unclear",
-     "help": "say what happened at work",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "i was working on the paper tonight, like opening the old thesis files again. and I found something in there that's wrong, I guess. well, I found it a couple weeks ago, I just keep opening it anyway"
-   },
-   {
-    "role": "ai",
-    "text": "So tonight you opened the old thesis files while working on the paper, and what you found there is something you first came across a couple of weeks ago. You keep going back to it anyway, and the dread and tension seem to travel with that. The \"wrong, I guess\" sounds like you're still working out what it is. When you think about what you found, what goes through your mind?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": false,
-      "C": true,
-      "DE": false
-     },
-     "named": true,
-     "deAsked": 0,
-     "core": "They found an error in their old thesis files weeks ago and keep reopening it, held in dread without having said what they make of it.",
-     "stuck": "replaying",
-     "help": "Say what they tell themselves about the error and what it could mean",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "it's like, a mistake in how I merged the data, in the thesis. the numbers barely change when I fix it, but it's still... in there, you know? and every time I think about it my stomach kind of drops"
-   },
-   {
-    "role": "ai",
-    "text": "So the mistake is in how the data was merged, and when you fix it the numbers barely move. That's what happened. Still, you said it's \"still... in there,\" and that sounds like it carries a weight of its own that you haven't quite finished saying. Each time it comes to mind your stomach drops, which sits right alongside the dread and tension you named. When your stomach drops like that, what goes through your mind?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": false,
-      "C": true,
-      "DE": false
-     },
-     "named": true,
-     "deAsked": 0,
-     "core": "They found a data-merge mistake in their thesis, and although fixing it barely changes the numbers, the fact that it exists keeps pulling them back and leaves them with dread.",
-     "stuck": "replaying",
-     "help": "put words to what the mistake being 'in there' means to them",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "like that my advisor's gonna think I'm super careless, after they were so nice about the thesis and asked me to do the paper. and then there's this dumb voice going \"what if they take the degree back,\" which I know is probably not a thing... idk"
-   },
-   {
-    "role": "ai",
-    "text": "So there are two thoughts here: that your advisor will think you're careless, especially after how kind they were and asking you to do the paper, and a smaller voice asking what if the degree gets taken back. Those sit next to what actually happened, a merge mistake that barely moves the numbers once it's fixed, and the dread, tension and stomach drop you've been carrying. It might help to see all of this spread out in front of you as a map.",
-    "propose": true,
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": false
-     },
-     "named": true,
-     "deAsked": 0,
-     "core": "They found a small data-merge error in their thesis and fear it will change how their advisor sees them, with a quieter fear that the degree could be taken back.",
-     "stuck": "what-if",
-     "help": "seeing the fear laid out next to what actually happened, then looking at how well the thought fits",
-     "ready": true
-    },
-    "declined": true
-   },
-   {
-    "role": "you",
-    "text": "the meeting with my advisor is on friday, so it's kind of sitting there like a deadline. and honestly the worst part is I keep thinking nobody would ever notice if I just... didn't say anything, and then my face goes hot because why am I even thinking that"
-   },
-   {
-    "role": "ai",
-    "text": "So Friday's meeting is on the calendar, and that makes it feel like a deadline. Then there's the thought that nobody would ever notice if you didn't say anything, and your face goes hot right after it, as if you're catching yourself having it. That heat sounds like it belongs with the thought itself, on top of the dread and tension from before. When you say nobody would notice, what would that actually look like?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": false
-     },
-     "named": true,
-     "deAsked": 0,
-     "core": "They are stuck between wanting to stay quiet about a small data merge error and fearing what their advisor will think if they tell, with Friday's meeting making it feel urgent.",
-     "stuck": "deciding",
-     "help": "space to sort out what telling or not telling would mean to them before Friday",
-     "ready": true
-    }
-   },
-   {
-    "role": "you",
-    "text": "idk, like I'd just quietly put the right numbers in the paper and not mention the thesis ones were off. but then the paper wouldn't match the thesis, and if someone ever compared them... my stomach just drops again"
-   },
-   {
-    "role": "ai",
-    "text": "So the quiet option would mean putting the right numbers in the paper and saying nothing about the thesis ones. You can already see the catch: the two wouldn't match, and someone could compare them one day. That's what your stomach is reacting to, the drop that keeps coming back along with the dread and tension. If a friend came to you with this same thought about the mistake and Friday, what would you want them to tell themselves?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 2,
-     "core": "They are torn between quietly correcting the paper and telling their advisor about the thesis error before Friday, afraid of being seen as careless or found out later.",
-     "stuck": "deciding",
-     "help": "space to hear their own kinder view of the mistake and the choice before Friday",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "I think I'd tell them it's a normal mistake and the honest thing is just to say it... like I'd probably say \"you caught it yourself, that counts for something.\" but it's weirdly hard to say that to me, idk"
-   },
-   {
-    "role": "ai",
-    "text": "That's what you'd say to a friend: that you caught it yourself, and that saying it out loud is the honest way through. And then it's hard to turn those same words toward yourself. That gap seems to be part of what's been sitting in your chest, along with the dread and tension. Those words are yours, and they're there whenever you want them, with Friday still ahead.",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 3,
-     "core": "They are stuck between wanting to be honest with their advisor about the merge error and fearing it will change how the advisor sees them, and it is hard to give themselves the kindness they would give a friend.",
-     "stuck": "deciding",
-     "help": "space to sit with the gap between what they would tell a friend and what they tell themselves",
-     "ready": true
-    }
-   },
-   {
-    "role": "you",
-    "text": "yeah... it's weirdly easier to believe it for someone else. maybe if I just said it on Friday it'd be a kind of awkward five minutes and then done? idk, my chest still goes tight when I picture actually saying the words out loud"
-   },
-   {
-    "role": "ai",
-    "text": "So you can picture Friday as a slightly awkward five minutes and then done, and at the same time your chest goes tight the moment you imagine saying the words out loud. Both are there together, the picture of it passing and the tightness alongside the dread and tension you named. It's a lot to hold at once, and you've said most of it tonight. It might help to see it all spread out in one place, so you can look at it side by side.",
-    "propose": true,
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 3,
-     "core": "They are stuck between wanting to tell their advisor about the merge mistake on Friday and the tight, dreadful feeling of picturing themselves saying it out loud.",
-     "stuck": "deciding",
-     "help": "seeing the whole thing laid out, including the fear of saying it and the kindness they'd offer a friend",
-     "ready": true
-    },
-    "declined": true
-   },
-   {
-    "role": "you",
-    "text": "yeah... I guess the part that gets me is I don't even know how to start the sentence. like \"hey, so I messed up the merge in my thesis\" just sounds so... idk, my throat kinda closes up thinking about it"
-   },
-   {
-    "role": "ai",
-    "text": "So the sticking point isn't whether to say it, it's the first sentence. \"Hey, so I messed up the merge in my thesis\" sounds wrong in your mouth, and your throat closes up just thinking about it. That's a new place the tightness has moved to, alongside the dread and tension you named. The wording you tried there is yours to change, and you already said the honest part feels clear to you. What would the first few words sound like if you were telling it the way you'd tell that friend?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 3,
-     "core": "They are stuck on how to begin telling their advisor about the merge mistake on Friday, and the words themselves bring a closing feeling in the throat.",
-     "stuck": "starting",
-     "help": "a gentle look at the first sentence in their own words, without being handed one",
-     "ready": true
-    }
-   },
-   {
-    "role": "you",
-    "text": "idk... maybe like \"I found something in my data when I was working on the paper, and I wanted to tell you right away\"? that sounds less like I'm confessing to a crime, I guess. though it's not totally true, since it's been two weeks and my stomach does the thing again typing that"
-   },
-   {
-    "role": "ai",
-    "text": "So you found a way to open that feels less like confessing to a crime, and then your stomach dropped again because \"right away\" doesn't match the two weeks. The wording you tried and the timeline you know are sitting side by side, with the dread and tension still around them. You've put a lot into words tonight: the merge mistake, Friday, the thoughts about your advisor, and what you'd say to a friend. Spreading it out as a map could let you see all of it in one place.",
-    "propose": true,
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 3,
-     "core": "They are stuck on how to open the conversation with their advisor honestly, since the wording they like doesn't match the two weeks they waited.",
-     "stuck": "starting",
-     "help": "seeing the whole thing laid out, including the opening wording and the two-week gap",
-     "ready": true
-    }
-   }
-  ],
-  "made": [
-   {
-    "text": "a mistake in how I merged the data, in the thesis. the numbers barely change when I fix it",
-    "kind": "A",
-    "from": 3,
-    "why": "States the actual event: a merge error with little effect on the numbers."
-   },
-   {
-    "text": "my stomach kind of drops",
-    "kind": "C",
-    "from": 3,
-    "why": "Names a body sensation tied to thinking about the mistake."
-   },
-   {
-    "text": "my advisor's gonna think I'm super careless",
-    "kind": "B",
-    "from": 4,
-    "why": "Core belief about how the advisor will judge them."
-   },
-   {
-    "text": "what if they take the degree back",
-    "kind": "B",
-    "from": 4,
-    "why": "A frightening thought they voiced while doubting it."
-   },
-   {
-    "text": "I keep thinking nobody would ever notice if I just... didn't say anything",
-    "kind": "B",
-    "from": 5,
-    "why": "A tempting thought they are troubled by having."
-   },
-   {
-    "text": "my face goes hot",
-    "kind": "C",
-    "from": 5,
-    "why": "Body sensation following that thought."
-   },
-   {
-    "text": "I'd probably say \"you caught it yourself, that counts for something.\"",
-    "kind": "DE",
-    "from": 7,
-    "why": "Their kinder view, offered when asked what they'd tell a friend."
-   },
-   {
-    "text": "it's weirdly easier to believe it for someone else",
-    "kind": "DE",
-    "from": 8,
-    "why": "Notes the gap between the kind view for others and for themselves."
-   },
-   {
-    "text": "my throat kinda closes up thinking about it",
-    "kind": "C",
-    "from": 9,
-    "why": "A new body sensation tied to saying the first sentence."
-   }
-  ],
-  "skipped": [
-   {
-    "text": "the meeting with my advisor is on friday, so it's kind of sitting there like a deadline",
-    "why": "Context about timing, and it overlaps with the other cards."
-   },
-   {
-    "text": "maybe if I just said it on Friday it'd be a kind of awkward five minutes and then done?",
-    "why": "Tentative alternative view, but not prompted by the AI's invitation, and the cards were already full."
-   },
-   {
-    "text": "my chest still goes tight when I picture actually saying the words out loud",
-    "why": "Similar feeling already covered by other body-sensation cards."
-   },
-   {
-    "text": "it's not totally true, since it's been two weeks",
-    "why": "Relevant detail, but it was left out to stay within the 10-card limit."
-   },
-   {
-    "text": "my chest has been kinda tight about it since I got home",
-    "why": "The feeling at the start was already voiced and named in the chat."
-   },
-   {
-    "text": "I found something in there that's wrong, I guess. I just keep opening it anyway",
-    "why": "program: not a delete-only trim (drops “i”, which changes how sure or how strong it is)"
-   }
-  ],
-  "lines": [
-   [
-    0,
-    2
-   ],
-   [
-    0,
-    3
-   ],
-   [
-    0,
-    4
-   ],
-   [
-    2,
-    1
-   ],
-   [
-    3,
-    5
-   ],
-   [
-    4,
-    8
-   ],
-   [
-    2,
-    6
-   ],
-   [
-    6,
-    7
-   ]
-  ]
- },
- {
-  "name": "“Be more modest”",
-  "source": "academia.stackexchange.com/q/83086 (NoIdeaAboutName), adapted",
-  "msgs": [
-   {
-    "role": "you",
-    "text": "hey. my advisor sent me this email and I keep rereading it, and I've drafted like three replies but sent none of them. idk, my chest just feels kind of tight about it"
-   },
-   {
-    "role": "ai",
-    "text": "So there's an email from your advisor that you've gone back to again and again, and three replies sitting in drafts, none sent. And there's a tightness in your chest as you think about it. If you put a word to that tightness, see which of these is closer.",
-    "options": [
-     "dread",
-     "anxious"
-    ],
-    "notes": {
-     "have": {
-      "A": true,
-      "B": false,
-      "C": true,
-      "DE": false
-     },
-     "named": false,
-     "deAsked": 0,
-     "core": "They are stuck on how to reply to their advisor's email and can't tell what it means for them.",
-     "stuck": "starting",
-     "help": "Find out what the email says and what they fear it means",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "dread, anxious",
-    "naming": true
-   },
-   {
-    "role": "ai",
-    "text": "Dread and anxious, with that tightness in your chest, and it sounds like it's been with you every time you open the email again. The drafts show you want to answer, and something keeps the send button from being pressed. I don't know yet what the email actually said, or what you're picturing might happen if you reply. What did the email say that made you start reading it over and over?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": false,
-      "C": true,
-      "DE": false
-     },
-     "named": true,
-     "deAsked": 0,
-     "core": "They are stuck on how to answer an advisor's email and fear what it means or how a reply will land.",
-     "stuck": "starting",
-     "help": "find out what the email said and what they fear it means",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "it's really short, he's abroad for a few weeks and he just wrote \"I think you should be more modest, and we should meet more often.\" that's it, no hello or anything else really"
-   },
-   {
-    "role": "ai",
-    "text": "So the email is just that one line, with no greeting, and he's away for a few weeks, which leaves you with only those words to go on. The part about being more modest and meeting more often is what you keep coming back to, and that's where the dread and the tight chest seem to sit. When you read it, what goes through your mind about what he means?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": false,
-      "C": true,
-      "DE": false
-     },
-     "named": true,
-     "deAsked": 0,
-     "core": "They are stuck replaying a terse email from their advisor and can't send a reply because they don't know what he meant or how it will land.",
-     "stuck": "replaying",
-     "help": "Finding out what they are telling themselves about the email's meaning",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "i think he thinks I'm acting like I don't need him? like I'm arrogant or something, which is kind of the opposite of how I feel... idk, my stomach drops every time I get to the word \"modest"
-   },
-   {
-    "role": "ai",
-    "text": "So the email, with that one word \"modest\" in it, is what happened, and your stomach drops each time you reach it. The thought you're carrying is that he sees you as arrogant, as someone who doesn't need him, and that sits far from how you feel inside. That gap seems to be a big part of why the drafts stay unsent. You've put quite a lot on the table now, and it might help to spread it out as a map so you can see how the pieces connect.",
-    "propose": true,
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": false
-     },
-     "named": true,
-     "deAsked": 0,
-     "core": "They are stuck replaying a one-line email from their advisor and fear he sees them as arrogant, which clashes with how they see themselves, so they can't send a reply.",
-     "stuck": "replaying",
-     "help": "Space to separate the actual words of the email from the meaning they are reading into it, then see the whole thing laid out",
-     "ready": true
-    },
-    "declined": true
-   },
-   {
-    "role": "you",
-    "text": "yeah. the thing is I think I kind of avoid our meetings, like I'll say I'm busy or just not book one... because I'm scared I'll ask something dumb and waste his time"
-   },
-   {
-    "role": "ai",
-    "text": "Thank you for telling me that. So what's been happening is that you say you're busy or don't book a meeting, and underneath it is a fear that you'll ask something dumb and waste his time. That's a different picture from the one you think he has of you, where you don't need him at all. It sounds like the avoiding may be feeling quite heavy next to the dread you already named. Is there anything about this that doesn't quite fit the thought that he sees you as arrogant?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": false
-     },
-     "named": true,
-     "deAsked": 0,
-     "core": "They fear looking foolish in front of their advisor, so they avoid meetings, and now fear the email means he reads that avoidance as arrogance.",
-     "stuck": "replaying",
-     "help": "seeing how the avoiding and the fear of a dumb question connect to how they read the email",
-     "ready": true
-    }
-   },
-   {
-    "role": "you",
-    "text": "idk... he did say we should meet more often, and if he really thought I was arrogant I feel like he wouldn't want that? but then I go back to \"modest\" and it just feels like a hit again"
-   },
-   {
-    "role": "ai",
-    "text": "You've found something there: he also wrote that he wants to meet more often, and that sits oddly next to the thought that he sees you as arrogant. And the word \"modest\" still lands like a hit each time you return to it, so both are in the room at once. The email is the same few words, but what you feel when you reach that one word hasn't gone away. When you say he thinks you're acting like you don't need him, what would that actually look like from where he sits?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 1,
-     "core": "They are stuck between a short ambiguous email and their own fear of looking foolish, so they can't tell what he means and can't reply.",
-     "stuck": "replaying",
-     "help": "Looking at what 'modest' would actually look like to them, then deciding what to say in a reply",
-     "ready": true
-    }
-   },
-   {
-    "role": "you",
-    "text": "I guess from his side I just... don't show up? like I say I'm busy, and then I only send him finished stuff, never questions. \n\nidk, when I say it like that it sounds like I've kind of made him think that, even though it's not what's going on in my head."
-   },
-   {
-    "role": "ai",
-    "text": "So from his side, what he sees is you saying you're busy and sending only finished work, never questions. And you can see how that might look like not needing him, even though inside it's the fear of asking something dumb. That's a shift from where you started with the email, and the thought that you've somehow led him to this seems to sit alongside it. If a friend had this thought, what would you want them to tell themselves?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 2,
-     "core": "They fear their avoidance of meetings has made their advisor see them as arrogant, while inside they feel scared of asking something dumb.",
-     "stuck": "replaying",
-     "help": "Space to find their own new way of seeing what the email might mean and what they'd tell a friend",
-     "ready": true
-    }
-   },
-   {
-    "role": "you",
-    "text": "I guess I'd tell them it's not like they did it on purpose? Like they were just scared, and it's kind of fixable...\n\nidk, it's weirdly easier to say that about someone else. My chest is still tight when I think about actually writing back."
-   },
-   {
-    "role": "ai",
-    "text": "What you'd say to a friend is that they didn't do it on purpose, they were scared, and it's fixable, and you noticed it's easier to say that about someone else. That's what you've come up with, in your own words. The tightness in your chest is still there when you picture actually writing back, so the dread hasn't gone just because the picture has shifted. When you think about sending something, what comes up first for you?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 3,
-     "core": "They fear asking something dumb, which has led them to avoid their advisor, and now they dread replying because the email seems to confirm he sees them as arrogant.",
-     "stuck": "starting",
-     "help": "a gentle way to picture the first small step of writing back",
-     "ready": true
-    }
-   },
-   {
-    "role": "you",
-    "text": "i think it's like... what if I say the wrong thing and he reads it as me making excuses, or it just makes it worse? my face kind of goes hot thinking about it.\n\nand then part of me goes maybe I should just wait till he's back, but that feels like hiding again, idk"
-   },
-   {
-    "role": "ai",
-    "text": "So what's coming up is the picture of writing back and he reads it as excuses, or it makes things worse, and your face goes hot as you imagine it. You're also pulled toward waiting until he's back, and you can already feel that this might be the hiding again. Both pulls are in there together with the tight chest. You've laid out a lot tonight, from the email to the avoiding to what you'd say to a friend, and it could help to spread it all out as a map so you can see how it fits together.",
-    "propose": true,
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 3,
-     "core": "They are stuck on how to reply because they fear any words will be read as excuses or make things worse, and waiting feels like more hiding.",
-     "stuck": "starting",
-     "help": "seeing the pieces laid out on a map before deciding how to reply",
-     "ready": true
-    },
-    "declined": true
-   },
-   {
-    "role": "you",
-    "text": "idk, maybe it doesn't have to be a big thing? Like just \"ok, yes, let's meet more,\" without explaining myself... but then I think that sounds cold, like I'm brushing off the modest part.\n\nMy hands kind of go restless when I picture hitting send, like I can't sit still."
-   },
-   {
-    "role": "ai",
-    "text": "So you're toying with a simple reply, something like \"ok, yes, let's meet more,\" and the worry is that it would sound cold, as if you're brushing past the \"modest\" part. And there's a new sensation now: your hands go restless when you picture pressing send, like you can't sit still. If you put a word to that restlessness, see which of these is closer.",
-    "options": [
-     "restless",
-     "nervous"
-    ],
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 3,
-     "core": "They are stuck on how to reply without it sounding like excuses or coldness, because they fear getting it wrong and confirming his view of them.",
-     "stuck": "starting",
-     "help": "a chance to try out a short reply in their own words and see what feels true to them",
-     "ready": true
-    }
-   },
-   {
-    "role": "you",
-    "text": "restless, nervous",
-    "naming": true
-   },
-   {
-    "role": "ai",
-    "text": "Restless and nervous, sitting in your hands as you picture pressing send. Those words fit with the rest of what you've described: a short reply that might sound cold, the pull to wait until he's back, and the tight chest that hasn't left. You've brought a lot into view tonight, from his one-line email to the avoiding to what you'd tell a friend. Spreading it all out as a map could show how these pieces connect, and you can do that whenever you like.",
-    "propose": true,
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": true,
-      "DE": true
-     },
-     "named": true,
-     "deAsked": 3,
-     "core": "They fear that replying will confirm their advisor's view of them, and they are stuck between sending something brief and waiting until he is back.",
-     "stuck": "starting",
-     "help": "seeing the pieces laid out together so a small first reply feels less loaded",
-     "ready": true
-    }
-   }
-  ],
-  "made": [
-   {
-    "text": "my advisor sent me this email and I keep rereading it, and I've drafted like three replies but sent none of them",
-    "kind": "A",
-    "from": 1,
-    "why": "Names the event and what they did in response: rereading and unsent drafts."
-   },
-   {
-    "text": "my chest just feels kind of tight about it",
-    "kind": "C",
-    "from": 1,
-    "why": "A bodily sensation tied to the email."
-   },
-   {
-    "text": "he just wrote \"I think you should be more modest, and we should meet more often.\"",
-    "kind": "A",
-    "from": 2,
-    "why": "Gives the actual content of the email."
-   },
-   {
-    "text": "i think he thinks I'm acting like I don't need him? like I'm arrogant or something",
-    "kind": "B",
-    "from": 3,
-    "why": "Their interpretation of what the advisor means."
-   },
-   {
-    "text": "my stomach drops every time I get to the word \"modest",
-    "kind": "C",
-    "from": 3,
-    "why": "A bodily reaction linked to one word in the email."
-   },
-   {
-    "text": "I kind of avoid our meetings, like I'll say I'm busy or just not book one",
-    "kind": "A",
-    "from": 4,
-    "why": "Describes their own avoiding behaviour."
-   },
-   {
-    "text": "I'm scared I'll ask something dumb and waste his time",
-    "kind": "B",
-    "from": 4,
-    "why": "The fear driving the avoiding."
-   },
-   {
-    "text": "I've kind of made him think that, even though it's not what's going on in my head",
-    "kind": "DE",
-    "from": 6,
-    "why": "A new view: their behaviour may have shaped his impression."
-   },
-   {
-    "text": "it's not like they did it on purpose? Like they were just scared, and it's kind of fixable",
-    "kind": "DE",
-    "from": 7,
-    "why": "What they'd tell a friend, offering a kinder view."
-   },
-   {
-    "text": "what if I say the wrong thing and he reads it as me making excuses, or it just makes it worse?",
-    "kind": "B",
-    "from": 8,
-    "why": "The feared outcome of replying."
-   }
-  ],
-  "skipped": [
-   {
-    "text": "my face kind of goes hot thinking about it",
-    "why": "A feeling card was already used for body sensation; the card limit of 10 was reached."
-   },
-   {
-    "text": "he did say we should meet more often, and if he really thought I was arrogant I feel like he wouldn't want that?",
-    "why": "Valuable alternative view, but the card limit of 10 was reached."
-   },
-   {
-    "text": "maybe I should just wait till he's back, but that feels like hiding again",
-    "why": "Card limit reached; this is an option they are weighing."
-   },
-   {
-    "text": "just \"ok, yes, let's meet more,\" without explaining myself... but then I think that sounds cold",
-    "why": "Card limit reached; a draft idea mixed with a worry."
-   },
-   {
-    "text": "My hands kind of go restless when I picture hitting send, like I can't sit still.",
-    "why": "Card limit reached; another body sensation."
-   },
-   {
-    "text": "it's weirdly easier to say that about someone else",
-    "why": "A comment on the exercise rather than a thought on the map."
-   }
-  ],
-  "lines": [
-   [
-    2,
-    3
-   ],
-   [
-    3,
-    4
-   ],
-   [
-    2,
-    1
-   ],
-   [
-    0,
-    9
-   ],
-   [
-    9,
-    1
-   ],
-   [
-    5,
-    6
-   ],
-   [
-    6,
-    1
-   ],
-   [
-    1,
-    5
-   ],
-   [
-    3,
-    7
-   ],
-   [
-    6,
-    8
-   ],
-   [
-    4,
-    0
-   ]
-  ]
- },
- {
-  "name": "The deleted message",
-  "source": "interpersonal.stackexchange.com/q/23817 (Ganesh S), adapted",
-  "msgs": [
-   {
-    "role": "you",
-    "text": "hey. idk if this is a dumb thing to be stuck on, but I think my girlfriend's mad at me and I can't stop checking my phone"
-   },
-   {
-    "role": "ai",
-    "text": "Thanks for putting it out here, and it's okay that it's on your mind. So the part you're sure of is that you keep checking your phone, and the part that's a guess is that she's mad at you. The checking sounds like it's taking up a lot of room right now. What happened between the two of you that made you think she might be mad?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": false,
-      "DE": false
-     },
-     "named": false,
-     "deAsked": 0,
-     "core": "They suspect their girlfriend is angry and are caught in waiting for a sign from her on their phone.",
-     "stuck": "replaying",
-     "help": "Find out what happened between them and what they feel while waiting",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "ok so two nights ago I deleted a message on whatsapp, like for everyone, and she saw that I did. she asked what it said and I just said \"it's a secret\" as a joke, and now she's been kinda cold since"
-   },
-   {
-    "role": "ai",
-    "text": "Thanks for filling in what happened: you deleted a message for everyone, she saw it, asked what it said, and you answered \"it's a secret\" as a joke. Since then she's seemed a bit cold, and you're reading that as her being mad at you. When you picture her feeling that way, what goes through your mind?",
-    "notes": {
-     "have": {
-      "A": true,
-      "B": true,
-      "C": false,
-      "DE": false
-     },
-     "named": false,
-     "deAsked": 0,
-     "core": "They worry a joke after deleting a message has made their girlfriend cold, and the uncertainty keeps pulling them to their phone.",
-     "stuck": "what-if",
-     "help": "Notice what they feel and what they tell themselves about her coldness",
-     "ready": false
-    }
-   },
-   {
-    "role": "you",
-    "text": "idk, like that she thinks I'm hiding something from her. and we're only three months in and it's long distance so trust is kind of the whole thing, you know? my stomach kind of drops every time I open our chat and it's just her last \"ok\" sitting there"
-   },
-   {
-    "role": "ai",
-    "text": "So the thought running through you is that she believes you're hiding something, and that matters a lot because it's early and long distance, where trust feels like everything. What's in front of you is her last \"ok\" sitting in the chat, and each time you open it your stomach drops. That drop sounds like something your body is telling you. If you put a word to it, see which of these is closer.",
+    "text": "Not weird at all to bring it here. What's coming up is that for about two weeks, you've been opening that file at night and staying with it, and your chest goes tight while you do. That tightness sounds like it's saying something. If you put a word to it, see which of these is closer.",
     "options": [
      "dread",
      "guilt"
     ],
-    "propose": true,
     "notes": {
      "have": {
       "A": true,
-      "B": true,
+      "B": false,
       "C": true,
       "DE": false
      },
      "named": false,
      "deAsked": 0,
-     "core": "They fear the deleted message and their joke have made her doubt their trustworthiness, and the silence after her 'ok' leaves them stuck guessing.",
+     "core": "Something from work, tied to a file they open at night, has been lingering and leaves them tense, but what it is or what they tell themselves about it is not yet clear.",
      "stuck": "replaying",
-     "help": "putting a word to the stomach-drop feeling, then gently looking at the thought that she thinks they're hiding something",
-     "ready": true
+     "help": "learn what happened with the file and what goes through their mind when they open it",
+     "ready": false
     }
    },
    {
@@ -852,7 +36,51 @@
    },
    {
     "role": "ai",
-    "text": "Dread and guilt, then, sitting together with that stomach drop. It sounds like dread about what her silence might mean, and guilt about the joke you made when she asked about the deleted message. You've now told me what happened, what you're telling yourself about it, and how it feels in your body. That's a lot to carry around while you keep checking the chat, and it might help to spread it all out in one place so you can see it side by side.",
+    "text": "Dread and guilt, both sitting in your chest while you stare at that file. Those are your words, and they say a lot about how heavy the nights have been. I don't yet know what's in the file or what led you to it. What happened with it at work, two weeks ago, that started this?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": false,
+      "C": true,
+      "DE": false
+     },
+     "named": true,
+     "deAsked": 0,
+     "core": "They are stuck on something about a work file they keep reopening at night, with dread and guilt, but we don't yet know what happened or what they tell themselves about it.",
+     "stuck": "replaying",
+     "help": "learn what happened with the file and what they tell themselves about it",
+     "ready": false
+    }
+   },
+   {
+    "role": "you",
+    "text": "so I was working on the paper with my advisor, from my thesis, and I went back through the data and found a mistake I made. like a real one, in how I merged stuff... it's kinda small but it's in the thesis that already got graded"
+   },
+   {
+    "role": "ai",
+    "text": "So while going back through the data for the paper with your advisor, you found a mistake in how you merged things, and it's in the thesis that was already graded. You called it small, and also a real one, so both of those seem to be sitting with you. That fits with the dread and guilt you named earlier. When you open that file at night, what goes through your mind?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": false,
+      "C": true,
+      "DE": false
+     },
+     "named": true,
+     "deAsked": 0,
+     "core": "They found an error in the data merge that is already in their graded thesis and are stuck replaying it at night with dread and guilt, unsure what it means.",
+     "stuck": "replaying",
+     "help": "Hearing what they tell themselves about the mistake",
+     "ready": false
+    }
+   },
+   {
+    "role": "you",
+    "text": "idk, mostly like... what if they think I was careless the whole time? and then I think about the degree and my stomach kinda drops"
+   },
+   {
+    "role": "ai",
+    "text": "So the thought that visits you at night is that they might think you were careless the whole time, and when your mind goes to the degree, your stomach drops. That sits right alongside the dread and guilt you named, and the mistake you found in the merge that is already in the graded thesis. You've now put a lot of this into words: what happened, what you're telling yourself, and what it does to you. If it would help, we can spread it out as a map so you can see it all in one place.",
     "propose": true,
     "notes": {
      "have": {
@@ -863,20 +91,20 @@
      },
      "named": true,
      "deAsked": 0,
-     "core": "They fear a joking answer about a deleted message has made their girlfriend doubt their trust, and the silence is filling with worst-case guesses.",
-     "stuck": "replaying",
-     "help": "seeing the whole picture laid out so the checking and the guess about her thoughts are easier to tell apart",
+     "core": "They are stuck on fear that the merge error they found will make their advisor and examiners see them as careless, and that it could threaten their degree.",
+     "stuck": "what-if",
+     "help": "Seeing what happened, what they tell themselves and what they feel laid out side by side",
      "ready": true
     },
     "declined": true
    },
    {
     "role": "you",
-    "text": "yeah I guess. the dumb part is it was literally just a typo, like an embarrassing one, and now saying that feels ridiculous after two days? like \"oh btw it was nothing\" sounds like exactly what someone hiding something would say"
+    "text": "the thing is the corrected numbers are super close to the old ones, and the conclusions don't change at all. so part of me goes, nobody would ever notice... and then I feel kind of gross for even thinking that"
    },
    {
     "role": "ai",
-    "text": "So what actually happened was a typo, an embarrassing one, and the joke came out in the moment. What you're telling yourself now is that after two days, saying it was nothing would sound like exactly what a person hiding something would say. That seems to be adding a bit of embarrassment on top of the dread and guilt you already named. Is there anything about this that doesn't quite fit that thought?",
+    "text": "So when you reran it, the corrected numbers came out very close to the old ones and the conclusions stay the same. Alongside that, there's a quiet voice saying nobody would ever notice, and then a feeling of gross about having thought it. That sits next to the worry that they'd see you as careless the whole time. Is there anything about this that doesn't quite fit that thought for you, that you were careless the whole time?",
     "notes": {
      "have": {
       "A": true,
@@ -885,20 +113,86 @@
       "DE": false
      },
      "named": true,
-     "deAsked": 0,
-     "core": "They are stuck on whether explaining the deleted message as a typo now will sound like hiding something, so they keep checking the chat instead.",
+     "deAsked": 1,
+     "core": "They are stuck between worry about being seen as careless and the pull to let the small error go unmentioned, and they feel gross about that pull.",
      "stuck": "deciding",
-     "help": "seeing the thought that the truth will sound suspicious from another angle",
-     "ready": false
+     "help": "look at what doesn't fit the careless thought, then find one small step",
+     "ready": true
     }
    },
    {
     "role": "you",
-    "text": "idk... she does have exams this week, so maybe she's just fried? and she's never really been the type to go cold on purpose. but then the no voice message last night, that's what I keep coming back to"
+    "text": "idk... I mean I did catch it myself, like nobody pointed it out, I only found it because I was going back through everything super carefully for the paper. so maybe that's not exactly careless? it just doesn't feel like that at 2am"
    },
    {
     "role": "ai",
-    "text": "You've found two things that sit a little differently from the thought that she's mad: she has exams this week, and she has never been someone who goes cold on purpose. Alongside that, what's pulling you back is what happened last night, that there was no voice message, and it sounds like that one gap is holding more weight than the rest. Those are your own words, and they're all sitting there next to the dread and guilt now. It might help to spread all of this out as a map so you can see it side by side.",
+    "text": "What's coming up is that you caught the mistake yourself, only because you were going back through everything so carefully, and you can see that this doesn't quite sound like carelessness. It's at 2am that it stops feeling that way. That's a real difference between the daytime view and the night one. What's one small thing you could do about this, and when?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 1,
+     "core": "They found their own error in a graded thesis and are stuck between fear of being seen as careless and unease about staying quiet, especially at night.",
+     "stuck": "deciding",
+     "help": "a small concrete step they could take about the error",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "maybe... tomorrow morning I could put the old numbers and the corrected ones side by side in one little table, so it's just clear what changed? idk, at least then I'd have something real to look at instead of just staring at the file at night."
+   },
+   {
+    "role": "ai",
+    "text": "So your plan is that tomorrow morning you'll put the old numbers and the corrected ones side by side in one little table, so it's clear what changed. You'd have something real in front of you, rather than just the file and the 2am staring. That plan comes from you catching the mistake yourself and seeing how close the numbers are. Is there one small thing you could do for tonight, when the file starts calling to you?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 1,
+     "core": "They fear being seen as careless over a small error in a graded thesis, and at night they have only the file and the worry, not something concrete to look at.",
+     "stuck": "replaying",
+     "help": "Settling their plan for the table and maybe one small step for tonight",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "maybe I just don't open it tonight? like close the laptop and put it in the other room, and if I really want to, I could write down one line about what I'd say to my advisor on Friday instead... idk if I can actually do that though"
+   },
+   {
+    "role": "ai",
+    "text": "So tonight your plan is to close the laptop and put it in the other room, and if the pull is strong, to write one line about what you'd say to your advisor on Friday instead. Tomorrow morning, the side-by-side table. You also said you're not sure you can actually do it, and that doubt is part of this too. These are your own steps, shaped by how you caught the mistake yourself. How does it feel to see the plan laid out like that?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 1,
+     "core": "They fear the mistake in the graded thesis will make others see them as careless, and the night-time file-staring keeps that fear going even though they caught it themselves and the conclusions hold.",
+     "stuck": "replaying",
+     "help": "Hold their two small steps as their own plan, acknowledge their doubt, and let them settle.",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "idk... a little lighter maybe? like my shoulders came down a bit. but then I think about actually saying the line to my advisor out loud and my stomach kinda flips again"
+   },
+   {
+    "role": "ai",
+    "text": "So there's a little lightness, with your shoulders coming down a bit, and right next to it your stomach flips when you picture saying that line to your advisor out loud. Both are real tonight. You've got a lot on the table now: the tonight plan, the morning table, the Friday line, and the flip in your stomach. It might help to spread it out as a map so you can see how the pieces sit together.",
     "propose": true,
     "notes": {
      "have": {
@@ -909,23 +203,23 @@
      },
      "named": true,
      "deAsked": 1,
-     "core": "They fear the deleted message and the joke made their girlfriend doubt their trust, and her quiet is being read as confirmation.",
-     "stuck": "replaying",
-     "help": "a way to see the silence beside her exams and the missing voice message, and a next step in their own words",
+     "core": "They are afraid that telling their advisor about the merge mistake will make them look careless, even though they caught it themselves and the conclusions hold.",
+     "stuck": "what-if",
+     "help": "seeing it all laid out in one place, and a sense of the Friday conversation as manageable",
      "ready": true
     },
     "declined": true
    },
    {
     "role": "you",
-    "text": "yeah... I mean she skipped a voice message once before when she had a deadline, now that I think about it. but this time I keep checking when she was last online, and it's like 3 hours ago, and my chest just goes tight"
+    "text": "idk, the line I keep trying to write is something like \"I found an error in how I merged the waves,\" and just typing that makes my face go hot. like it's so short but it feels huge."
    },
    {
     "role": "ai",
-    "text": "You just remembered that she skipped a voice message once before when she had a deadline, which sits a little differently from the worry that this silence means something. And what's happening now is that you keep checking when she was last online, and it was about three hours ago. Each time, your chest goes tight. That sounds like a new sensation on top of the stomach drop. If you put a word to it, see which of these is closer.",
+    "text": "So the line you keep trying to write is \"I found an error in how I merged the waves,\" and just typing it makes your face go hot. It's a short sentence that feels huge, and it's one you'd be saying about something you caught yourself. There's a body feeling here that has no name yet, a heat in your face when the words appear on the screen. If you put a word to it, see which of these is closer.",
     "options": [
-     "panic",
-     "helpless"
+     "shame",
+     "fear"
     ],
     "notes": {
      "have": {
@@ -934,22 +228,23 @@
       "C": true,
       "DE": true
      },
-     "named": false,
-     "deAsked": 1,
-     "core": "They fear their girlfriend's silence means she thinks they're hiding something, and they keep checking for signs while the typo joke sits unresolved.",
-     "stuck": "replaying",
-     "help": "seeing the pieces side by side and noticing what they already know about her pattern",
-     "ready": false
+     "named": true,
+     "deAsked": 3,
+     "core": "They fear being seen as careless over a small, self-caught error, and the act of saying it aloud to their advisor feels huge.",
+     "stuck": "starting",
+     "help": "Make the Friday sentence feel sayable, and a gentle way to spread out the map",
+     "ready": true
     }
    },
    {
     "role": "you",
-    "text": "panic",
+    "text": "shame, fear",
     "naming": true
    },
    {
     "role": "ai",
-    "text": "Panic, then, the tightness in your chest when you see she was last online three hours ago. What happened is that she's been quiet, it's exam week, and she skipped a voice message once before during a deadline. What the panic seems to be attached to is the idea that her silence means she thinks you're hiding something. You said \"oh btw it was nothing\" would sound like what a person hiding something would say. When you say that, what would it actually look like to her?",
+    "text": "Shame and fear, both there when those words show up on the screen. Those are your words, and they fit the heat in your face and the way a short sentence about something you caught yourself can feel so huge. You've now laid out a lot tonight: the mistake in the merge, the worry about being seen as careless, the plan for tonight and tomorrow, and the line for Friday. It could help to spread it all out as a map so you can see how the pieces sit together.",
+    "propose": true,
     "notes": {
      "have": {
       "A": true,
@@ -959,19 +254,638 @@
      },
      "named": true,
      "deAsked": 1,
-     "core": "They are stuck replaying a deleted message and a joking answer, worried that her quiet means she distrusts them, and the checking keeps the worry alive.",
-     "stuck": "replaying",
-     "help": "seeing what they know next to what they fear, and what they would tell a friend in the same spot",
+     "core": "They are stuck on how to say out loud to their advisor that they found an error in their graded thesis, because saying it feels like proof of carelessness, shame and fear.",
+     "stuck": "starting",
+     "help": "a gentle way to hold the shame and fear and see the map of what is weighing on them",
+     "ready": true
+    }
+   }
+  ],
+  "made": [
+   {
+    "text": "I keep opening this file at night and then just staring at it",
+    "kind": "A",
+    "from": 1,
+    "why": "Describes a repeated nighttime behaviour tied to the file."
+   },
+   {
+    "text": "my chest gets kind of tight",
+    "kind": "C",
+    "from": 1,
+    "why": "Body sensation when staring at the file."
+   },
+   {
+    "text": "I went back through the data and found a mistake I made",
+    "kind": "A",
+    "from": 2,
+    "why": "The triggering event at work."
+   },
+   {
+    "text": "what if they think I was careless the whole time?",
+    "kind": "B",
+    "from": 3,
+    "why": "Core worry they tell themselves at night."
+   },
+   {
+    "text": "I think about the degree and my stomach kinda drops",
+    "kind": "C",
+    "from": 3,
+    "why": "Body sensation linked to the degree."
+   },
+   {
+    "text": "the corrected numbers are super close to the old ones, and the conclusions don't change at all",
+    "kind": "A",
+    "from": 4,
+    "why": "Concrete fact about the effect of the mistake."
+   },
+   {
+    "text": "I did catch it myself, like nobody pointed it out",
+    "kind": "DE",
+    "from": 5,
+    "why": "Alternative view that sits against the careless thought."
+   },
+   {
+    "text": "tomorrow morning I could put the old numbers and the corrected ones side by side in one little table",
+    "kind": "NEXT",
+    "from": 6,
+    "why": "Small concrete step they offered for the morning."
+   },
+   {
+    "text": "maybe I just don't open it tonight? like close the laptop and put it in the other room",
+    "kind": "NEXT",
+    "from": 7,
+    "why": "Small concrete step for tonight."
+   },
+   {
+    "text": "just typing that makes my face go hot",
+    "kind": "C",
+    "from": 9,
+    "why": "Body sensation when writing the line for their advisor."
+   }
+  ],
+  "skipped": [
+   {
+    "text": "part of me goes, nobody would ever notice... and then I feel kind of gross for even thinking that",
+    "why": "Would not fit one card within the limits; the thought and feeling are tangled together."
+   },
+   {
+    "text": "a little lighter maybe? like my shoulders came down a bit",
+    "why": "Relief is real, but the ten-card limit was reached and other cards were stronger."
+   },
+   {
+    "text": "my stomach kinda flips again when I think about saying the line out loud",
+    "why": "Similar to the earlier stomach card, so it would be a repeat."
+   },
+   {
+    "text": "if I really want to, I could write down one line about what I'd say to my advisor on Friday",
+    "why": "Over the limit, and the first NEXT cards already cover their plan."
+   },
+   {
+    "text": "it just doesn't feel like that at 2am",
+    "why": "Closely tied to the DE card and over the limit."
+   },
+   {
+    "text": "idk if I can actually do that though",
+    "why": "Doubt about the plan; left out to keep the cards to one thought each."
+   }
+  ],
+  "lines": [
+   [
+    2,
+    3
+   ],
+   [
+    3,
+    1
+   ],
+   [
+    3,
+    4
+   ],
+   [
+    4,
+    0
+   ],
+   [
+    0,
+    2
+   ],
+   [
+    3,
+    9
+   ],
+   [
+    5,
+    3
+   ],
+   [
+    6,
+    3
+   ],
+   [
+    7,
+    3
+   ],
+   [
+    8,
+    0
+   ]
+  ]
+ },
+ {
+  "name": "“Be more modest”",
+  "source": "academia.stackexchange.com/q/83086 (NoIdeaAboutName), adapted",
+  "msgs": [
+   {
+    "role": "you",
+    "text": "hey. my advisor emailed me something that's been stuck in my head all day, and I've drafted like three replies and sent none of them. idk, I guess I just don't know what to do with it"
+   },
+   {
+    "role": "ai",
+    "text": "Thanks for bringing this here. So an email from your advisor has been with you all day, and you've written three replies and sent none of them. That sounds like a lot of effort going into something that still feels unsettled. What did the email say?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": false,
+      "C": false,
+      "DE": false
+     },
+     "named": false,
+     "deAsked": 0,
+     "core": "They received an email from their advisor and can't settle on a reply, so it keeps circling in their head.",
+     "stuck": "deciding",
+     "help": "learn what the email said and what they are telling themselves about it",
+     "ready": false
+    }
+   },
+   {
+    "role": "you",
+    "text": "it's short, he's abroad for a few weeks and he just wrote \"I think you should be more modest, and we should meet more often.\" that's basically all of it\n\nI keep reading it and my stomach kind of drops every time, idk"
+   },
+   {
+    "role": "ai",
+    "text": "So the email itself is just those two lines from your advisor, sent while he's abroad, and each time you read it your stomach drops. That body reaction seems to be telling you something about how it lands. If you put a word to it, see which of these is closer.",
+    "options": [
+     "dread",
+     "embarrassed"
+    ],
+    "notes": {
+     "have": {
+      "A": true,
+      "B": false,
+      "C": true,
+      "DE": false
+     },
+     "named": false,
+     "deAsked": 0,
+     "core": "They are stuck on how to answer a short, ambiguous email from their advisor, and the stomach drop suggests it landed as a judgement they haven't put into words yet.",
+     "stuck": "deciding",
+     "help": "find out what they tell themselves about the email's meaning",
+     "ready": false
+    }
+   },
+   {
+    "role": "you",
+    "text": "dread, embarrassed",
+    "naming": true
+   },
+   {
+    "role": "ai",
+    "text": "Dread and embarrassed, both sitting alongside that drop in your stomach. So what's in front of you is two short lines from your advisor, and three drafts you haven't sent. When you read \"be more modest\" and \"meet more often,\" what goes through your mind?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": false,
+      "C": true,
+      "DE": false
+     },
+     "named": true,
+     "deAsked": 0,
+     "core": "They are stuck on what the advisor's short email means about them and how to answer it without knowing his tone or intent.",
+     "stuck": "unclear",
+     "help": "Surface what they are telling themselves about the email",
+     "ready": false
+    }
+   },
+   {
+    "role": "you",
+    "text": "the \"more modest\" part mostly, like he thinks I act like I don't need him, or that I think I'm above it or something. which is kind of the opposite of how I feel, idk\n\nand then \"meet more often\" just makes my chest go tight"
+   },
+   {
+    "role": "ai",
+    "text": "So the email says to be more modest and meet more often, and what you're hearing in \"modest\" is that he thinks you act like you don't need him, or that you're above it. That sits very far from how you feel inside. The \"meet more often\" part adds a tight chest on top of the dread and embarrassment you named. It sounds like there's a lot you want him to know, and that's part of what has made it hard to hit send. Maybe it would help to lay all of this out as a map, so you can see the pieces side by side.",
+    "propose": true,
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": false
+     },
+     "named": true,
+     "deAsked": 0,
+     "core": "They are stuck replying to an ambiguous two-line email because they read it as their advisor thinking they are arrogant, which clashes with how they actually feel.",
+     "stuck": "starting",
+     "help": "Space to separate what the email says from what they fear he means, then possibly a gentle invitation to look at that reading",
+     "ready": true
+    },
+    "declined": true
+   },
+   {
+    "role": "you",
+    "text": "yeah, kind of. I think the meeting thing is the scarier part, because I avoid meetings already. I'm always scared I'll ask something stupid and waste his time, so I just sort of stay quiet and figure it out alone, and I guess that might be how it looks like I don't need him?"
+   },
+   {
+    "role": "ai",
+    "text": "That's a new piece: you avoid meetings already, because you're afraid of asking something stupid and wasting his time, so you stay quiet and work things out alone. And you're starting to see that this quiet might be what \"modest\" looks like from his side. The fear of the stupid question is what you're telling yourself, and the scared feeling around meetings seems to come from it. Is there anything about this that doesn't quite fit the thought that your questions would waste his time?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": false
+     },
+     "named": true,
+     "deAsked": 0,
+     "core": "They fear that asking something stupid wastes the advisor's time, so they stay quiet and work alone, and now worry that silence looks like not needing him.",
+     "stuck": "deciding",
+     "help": "look at whether anything doesn't fit the thought that asking would be stupid or a waste of his time",
      "ready": true
     }
    },
    {
     "role": "you",
-    "text": "idk... like I'm covering for something, I guess? Or maybe just that I'm a bit dramatic about a typo, which is kinda true lol. my chest is still tight though, I keep thinking about her seeing \"this message was deleted\" and just sitting there with it."
+    "text": "I mean... he's the one who said we should meet more. So that doesn't really fit with him feeling like I'm wasting his time, idk. And he's never actually made me feel stupid in a meeting, I think that part is all in my head.\n\nBut then it still doesn't go away, like my chest still goes tight when I think about it."
    },
    {
     "role": "ai",
-    "text": "So you can see a version where it looks like covering for something, and another where it's just a bit dramatic over a typo, which you said with a laugh. What keeps replaying is the picture of her seeing \"this message was deleted\" and sitting there with it, and your chest is still tight. If a friend had this thought, what would you want them to tell themselves?",
+    "text": "So you're noticing two things that don't line up with the fear: he's the one who asked to meet more, and in past meetings he's never made you feel stupid. And even with that, your chest still goes tight when you think about it. That tightness seems to be hanging around even though part of you can see the other side. It sounds like the thought and the feeling aren't moving at the same speed. What's one small thing you could do about this, and when?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 1,
+     "core": "They fear their questions will waste their advisor's time, so they stay silent in meetings, and now worry the email means he reads that silence as arrogance.",
+     "stuck": "replaying",
+     "help": "Invite the logic question or a small step; they have answered one invitation about evidence.",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "maybe tomorrow morning I could send him a really short reply, like just \"ok, happy to meet more often, can we set up a call next week?\" and not try to explain the modest thing at all. idk, I think if I do it tonight I'll just rewrite it again"
+   },
+   {
+    "role": "ai",
+    "text": "So your plan is to send him a short reply tomorrow morning: \"ok, happy to meet more often, can we set up a call next week?\" and leave the \"modest\" part alone for now. You're choosing the morning because tonight you'd likely rewrite it again. That fits what you told me about the drafts you've already written and not sent. It sounds like you've picked a version that's small enough to actually send.",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 1,
+     "core": "They fear that asking questions wastes his time, so they stay quiet, and now worry the email means he sees them as aloof; the reply feels scary to send.",
+     "stuck": "starting",
+     "help": "Settling a concrete plan for the reply and, if wanted, a small way to ease the tightness before it",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "yeah, I think so. but then I worry that if I just skip the \"modest\" part he'll think I didn't get it, or that I'm brushing it off, which is kind of the exact thing he's complaining about, idk"
+   },
+   {
+    "role": "ai",
+    "text": "So your plan for tomorrow morning is still there, and now a new worry sits beside it: that leaving out the \"modest\" part will look like you didn't get it, or that you're brushing it off, which is the very thing you're afraid he means. That's a picture of how he might read it, and it's weighing on you even though you haven't heard his response. There's a lot on the table now: his two lines, the dread and the tight chest, the fear around meetings, what didn't quite fit, and your morning plan. It might help to spread all of it out as a map, so you can see how the pieces connect.",
+    "propose": true,
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 1,
+     "core": "They fear that a short reply without addressing 'modest' will confirm his impression that they brush him off, and they are caught between wanting to send something small and wanting him to understand them.",
+     "stuck": "what-if",
+     "help": "seeing the pieces side by side on a map",
+     "ready": true
+    },
+    "declined": true
+   },
+   {
+    "role": "you",
+    "text": "idk, maybe I could add one line like \"and I'll think about what you said about being modest\"? but that sounds so stiff, like I'm just repeating him back.\n\nOr maybe I should just wait and talk about it in person when he's back, but then that's weeks of him thinking I'm brushing it off, and my stomach drops again just thinking about that."
+   },
+   {
+    "role": "ai",
+    "text": "So there are two options in front of you now: adding one line about thinking over what he said on being modest, which feels stiff, like repeating him back, or waiting until he's back, which means weeks of him maybe thinking you're brushing it off. Your stomach drops again at that picture of him thinking it. That part is what you imagine he's thinking, since he hasn't said it. Your morning plan is still there beside both. What would you want him to know most when he reads your reply?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 1,
+     "core": "They want to answer the email in a way that shows they care without brushing off 'modest', and they are stuck between a short reply, an added line, or waiting weeks.",
+     "stuck": "deciding",
+     "help": "Seeing their options side by side and what each would say to him",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "I think that I'm not brushing him off, like I actually do want his help. I just get scared of wasting his time, idk.\n\nThat sounds kind of too honest to put in an email though, my face goes hot even typing it."
+   },
+   {
+    "role": "ai",
+    "text": "So what you most want him to know is that you're not brushing him off, that you do want his help and get scared of wasting his time. Typing it even makes your face go hot, and the thought that it's too honest for an email is what's making it feel risky to send. You've now got a lot laid out: his two lines, the dread and tight chest, the fear around meetings, what didn't fit, your morning plan, and this truer sentence. It may help to spread it all out as a map, so you can see how the pieces sit together.",
+    "propose": true,
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 1,
+     "core": "They want their advisor to know they do want his help, but fear of wasting his time and of being too honest keeps them from sending anything.",
+     "stuck": "deciding",
+     "help": "seeing the pieces side by side, and deciding how much of the honest part to include",
+     "ready": true
+    }
+   }
+  ],
+  "made": [
+   {
+    "text": "I think you should be more modest, and we should meet more often.",
+    "kind": "A",
+    "from": 2,
+    "why": "The email from the advisor is the event the whole chat is about."
+   },
+   {
+    "text": "I've drafted like three replies and sent none of them",
+    "kind": "A",
+    "from": 1,
+    "why": "Shows what they did in response to the email."
+   },
+   {
+    "text": "my stomach kind of drops every time",
+    "kind": "C",
+    "from": 2,
+    "why": "A body sensation that comes up each time they read the email."
+   },
+   {
+    "text": "he thinks I act like I don't need him, or that I think I'm above it",
+    "kind": "B",
+    "from": 3,
+    "why": "Their reading of what \"modest\" means from the advisor's side."
+   },
+   {
+    "text": "meet more often\" just makes my chest go tight",
+    "kind": "C",
+    "from": 3,
+    "why": "A body sensation tied to the meeting request."
+   },
+   {
+    "text": "I'm always scared I'll ask something stupid and waste his time, so I just sort of stay quiet",
+    "kind": "B",
+    "from": 4,
+    "why": "Names the fear that sits behind their quiet in meetings."
+   },
+   {
+    "text": "he's the one who said we should meet more. So that doesn't really fit with him feeling like I'm wasting his time",
+    "kind": "DE",
+    "from": 5,
+    "why": "Their own view that goes against the fear, offered when invited to look again."
+   },
+   {
+    "text": "he's never actually made me feel stupid in a meeting",
+    "kind": "DE",
+    "from": 5,
+    "why": "A second piece of evidence they gave that does not fit the fear."
+   },
+   {
+    "text": "maybe tomorrow morning I could send him a really short reply",
+    "kind": "NEXT",
+    "from": 6,
+    "why": "A small, concrete step with a time they chose."
+   },
+   {
+    "text": "I'm not brushing him off, like I actually do want his help. I just get scared of wasting his time",
+    "kind": "B",
+    "from": 9,
+    "why": "The thing they most want him to know, and the fear that goes with it."
+   }
+  ],
+  "skipped": [
+   {
+    "text": "my stomach drops again just thinking about that",
+    "why": "Repeats the stomach feeling already on a card."
+   },
+   {
+    "text": "if I just skip the \"modest\" part he'll think I didn't get it, or that I'm brushing it off",
+    "why": "A worry about how he might read the reply, close to the brushing-off card; kept the one that states what they want him to know."
+   },
+   {
+    "text": "maybe I could add one line like \"and I'll think about what you said about being modest\"",
+    "why": "A second option under discussion, not a settled step; the morning reply is the clearer plan."
+   },
+   {
+    "text": "that sounds so stiff, like I'm just repeating him back",
+    "why": "A reaction to one option, not a separate thought for the map."
+   },
+   {
+    "text": "my face goes hot even typing it",
+    "why": "A body sensation, but less central than the others and the map is already near the card limit."
+   },
+   {
+    "text": "Dread and embarrassed",
+    "why": "This was a feeling word chosen from options given to them, so it is not material."
+   }
+  ],
+  "lines": [
+   [
+    0,
+    3
+   ],
+   [
+    3,
+    4
+   ],
+   [
+    4,
+    1
+   ],
+   [
+    1,
+    5
+   ],
+   [
+    5,
+    2
+   ],
+   [
+    2,
+    1
+   ],
+   [
+    5,
+    6
+   ],
+   [
+    5,
+    7
+   ],
+   [
+    3,
+    9
+   ],
+   [
+    4,
+    8
+   ]
+  ]
+ },
+ {
+  "name": "The deleted message",
+  "source": "interpersonal.stackexchange.com/q/23817 (Ganesh S), adapted",
+  "msgs": [
+   {
+    "role": "you",
+    "text": "idk if this is even a real thing to be stuck on, but my girlfriend's been kind of cold since two nights ago and I keep checking when she was last online. my chest's been tight all day, like I'm waiting for something"
+   },
+   {
+    "role": "ai",
+    "text": "It sounds like it's real enough to be sitting in your chest all day. What's happened is that she's seemed colder since two nights ago, and you've found yourself checking when she was last online. The tightness feels like waiting for something to land. If you put a word to it, see which of these is closer.",
+    "options": [
+     "dread",
+     "uneasy"
+    ],
+    "notes": {
+     "have": {
+      "A": true,
+      "B": false,
+      "C": true,
+      "DE": false
+     },
+     "named": false,
+     "deAsked": 0,
+     "core": "They are unsure what her coldness means and keep checking for signs, while their body stays braced for bad news.",
+     "stuck": "what-if",
+     "help": "find out what they are telling themselves about her coldness",
+     "ready": false
+    }
+   },
+   {
+    "role": "you",
+    "text": "dread, uneasy",
+    "naming": true
+   },
+   {
+    "role": "ai",
+    "text": "Dread and uneasy, that fits with the tightness in your chest and the waiting you described. So there's the coldness since two nights ago, the checking, and now that feeling of something about to land. What I don't know yet is the other part. When you check and see she was last online, what goes through your mind?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": false,
+      "C": true,
+      "DE": false
+     },
+     "named": true,
+     "deAsked": 0,
+     "core": "They are waiting in uncertainty about whether their girlfriend's coldness means something is wrong between them, and the checking keeps the tightness going.",
+     "stuck": "what-if",
+     "help": "Finding out what they are telling themselves about her coldness",
+     "ready": false
+    }
+   },
+   {
+    "role": "you",
+    "text": "like if she was on at 2pm and didn't text me, then she's choosing not to, you know? my stomach kind of drops and I start thinking she's pulling away or something. then I tell myself she has exams this week and I'm being dumb, and then I check again lol"
+   },
+   {
+    "role": "ai",
+    "text": "So you see she was on at 2pm and there's no text, and the thought that comes is that she's choosing not to, that she's pulling away. Your stomach drops with it. Then another voice says she has exams and you're being dumb, and the checking starts again. That back and forth sounds tiring, with the dread sitting underneath it. It might help to lay all of this out on a map so you can see how the pieces connect.",
+    "propose": true,
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": false
+     },
+     "named": true,
+     "deAsked": 0,
+     "core": "They read her silence as a sign she's pulling away, then talk themselves out of it, and the checking keeps the loop going without settling anything.",
+     "stuck": "replaying",
+     "help": "space to see the thought 'she's choosing not to text' alongside other possibilities, then maybe a small step",
+     "ready": true
+    },
+    "declined": true
+   },
+   {
+    "role": "you",
+    "text": "yeah it's tiring lol. I think it started two nights ago though, something small happened in our chat and she's been kind of short with me since, like no voice message last night, and she always sends one"
+   },
+   {
+    "role": "ai",
+    "text": "So there's something small that happened in your chat two nights ago, and since then she's been shorter with you, and last night there was no voice message when she always sends one. That missing voice message seems to be the part that stands out most. The thought that she's pulling away is still there next to the dread. Is there anything about all this that doesn't quite fit that thought?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": false
+     },
+     "named": true,
+     "deAsked": 0,
+     "core": "They're unsure whether her shorter replies mean she's pulling away, and the checking keeps them swinging between that thought and 'she's just busy'.",
+     "stuck": "replaying",
+     "help": "a chance to look at whether anything doesn't quite fit the thought she's pulling away",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "I guess the exams? She did say she'd be buried this week, and she still answered me today, just really short. idk, it's the small thing that happened in the chat that makes it feel like it's more than exams."
+   },
+   {
+    "role": "ai",
+    "text": "So there are two things side by side: she told you she'd be buried this week, and she still answered today, just briefly. And then there's the small moment in the chat, which is what makes it feel like more than exams. That leaves you holding both, with the dread still in your chest. When you say she's pulling away, what would that actually look like?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 1,
+     "core": "They can't tell whether her shortness is exams or a sign of pulling away, and the small thing in the chat makes the worse reading feel believable.",
+     "stuck": "what-if",
+     "help": "invite the logic question or a small step; they've answered the evidence invitation",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "idk, like the voice messages just stop, and her replies keep getting shorter until it's basically \"ok\" and \"haha\". and then one day she says she needs space or something. I think I'm kind of scared the small thing made her start doubting me, like she thinks I'm hiding something."
+   },
+   {
+    "role": "ai",
+    "text": "So the picture you're holding is voice messages stopping, replies shrinking to \"ok\" and \"haha\", and then her saying she needs space. Underneath it is the fear that the small thing in the chat made her doubt you, that she thinks you're hiding something. That's a lot to be carrying on top of the dread. If a friend had this thought, what would you want them to tell themselves?",
     "notes": {
      "have": {
       "A": true,
@@ -981,19 +895,63 @@
      },
      "named": true,
      "deAsked": 2,
-     "core": "They are stuck replaying the deleted message and picturing their girlfriend sitting with it, unsure whether the silence means she distrusts them or is just busy with exams.",
-     "stuck": "replaying",
-     "help": "Inviting their own kinder view of the thought via a friend perspective, then letting it rest",
+     "core": "They fear the small moment in the chat made her start doubting them, and that her shorter replies are the first step toward her ending things.",
+     "stuck": "what-if",
+     "help": "a third invitation toward a new belief, or one small concrete step",
      "ready": true
     }
    },
    {
     "role": "you",
-    "text": "idk, probably that it's a typo and she's got exams, and one \"ok\" doesn't mean she's decided anything about me? like I'd tell a friend to just say it was a dumb typo and stop making it a thing. but when it's me my chest still goes tight lol"
+    "text": "I'd probably tell them one small thing doesn't usually wreck everything, and that she's got exams so it's not all about them lol. But it feels different when it's me, because I kind of made the small thing happen, you know?"
    },
    {
     "role": "ai",
-    "text": "So the friend you described would say it's a typo, she has exams, and one \"ok\" doesn't mean she's decided anything about you. That's your own view, and it sits right next to the chest that still goes tight when it's you in the story. You've laid out a lot tonight: the deleted message, the joke, the cold feeling, the dread, guilt and panic, and the things that don't quite fit. It could help to spread it all out as a map so you can see it side by side.",
+    "text": "So what you'd tell a friend is that one small thing doesn't usually wreck everything, and that exams mean it isn't all about them. And with you it feels different, because you feel you made the small thing happen. That sits right alongside the dread and the checking. What's one small thing you could do about this, and when?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 3,
+     "core": "They fear a small moment in the chat made their girlfriend doubt them, and the checking and waiting keep the dread going, especially because they feel they caused it.",
+     "stuck": "what-if",
+     "help": "one small concrete step they could take about the chat moment or the waiting",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "idk, maybe I could just tell her what I deleted was a typo, like a really dumb one, and that \"it's a secret\" was me being stupid? Probably tonight, but not like a big paragraph, just a quick line she can read after studying. I keep feeling like it's too late to bring up, though lol"
+   },
+   {
+    "role": "ai",
+    "text": "So your plan is to send her a quick line tonight, something she can read after studying, saying that what you deleted was a dumb typo and that \"it's a secret\" was you being silly. No big paragraph. And alongside that there's a feeling that it might be too late to bring it up, which sits with the dread you named. Is there another small thing you'd want to have in place for tonight, while you wait to see how she answers?",
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 3,
+     "core": "They fear a small deleted message in the chat made her doubt them, and they haven't told her what it was.",
+     "stuck": "starting",
+     "help": "settling a concrete, small first step and its timing",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "idk, maybe after I send it I put my phone on the charger across the room for like an hour and watch something? Not checking if she's online, even though I'll probably want to lol"
+   },
+   {
+    "role": "ai",
+    "text": "So the plan for tonight is to send her the quick line, then put your phone on the charger across the room for about an hour and watch something, even though you'll probably want to check if she's online. That gives you one step for the message and one for the waiting afterwards. It sounds like you've pulled together a lot over this conversation, from the dread and the checking to the small moment in the chat. If you'd like, I can spread it all out as a map so you can see how the pieces connect.",
     "propose": true,
     "notes": {
      "have": {
@@ -1004,20 +962,47 @@
      },
      "named": true,
      "deAsked": 3,
-     "core": "They are stuck replaying her last 'ok' and the deleted message, worried that explaining a typo now will look like hiding something, while part of them already sees it as a typo and exam week.",
-     "stuck": "replaying",
-     "help": "seeing it all laid out side by side",
+     "core": "They fear a small slip in the chat made their girlfriend doubt them, and the checking and waiting keep the dread going while they hold back from telling her.",
+     "stuck": "starting",
+     "help": "settling a plan for tonight and a way through the waiting",
      "ready": true
     },
     "declined": true
    },
    {
     "role": "you",
-    "text": "yeah maybe... I guess part of me knows I'd just tell her it was a typo if I wasn't so stuck on how it'd sound. like what if I just said \"ok the deleted message was literally a typo, I panicked and made a dumb joke\"? idk, that sounds kinda true at least"
+    "text": "idk, I keep wondering how to even word it so it doesn't sound like I'm making a big deal out of nothing. like if I say \"it was just a typo lol\" she might think why did you joke about it being a secret then. my face kind of goes hot just thinking about it"
    },
    {
     "role": "ai",
-    "text": "That wording is yours, and you said it sounds kind of true: the deleted message was a typo, you panicked, and the joke came out. What's here now is a part of you that already knows what it would say, sitting beside the worry about how it would land after two days. The tight chest is still there too. You've now got the whole picture on the table, and laying it out as a map could let you see it side by side.",
+    "text": "So the plan is already there, and what's tangled now is the wording. You're picturing her reading \"it was just a typo lol\" and wondering why you joked about a secret, and you don't want to sound like you're making a big deal out of nothing. Your face going hot sounds like it comes with imagining her reading it. If you put a word to it, see which of these is closer.",
+    "options": [
+     "embarrassed",
+     "anxious"
+    ],
+    "notes": {
+     "have": {
+      "A": true,
+      "B": true,
+      "C": true,
+      "DE": true
+     },
+     "named": true,
+     "deAsked": 3,
+     "core": "They are afraid a small deleted message made her doubt them, and now are stuck on how to word a quick clarification without it seeming like a big deal.",
+     "stuck": "starting",
+     "help": "space to say the wording in their own voice, and a new feeling named for the hot face",
+     "ready": true
+    }
+   },
+   {
+    "role": "you",
+    "text": "embarrassed, anxious",
+    "naming": true
+   },
+   {
+    "role": "ai",
+    "text": "Embarrassed and anxious, that fits the hot face as you picture her reading it and wondering about the secret joke. So what's happened is the plan is set, a quick line tonight after her studying. What's weighing now is the story that the wording could make it look like a big deal, or raise a new doubt. You've pulled a lot together tonight, from the dread and the checking to the small moment in the chat. I can spread it all out as a map so you can see how the pieces connect.",
     "propose": true,
     "notes": {
      "have": {
@@ -1028,108 +1013,108 @@
      },
      "named": true,
      "deAsked": 3,
-     "core": "They want to tell her it was a typo but are stuck on how it will sound after two days and whether she thinks they're hiding something.",
-     "stuck": "deciding",
-     "help": "space to hear their own wording out loud and see the pieces side by side",
+     "core": "They are stuck on how to word a short message to their girlfriend without it sounding like a big deal, because they fear she'll doubt them and they feel they caused the small thing.",
+     "stuck": "starting",
+     "help": "settling on a short wording they feel okay sending",
      "ready": true
     }
    }
   ],
   "made": [
    {
-    "text": "two nights ago I deleted a message on whatsapp, for everyone, and she saw that I did",
+    "text": "my girlfriend's been kind of cold since two nights ago and I keep checking when she was last online",
     "kind": "A",
-    "from": 2,
-    "why": "Names the event that started the worry."
+    "from": 1,
+    "why": "Core event: her coldness and their repeated checking."
    },
    {
-    "text": "she asked what it said and I just said \"it's a secret\" as a joke",
+    "text": "my chest's been tight all day, like I'm waiting for something",
+    "kind": "C",
+    "from": 1,
+    "why": "Body sensation and feeling that opens the chat."
+   },
+   {
+    "text": "if she was on at 2pm and didn't text me, then she's choosing not to",
+    "kind": "B",
+    "from": 2,
+    "why": "Their reading of her being online without texting."
+   },
+   {
+    "text": "my stomach kind of drops and I start thinking she's pulling away",
+    "kind": "B",
+    "from": 2,
+    "why": "Names the thought that she is pulling away, linked to a body feeling."
+   },
+   {
+    "text": "no voice message last night, and she always sends one",
     "kind": "A",
-    "from": 2,
-    "why": "Records what they said when she asked."
-   },
-   {
-    "text": "that she thinks I'm hiding something from her",
-    "kind": "B",
     "from": 3,
-    "why": "Core thought they hold about her view of them."
+    "why": "A concrete change they noticed in her behaviour."
    },
    {
-    "text": "my stomach kind of drops every time I open our chat",
-    "kind": "C",
-    "from": 3,
-    "why": "Body sensation tied to opening the chat."
-   },
-   {
-    "text": "\"oh btw it was nothing\" sounds like exactly what someone hiding something would say",
+    "text": "I'm kind of scared the small thing made her start doubting me, like she thinks I'm hiding something",
     "kind": "B",
-    "from": 4,
-    "why": "Thought that keeps them from explaining the typo."
-   },
-   {
-    "text": "she does have exams this week, so maybe she's just fried?",
-    "kind": "DE",
     "from": 5,
-    "why": "Alternative explanation for her coldness, in their words."
+    "why": "Their central fear about what she now thinks of them."
    },
    {
-    "text": "she's never really been the type to go cold on purpose",
+    "text": "one small thing doesn't usually wreck everything, and she's got exams so it's not all about them",
     "kind": "DE",
-    "from": 5,
-    "why": "Evidence that doesn't fit the thought that she's mad."
-   },
-   {
-    "text": "my chest just goes tight",
-    "kind": "C",
     "from": 6,
-    "why": "A second body sensation when checking her last online."
+    "why": "Their alternative view, offered when asked what they'd tell a friend."
    },
    {
-    "text": "it's a typo and she's got exams, and one \"ok\" doesn't mean she's decided anything about me",
-    "kind": "DE",
+    "text": "maybe I could just tell her what I deleted was a typo",
+    "kind": "NEXT",
+    "from": 7,
+    "why": "A small concrete step they could take."
+   },
+   {
+    "text": "maybe after I send it I put my phone on the charger across the room for like an hour and watch something",
+    "kind": "NEXT",
     "from": 8,
-    "why": "What they'd tell a friend, a more balanced view."
+    "why": "A concrete plan for coping while waiting for her reply."
    },
    {
-    "text": "the deleted message was literally a typo, I panicked and made a dumb joke",
-    "kind": "DE",
+    "text": "my face kind of goes hot just thinking about it",
+    "kind": "C",
     "from": 9,
-    "why": "Their own honest wording they could say to her."
+    "why": "Body sensation tied to imagining sending the message."
    }
   ],
   "skipped": [
    {
-    "text": "idk if this is a dumb thing to be stuck on",
-    "why": "Opening self-doubt, not a distinct thought about the situation."
+    "text": "then I tell myself she has exams this week and I'm being dumb, and then I check again",
+    "why": "Mostly covered by other cards; the exams point is stronger in the later alternative-view card."
    },
    {
-    "text": "I keep checking my phone",
-    "why": "Behaviour already echoed in other cards; kept room for feelings and thoughts."
+    "text": "She did say she'd be buried this week, and she still answered me today, just really short",
+    "why": "Mixed fact and hedging; kept the clearer alternative from message 6 and limited to 10 cards."
    },
    {
-    "text": "we're only three months in and it's long distance so trust is kind of the whole thing",
-    "why": "Context that supports the card about hiding; would make it too long."
+    "text": "it's the small thing that happened in the chat that makes it feel like it's more than exams",
+    "why": "Overlaps with the fear card about the small thing."
    },
    {
-    "text": "she skipped a voice message once before when she had a deadline",
-    "why": "Useful counter-evidence but overlaps with the exams card."
+    "text": "I kind of made the small thing happen",
+    "why": "Important, but over the 10-card limit and partly captured by the fear card."
    },
    {
-    "text": "maybe just that I'm a bit dramatic about a typo",
-    "why": "Passing self-description said with a laugh, less central."
+    "text": "I keep feeling like it's too late to bring up",
+    "why": "Over the card limit; it overlaps with the wording worries."
    },
    {
-    "text": "I keep thinking about her seeing \"this message was deleted\" and just sitting there with it",
-    "why": "Image that replays, but overlaps with the hiding thought and cards already at the limit."
+    "text": "I keep wondering how to even word it so it doesn't sound like I'm making a big deal out of nothing",
+    "why": "Over the card limit; it is the current sticking point but was not carded."
    }
   ],
   "lines": [
    [
-    0,
-    1
+    4,
+    2
    ],
    [
-    1,
+    0,
     2
    ],
    [
@@ -1137,31 +1122,31 @@
     3
    ],
    [
+    3,
+    1
+   ],
+   [
     1,
-    4
+    0
    ],
    [
     4,
-    7
-   ],
-   [
-    7,
-    3
-   ],
-   [
-    2,
     5
    ],
    [
-    2,
-    6
-   ],
-   [
-    4,
+    5,
     9
    ],
    [
-    4,
+    5,
+    6
+   ],
+   [
+    5,
+    7
+   ],
+   [
+    1,
     8
    ]
   ]

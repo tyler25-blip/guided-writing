@@ -4,7 +4,7 @@ import { matchIn, tokens } from './mapchecks.ts'
 export type Kind = 'A' | 'B' | 'C' | 'DE' | 'NEXT'
 export const KINDS: Kind[] = ['A', 'B', 'C', 'DE', 'NEXT']
 export const LABEL: Record<Kind, string> = { A: 'What happened', B: 'What I told myself', C: 'What I felt', DE: 'Another way to see it', NEXT: 'Next step' }
-const COLS: Kind[] = ['A', 'B', 'C', 'DE']
+const COLS: Kind[] = ['A', 'B', 'C', 'DE', 'NEXT']
 
 // no AI: a rough guess at the kind of a short text (stubs, and the fallback for a card added on the canvas)
 const FEEL = /\b(feel|felt|feeling|tight|afraid|scared|anxious|sad|angry|numb|heavy|chest|stomach)/i

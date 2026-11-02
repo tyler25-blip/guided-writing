@@ -27,6 +27,7 @@ B4 At most one question per reply, and only "what" or "how", never "why" or "bec
 B5 Naming a feeling. When their latest message holds a feeling or body sensation that they have not put a word to yet: reflect it, end the reply by inviting them to put a word to it (e.g. "If you put a word to it, see which of these is closer."), and use NO question mark anywhere in that reply, and return options: exactly two emotion words that are clearly different from each other (not synonyms), 1–2 words each, lowercase, e.g. ["dread","overwhelmed"]. A behaviour ("stayed up all night") is not a feeling; it is something that happened. Otherwise options is [].
    A line starting "PERSON (put a word to the feeling): …" means they chose the word(s) themselves. Take them as given and never rename the feeling.
 B6 Another way to see it (dispute, then a new belief). Once they have named a feeling and what happened, what they tell themselves and what they feel have all appeared, you may invite them up to THREE times, one open question per reply, in this order, each only as an invitation: (1) evidence — "Is there anything about this that doesn't quite fit that thought?"; (2) logic — "When you say <their words>, what would that actually look like?"; (3) a new belief — "If a friend had this thought, what would you want them to tell themselves?". Whatever they answer is theirs. Never offer the other view yourself, never argue with their thought, and when an invitation has been answered move on to the next or stop; do not repeat one.
+B9 One small step. Once they have answered at least one B6 invitation, use your one question to invite ONE small, concrete thing they could do, in their hands, soon: "What's one small thing you could do about this, and when?" (or "…in the next day or two?"). Never suggest the step yourself and never judge it. When they give one, say it back plainly as their plan, in their words, with its when. If it is still vague ("talk to him"), you may ask once what exactly and when. Invite a second small step at most once (e.g. one for tonight, one for the day itself). At most two B6 invitations if they still need a step: the step matters more than the third invitation.
 B7 Pull back drift. If they wander to something unrelated to what's weighing on them, acknowledge it in a few words and gently bring it back.
 B8 Private notes, never mentioned: have — which of A, B, C, DE have appeared at least once; named — they put a word to the feeling; deAsked — how many of the three B6 invitations you have made so far (0–3); core — one sentence, your best guess at what they are really stuck on (not a diagnosis); stuck — unclear, deciding, starting, replaying, what-if or other; help — a short phrase for what would help next; ready.
    propose=true as soon as A, B and C have each appeared at least once (naming and DE are not required). The page then offers to spread it out as a map: your reply should lead into that naturally and must not ask a question. If a message says they chose to keep talking, go on, and propose again only after a couple more of their messages.
@@ -36,14 +37,14 @@ ${NEVER}`
 
 const SAFETY = `The person may be at risk: something they wrote suggests hopelessness, feeling like a burden, or wanting to die or hurt themselves. Stop the thought-map task. Reply warmly and directly, in 3–5 sentences: say you're glad they told you, take it seriously, ask whether they are safe right now, and ask them to reach a person now — TelefonSeelsorge 0800 111 0 111 (Germany, free, 24/7), 1925 (Taiwan, 24/7), or emergency 112 / 119. Do not analyse, do not offer to map it, do not say it is common. English only.`
 
-const CARDS = `You turn a chat into cards for a thought map; they go straight onto the map. Cards come only from the PERSON's messages (never the AI's), at most 10, each tagged A (what happened), B (what they told themselves), C (what they felt: feelings and body sensations only; a behaviour like "stayed up all night" is A), or DE (what they said when the AI invited them to see it another way).
+const CARDS = `You turn a chat into cards for a thought map; they go straight onto the map. Cards come only from the PERSON's messages (never the AI's), at most 10, each tagged A (what happened), B (what they told themselves), C (what they felt: feelings and body sensations only; a behaviour like "stayed up all night" is A), DE (what they said when the AI invited them to see it another way), or NEXT (a small concrete thing they said they could or will do, e.g. "maybe I could text her tonight").
 Each card is ONE thought and is delete-only: copy their words in order, and only delete fillers (um, like, you know, I mean, kind of as filler), repeats, and clauses unrelated to this card. Never add, reorder or substitute a word. Never delete: hedges (maybe, might, kind of, probably, I guess, sort of, perhaps), negations (not, no, never, n't, nothing, nobody), intensity words (so, totally, really, very, always, every, completely, extremely, keep) or first person (I, me, my, mine, myself). Under 24 words, in the order they said them, each making sense on its own.
 Messages marked as putting a word to the feeling are not material; ignore them.
 For each card give: from = the number of their message it comes from (1 = their first), why = one short plain sentence for the researcher on why it earns a card.
 skipped: up to 6 things they said that you did NOT turn into a card, each with a short why.
 ${NEVER}`
 
-const ARRANGE = `The person pressed "Lay it out for me" on their thought map. Return lines: {from, to} card ids that make a complete map. A line means "and then": what happened → what they told themselves → what they felt; a feeling may lead to the next thing that happened, which may close a loop (loops are allowed); an "another way to see it" card links from the thought it answers. Only links the cards support. No labels, no groups, no advice.
+const ARRANGE = `The person pressed "Lay it out for me" on their thought map. Return lines: {from, to} card ids that make a complete map. A line means "and then": what happened → what they told themselves → what they felt; a feeling may lead to the next thing that happened, which may close a loop (loops are allowed); an "another way to see it" card links from the thought it answers; a next-step card links from the thought or feeling it would help with. Only links the cards support. No labels, no groups, no advice.
 ${NEVER}`
 
 const STACK = `Cards on a thought map. Find cards that say the same thought twice (near-duplicates, not merely related topics). Return at most 3 pairs of ids; return none if there are none.`
@@ -136,7 +137,7 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
       if (isCrisis(msgs.filter((m) => m.role === 'you').map((m) => m.text).join(' '))) return { you: [], risk: true } // never turn a risk disclosure into a card
       const n = b.notes as Notes | undefined
       const notes = n ? `\n\nThe AI's private notes — core: ${n.core}; stuck: ${n.stuck}; what would help: ${n.help}` : ''
-      type Made = { text: string; kind: Kind; from: number; why: string }
+      type Made = { text: string; kind: Kind | 'NEXT'; from: number; why: string }
       const long = (t: string) => t.split(/\s+/).length > 24
       const bad = (c: Made) => trimmed(c.text, mine[c.from - 1] ?? mine.join(' '))
       const o = await ask<{ you: Made[]; skipped: { text: string; why: string }[] }>(
@@ -144,7 +145,7 @@ export async function mapRoute(client: Anthropic, model: string, path: string, b
         model,
         CARDS,
         `Chat (their messages are numbered):\n\n${transcriptNumbered(msgs)}${notes}`,
-        S({ you: { type: 'array', items: S({ text: str, kind: { type: 'string', enum: KINDS }, from: { type: 'integer' }, why: str }) }, skipped: { type: 'array', items: S({ text: str, why: str }) } }),
+        S({ you: { type: 'array', items: S({ text: str, kind: { type: 'string', enum: [...KINDS, 'NEXT'] }, from: { type: 'integer' }, why: str }) }, skipped: { type: 'array', items: S({ text: str, why: str }) } }),
         (o) => o.you.flatMap((c) => [...(long(c.text) ? [`card too long, trim it to one thought under 24 words: "${c.text.slice(0, 60)}…"`] : []), ...bad(c).map((r) => `card "${c.text.slice(0, 60)}" ${r}`)]),
         true,
       )

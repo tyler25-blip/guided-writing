@@ -22,6 +22,7 @@ for (let i = 1; i < STORIES.length; i++) {
   const st = STORIES[i]
   assert.ok(st.script.length >= 8 && st.script.at(-1)!.propose, st.name)
   assert.ok(st.script.filter((x) => x.options).length >= 1, `${st.name}: at least one feeling to name`)
+  assert.ok(st.cards.some((c) => c.kind === 'NEXT'), `${st.name}: at least one concrete next step`)
   for (const c of CARDS) assert.deepEqual(trimmed(c.text, SCRIPT[c.step].p), [], `${st.name} ${c.key}`)
   const made = demoMade(SCRIPT.map((x) => ({ role: 'you' as const, text: x.p })))
   assert.equal(made.length, st.cards.length, st.name)

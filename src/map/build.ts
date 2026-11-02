@@ -28,7 +28,7 @@ export function lay(cards: Card[], lines: { from: string; to: string }[] | null,
   const placed = cards.map((c) => ({ ...c, x: r.pos[c.id].x + dx, y: r.pos[c.id].y }))
   const at = (id: string) => placed.find((c) => c.id === id)!
   const routed = edges.map((e) => ({ ...e, between: r.between[e.id] || undefined, route: r.routes[e.id]?.map(([x, y]): [number, number] => [x + dx, y]), at: [at(e.from).x, at(e.from).y, at(e.to).x, at(e.to).y] as [number, number, number, number] }))
-  const areas = (['A', 'B', 'C', 'DE'] as Kind[]).flatMap((k) => {
+  const areas = (['A', 'B', 'C', 'DE', 'NEXT'] as Kind[]).flatMap((k) => {
     const first = placed.find((c) => (c.kind ?? 'A') === k)
     return first ? [{ name: LABEL[k], x: 16, y: first.y }] : []
   })

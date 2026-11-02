@@ -119,6 +119,7 @@ export function demoState(to: 'chat' | 'piles' | 'laid' | 'summary', size = { w:
   const laid = lay(cards, auto ? demoLines(cards) : null, size)
   const st: State = { ...base, phase: 'map', msgs, ...laid, mode: auto ? 'auto' : 'manual', demoStep: SCRIPT.length, spreadAt: msgs.length }
   if (to !== 'summary') return st
+  if (st.cards.some((c) => c.kind === 'NEXT')) return { ...st, ended: true } // the person already named their step in the chat
   const a2 = st.cards.find((c) => keyOf(c.text) === story.nextFrom) ?? st.cards[0]
   const at = freeSpot(st.cards.map((c) => ({ x: c.x, y: c.y, h: 120 })), a2.x, a2.y)
   const next: Card = { id: 'next1', text: `When ${NEXT.when}, I will ${NEXT.will}.`, src: 'you', kind: 'NEXT', step: NEXT, x: at.x, y: at.y, stack: [], t: Date.now() }

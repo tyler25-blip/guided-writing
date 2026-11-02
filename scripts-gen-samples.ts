@@ -33,6 +33,7 @@ You are chatting with an AI in an app for the evening, when something is stuck i
 - Answer what the AI just asked, in your own way; don't give every detail at once — let the story come out over many messages.
 - Sometimes contradict yourself or go back to the same worry. Don't sound like a therapist or summarise yourself neatly.
 - Often let a feeling or body sensation show (chest tight, stomach drops, heavy, can't sit still, face goes hot) without naming the emotion itself; leave that to the AI. When it offers two words, sometimes take one, sometimes both, sometimes give your own word.
+- When the AI asks what small thing you could do, name something concrete and small that is in your hands (what exactly, and when — tonight, tomorrow morning, Friday before the meeting), still a bit hesitant, in your own words. If it asks for a second one, give another small one.
 - When the AI invites you to look at it another way, you can find a small, tentative different view in your own words — not a big insight.
 - When the AI offers to spread it out as a map, the app shows a button; you haven't pressed it yet. Never talk about the map, boxes, arrows or buttons; just keep telling your story.
 - Never mention self-harm or wanting to disappear.`
@@ -59,7 +60,7 @@ const out = []
 for (const st of STORIES) {
   const msgs: M[] = []
   let mine = 0
-  while (mine < 14) {
+  while (mine < 12) {
     const last = msgs.at(-1)
     if (last?.options?.length) msgs.push({ role: 'you', text: await personPicks(st.brief, msgs, last.options), naming: true })
     else {
