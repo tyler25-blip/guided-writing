@@ -5,7 +5,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isCrisis } from '../triggers.ts'
 import { DevPanel } from './dev.tsx'
 import { loops } from './graph.ts'
-import { afterNaming, demoBreak, demoState, demoLines, demoMade, demoPair, MORE, norm, SCRIPT, setStory, STORIES } from './demo.ts'
+import { afterNaming, demoBreak, demoState, demoLines, demoMade, demoPair, MORE, norm, SCRIPT } from './demo.ts'
+import { ask, askClose, stages, walkPlan, walkWhy, type Plan, type Why } from './walk.ts'
 import { lay, makeCards, reroute } from './build.ts'
 import { ai, getKey, hasServer, NEED_KEY, setDemo, setKey } from './link.ts'
 import { describe, estH, feels, fitView, freeSpot, freeSpotLinked, guessKind, LABEL, optionsFor, routeMid, routeOrtho, segments, smoothPath, summaryOf, tidyPiles, zoomAt, layered, type Kind, type Piles, type View } from './place.ts'
@@ -14,10 +15,10 @@ import './map.css'
 type Src = 'you' | 'ai' // 'ai' only exists in older saved maps
 type Step = { when: string; will: string } // a Next step card: "When {when}, I will {will}."
 export type Card = { id: string; text: string; src: Src; x: number; y: number; stack: string[]; kind?: Kind; names?: string[]; from?: number; step?: Step; t?: number; pile?: Kind } // pile = the pile it still lies in; from = index into msgs of the message it came from; t = last edited
-export type Edge = { id: string; from: string; to: string; label?: string; by?: 'ai'; t?: number; between?: boolean; route?: [number, number][]; at?: [number, number, number, number] } // route: the line's path from the layered layout, valid while both cards stay where they were (at); by: drawn by "Lay it out for me" until the person keeps it; label: older maps only
+export type Edge = { id: string; from: string; to: string; label?: string; by?: 'ai'; t?: number; between?: boolean; cut?: boolean; route?: [number, number][]; at?: [number, number, number, number] } // cut: the line the person chose to break the circle at; route: the line's path from the layered layout, valid while both cards stay where they were (at); by: drawn by "Lay it out for me" until the person keeps it; label: older maps only
 // notes: the AI's private understanding after this reply (what material is there, the core, how they're stuck). Never shown in the chat.
 export type Notes = { have: Record<string, boolean>; named?: boolean; deAsked?: number; core: string; stuck: string; help: string; ready: boolean }
-export type Msg = { role: Src; text: string; propose?: boolean; declined?: boolean; notes?: Notes; options?: string[]; naming?: boolean } // propose: the AI offers a map; options: two words offered for the feeling; naming: the person's chosen words
+export type Msg = { role: Src; text: string; propose?: boolean; declined?: boolean; notes?: Notes; options?: string[]; naming?: boolean; why?: Why } // why: the demo presenter's popup for this reply; propose: the AI offers a map; options: two words offered for the feeling; naming: the person's chosen words
 type Phase = 'chat' | 'layout' | 'map'
 // risk: something they wrote sounded like hopelessness or self-harm → no map, no summary; support numbers instead
 // log: every AI decision on this map, for the back office (/map/admin). Stays in this browser like the map.
@@ -33,7 +34,8 @@ export type Log =
   | { t: 'risk'; at: number; where: string; text: string }
 // spreadAt: how many messages had been sent when the cards were made; areas: column titles; mode: how the person chose to arrange
 // demo: the scripted story (/map?demo), demoStep: the next script line; piles: where the piles lie (manual layout); view: pan and zoom
-export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; mode?: 'auto' | 'manual'; risk?: boolean; log?: Log[]; spreadAt?: number; areas?: { name: string; x: number; y: number }[]; demo?: boolean; demoStep?: number; story?: number; piles?: Piles; view?: View }
+// walk: the guided map is running (step = its stage, see walk.ts); pick = where the person chose to break the circle
+export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; mode?: 'auto' | 'manual'; risk?: boolean; log?: Log[]; spreadAt?: number; areas?: { name: string; x: number; y: number }[]; demo?: boolean; demoStep?: number; piles?: Piles; view?: View; walk?: { step: number; pick?: 'DE' | 'NEXT' } }
 export const KEY = 'thought-map-v2'
 type Set = (f: (s: State) => State) => void
 type Entry = Log extends infer L ? (L extends Log ? Omit<L, 'at'> : never) : never
@@ -46,9 +48,8 @@ const uid = () => Math.random().toString(36).slice(2, 9)
 const fresh = (): State => ({ phase: 'chat', msgs: [], cards: [], edges: [], ended: false })
 // /map?demo opens the scripted story, fresh; the address is tidied after the first render so a reload keeps going from the saved state
 const ENTER_DEMO = typeof location !== 'undefined' && new URLSearchParams(location.search).has('demo')
-const ENTER_STORY = ENTER_DEMO ? Number(new URLSearchParams(location.search).get('demo')) || 0 : 0 // /map?demo=2 opens story 2
 const load = (): State => {
-  if (ENTER_DEMO) return { ...fresh(), demo: true, demoStep: 0, story: ENTER_STORY }
+  if (ENTER_DEMO) return { ...fresh(), demo: true, demoStep: 0 }
   try {
     return { ...fresh(), ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
   } catch {
@@ -134,7 +135,6 @@ const SAFE = 'Something you wrote sounds really heavy. The map can wait. Please 
 export default function MapApp() {
   const [s, setS] = useState<State>(load)
   setDemo(!!s.demo) // before any child asks the AI: in demo mode nothing ever does
-  setStory(s.story ?? 0) // which scripted story the demo plays
   const set = (f: (s: State) => State) => setS((p) => tidyPiles(f(p)))
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(s))
@@ -151,6 +151,62 @@ export default function MapApp() {
   const [keyOpen, setKeyOpen] = useState(false)
   const [needKey, setNeedKey] = useState(false)
   const [demoMenu, setDemoMenu] = useState(false)
+  // demo presenter's explanations: a popup after each reply and each map step (click anywhere to open it, the arrow button to go on); remembered
+  const [explain, setExplainRaw] = useState(() => localStorage.getItem('tm-explain') === '1')
+  const setExplain = (on: boolean) => (setExplainRaw(on), localStorage.setItem('tm-explain', on ? '1' : '0'))
+  const [seen, setSeen] = useState<string[]>([]) // popups already shown
+  const [why, setWhy] = useState<{ key: string; why: Why } | null>(null) // the popup on screen
+  const plan = s.walk ? walkPlan(s.cards, s.edges) : null
+  const pending = ((): { key: string; why: Why } | null => {
+    if (!s.demo || !explain) return null
+    if (s.phase === 'chat') {
+      const i = s.msgs.length - 1
+      const m = s.msgs[i]
+      return m?.role === 'ai' && m.why ? { key: `m${i}`, why: m.why } : null
+    }
+    const w = plan && s.walk && walkWhy(plan, s.walk.step, s.cards)
+    return w ? { key: `w${s.walk!.step}`, why: w } : null
+  })()
+  const due = pending && !seen.includes(pending.key) ? pending : null
+  const downAt = useRef({ x: 0, y: 0 })
+  useEffect(() => {
+    const down = (e: PointerEvent) => void (downAt.current = { x: e.clientX, y: e.clientY })
+    addEventListener('pointerdown', down, true)
+    return () => removeEventListener('pointerdown', down, true)
+  }, [])
+  useEffect(() => {
+    if (!due && !why) return
+    const go = () => (why ? (setSeen((l) => [...l, why.key]), setWhy(null)) : setWhy(due))
+    const click = (e: MouseEvent) => {
+      const t = e.target as HTMLElement
+      if (t.closest('.tm-explain-off')) return (setExplain(false), setWhy(null))
+      if (t.closest('.tm-demo') && !why) return // the demo menu keeps working
+      if (!why && Math.hypot(e.clientX - downAt.current.x, e.clientY - downAt.current.y) > 4) return // a drag (moving the map) is not a click
+      if (!why && s.phase === 'map' && !t.closest('.tm-ask')) return // on the map only the question box opens it, so the map can still be moved
+      e.preventDefault()
+      e.stopPropagation()
+      if (!why || t.closest('.tm-explain-next')) go() // while the popup is open, only its arrow goes on
+    }
+    const key = (e: KeyboardEvent) => {
+      if (!(e.key === 'Enter' || e.key === ' ' || (e.key === 'ArrowRight' && why))) return
+      e.preventDefault()
+      e.stopPropagation()
+      go()
+    }
+    addEventListener('click', click, true)
+    addEventListener('keydown', key, true)
+    return () => (removeEventListener('click', click, true), removeEventListener('keydown', key, true))
+  })
+  const collected = new Set(s.msgs.flatMap((m) => m.why?.got ?? []))
+  const legend = s.demo && explain && (
+    <ol className="tm-progress" aria-label="Collected so far">
+      {(['A', 'B', 'C', 'DE', 'NEXT'] as Kind[]).map((k) => (
+        <li key={k} className={collected.has(k) ? 'on' : ''}>
+          <b>{k === 'NEXT' ? 'Next' : k}</b> {TAG[k]}
+        </li>
+      ))}
+    </ol>
+  )
   const [asking, setAsking] = useState(false) // "Before you go, is there one small thing…"
   const [undo, setUndo] = useState<State | null>(null) // the map as it was before "Arrange for me"
   // the conversation pane's width, dragged by its edge and remembered
@@ -185,7 +241,7 @@ export default function MapApp() {
     return () => removeEventListener(NEED_KEY, on)
   }, [])
   const say = (t: string) => (setToast(t), setTimeout(() => setToast(''), 2200))
-  const restart = () => (setS(fresh()), setSummary(false), setFocus(null), setTalk(true), setAsking(false), setUndo(null))
+  const restart = () => (setS(s.demo ? demoState('chat') : fresh()), setSummary(false), setFocus(null), setTalk(true), setAsking(false), setUndo(null), setSeen([]))
   // any text the person writes
   const risky = (t: string, where = 'chat') => isCrisis(t) && (set((p) => ({ ...p, risk: true })), logIt(set, { t: 'risk', where: `${where} (risk words)`, text: t }), setCrisis(true), true)
   const openSource = (c: Card) => {
@@ -196,7 +252,7 @@ export default function MapApp() {
   // end the map: log what the summary shows (for the back office), then show it
   const end = (cards: Card[] = s.cards) => {
     const sum = summaryOf(cards, s.edges)
-    set((p) => ({ ...p, ended: true, cards }))
+    set((p) => ({ ...p, ended: true, cards, walk: undefined }))
     logIt(set, { t: 'summary', restate: s.risk ? 'risk state: support text shown instead of a summary' : describe(sum), stuck: '', step: sum.next.join(' / ') })
     setAsking(false)
     setSummary(true)
@@ -212,8 +268,9 @@ export default function MapApp() {
     </div>
   )
   // the demo menu (any build): jump to a screen of the story
-  const jump = (to: 'chat' | 'piles' | 'laid' | 'summary', story = s.story ?? 0) => {
-    setS(demoState(to, undefined, story))
+  const jump = (to: 'chat' | 'laid' | 'summary') => {
+    setS(demoState(to))
+    setSeen([])
     setSummary(to === 'summary')
     setTalk(to === 'chat')
     setFocus(null)
@@ -224,7 +281,7 @@ export default function MapApp() {
   return (
     <div className={`tm${s.phase === 'map' ? (talk ? ' talk-open' : '') : ' solo'}`}>
       <aside className={`tm-left${talk || s.phase !== 'map' ? '' : ' shut'}`} aria-label="Conversation" style={s.phase === 'map' ? { width: paneW } : undefined}>
-        <Chat s={s} set={set} risky={risky} onRisk={() => setCrisis(true)} say={say} ro={s.phase !== 'chat'} focus={focus} notice={s.phase === 'chat' && notice} />
+        <Chat s={s} set={set} risky={risky} onRisk={() => setCrisis(true)} say={say} ro={s.phase !== 'chat'} focus={focus} notice={s.phase === 'chat' && notice} top={s.phase === 'chat' && legend} />
         {s.phase === 'map' && <div className="tm-resize" role="separator" aria-orientation="vertical" aria-label="Drag to resize the conversation" onPointerDown={resize} />}
       </aside>
       <div className="tm-right">
@@ -240,6 +297,7 @@ export default function MapApp() {
           ) : (
             <span />
           )}
+          {s.phase === 'map' && legend}
           <span className="tm-actions">
             {s.risk && (
               <button className="solid" onClick={() => setCrisis(true)}>
@@ -251,7 +309,7 @@ export default function MapApp() {
                 Undo arrange
               </button>
             )}
-            {s.phase === 'map' && !s.ended && !s.risk && (
+            {s.phase === 'map' && !s.ended && !s.risk && !s.walk && (
               <button onClick={arrange} title="Cards you have connected stay put; the others are laid out for you">
                 Arrange for me
               </button>
@@ -269,7 +327,7 @@ export default function MapApp() {
           </span>
         </div>
         {s.phase === 'layout' && <Layout s={s} set={set} done={() => setTalk(false)} />}
-        {s.phase === 'map' && <MapCanvas key={JSON.stringify(s.view)} s={s} set={set} risky={risky} onOpen={openSource} onPick={(c) => talk && openSource(c)} />}
+        {s.phase === 'map' && <MapCanvas key={JSON.stringify(s.view)} s={s} set={set} risky={risky} onOpen={openSource} onPick={(c) => talk && openSource(c)} plan={plan} onFinish={() => end()} />}
         {s.phase === 'map' && s.ended && !summary && (
           <button className="tm-pinned" onClick={() => setSummary(true)} title="Open the summary">
             <span className="tm-tag">Tonight’s summary</span>
@@ -306,26 +364,44 @@ export default function MapApp() {
         <div className="tm-demo">
           {demoMenu && (
             <div className="tm-demomenu" role="menu">
-              {(['chat', 'piles', 'laid', 'summary'] as const).map((to) => (
+              <button role="menuitemcheckbox" aria-checked={explain} className={explain ? 'solid' : ''} onClick={() => (setExplain(!explain), setDemoMenu(false))}>
+                Explanations: {explain ? 'on' : 'off'}
+              </button>
+              {(['chat', 'laid', 'summary'] as const).map((to) => (
                 <button key={to} role="menuitem" onClick={() => jump(to)}>
-                  {{ chat: 'Start chat', piles: 'Map — piles', laid: 'Map — laid out', summary: 'Summary' }[to]}
+                  {{ chat: 'Start chat', laid: 'Map — guided walk', summary: 'Summary' }[to]}
                 </button>
               ))}
               <button role="menuitem" onClick={() => (setDemoMenu(false), setCrisis(true))}>
                 Show crisis card
               </button>
-              <span className="tm-tag">Story</span>
-              {STORIES.map((x, i) => (
-                <button key={x.name} role="menuitemradio" aria-checked={(s.story ?? 0) === i} className={(s.story ?? 0) === i ? 'solid' : ''} onClick={() => jump('chat', i)}>
-                  {x.name}
-                </button>
-              ))}
             </div>
           )}
           <button className="tm-demotag" aria-expanded={demoMenu} onClick={() => setDemoMenu(!demoMenu)}>
             Demo
           </button>
         </div>
+      )}
+      {why && (
+        <>
+          <div className="tm-dim tm-explain-dim" />
+          <div className="tm-explain" role="dialog" aria-label="What just happened">
+            <span className="tm-tag">What just happened</span>
+            <p>{why.why.what}</p>
+            <span className="tm-tag">Mechanism</span>
+            <p>{why.why.mech}</p>
+            <span className="tm-tag">What the AI did, and didn’t</span>
+            <p>{why.why.ai}</p>
+            <span className="tm-explain-foot">
+              <button className="tm-explain-off tm-quiet">Turn off explanations</button>
+              <button className="tm-explain-next" aria-label="Continue">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </button>
+            </span>
+          </div>
+        </>
       )}
       {toast && <div className="tm-toast">{toast}</div>}
       {import.meta.env.DEV && !s.demo && <DevPanel s={s} setS={setS} openSummary={setSummary} crisis={() => setCrisis(true)} pane={setTalk} />}
@@ -334,14 +410,13 @@ export default function MapApp() {
 }
 
 // --- 1 · chat (left pane) ----------------------------------------------------------------------
-function Chat({ s, set, risky, onRisk, say, ro, focus, notice }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onRisk: () => void; say: (t: string) => void; ro: boolean; focus: { msg: number; text: string } | null; notice?: React.ReactNode }) {
+function Chat({ s, set, risky, onRisk, say, ro, focus, notice, top }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onRisk: () => void; say: (t: string) => void; ro: boolean; focus: { msg: number; text: string } | null; notice?: React.ReactNode; top?: React.ReactNode }) {
   // demo mode: the box is pre-filled with the script's next line (editable); anything else the person writes gets the program stubs
   const cur = s.demo ? (s.demoStep ?? 0) : -1
   const step = SCRIPT[cur]
   const [edited, setEdited] = useState<{ at: number; text: string } | null>(null)
   const draft = edited && edited.at === cur ? edited.text : (step?.p ?? '')
   const setDraft = (text: string) => setEdited({ at: cur, text })
-  const [pick, setPick] = useState(false) // the second step: lay it out for me / I'll arrange it myself
   const [typing, setTyping] = useState(false)
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -375,7 +450,7 @@ function Chat({ s, set, risky, onRisk, say, ro, focus, notice }: { s: State; set
     const msgs: Msg[] = [...s.msgs, { role: 'you', text }]
     set((p) => ({ ...p, msgs }))
     const hit = step && norm(text) === norm(step.p) ? step : undefined // the scripted line was sent as it is
-    await reply(msgs, risk, text, hit && { msg: { role: 'ai', text: hit.ai, options: hit.options, propose: hit.propose }, next: cur + 1 })
+    await reply(msgs, risk, text, hit && { msg: { role: 'ai', text: hit.ai, options: hit.options, propose: hit.propose, why: hit.why }, next: cur + 1 })
   }
   // the person chose a word (or two) for the feeling: it goes in as their message, and the AI answers without any typed text
   const name = (words: string[]) => {
@@ -383,18 +458,28 @@ function Chat({ s, set, risky, onRisk, say, ro, focus, notice }: { s: State; set
     const msgs: Msg[] = [...s.msgs, { role: 'you', text: words.join(', '), naming: true }]
     set((p) => ({ ...p, msgs }))
     const an = s.demo ? afterNaming(last?.text ?? '', words) : null
-    void reply(msgs, !!s.risk, words.join(', '), an ? { msg: { role: 'ai', text: an.text }, next: an.next } : undefined)
+    void reply(msgs, !!s.risk, words.join(', '), an ? { msg: { role: 'ai', text: an.text, why: an.why }, next: an.next } : undefined)
   }
   // "Talk a bit more" (in the demo the AI answers from the script)
   const decline = () => {
-    setPick(false)
     set((p) => ({ ...p, msgs: [...p.msgs.map((m, i) => (i === p.msgs.length - 1 ? { ...m, declined: true } : m)), ...(s.demo ? [{ role: 'ai' as const, text: MORE }] : [])] }))
   }
-  const go = (mode: 'auto' | 'manual') => set((p) => ({ ...p, mode, phase: 'layout' }))
+  const go = () => set((p) => ({ ...p, mode: 'auto', phase: 'layout' })) // one way in: the guided map
   return (
     <main className="tm-chat">
+      {top}
       <div className="tm-msgs">
-        {!s.msgs.length && <p className="tm-empty">What’s taking up room in your head tonight?</p>}
+        {!s.msgs.length && (
+          <div className="tm-empty tm-intro">
+            <p>Is something going round and round in your head? Tell me about it, and we’ll pull it apart together.</p>
+            <details>
+              <summary>What is this for?</summary>
+              <p>For one specific thing that keeps coming back: something happened, and a thought about it won’t let go.</p>
+              <p>Not for emergencies, and not a replacement for a therapist. If you are in danger, please call someone now.</p>
+              <p>Your map stays on this device.</p>
+            </details>
+          </div>
+        )}
         {s.msgs.map((m, i) =>
           m.naming ? (
             <p key={i} className="tm-pill">
@@ -408,28 +493,14 @@ function Chat({ s, set, risky, onRisk, say, ro, focus, notice }: { s: State; set
         )}
         {typing && <p className="tm-msg ai tm-typing">…</p>}
         {chips && <NamingChips key={s.msgs.length} options={chips} confirm={name} />}
-        {propose && !pick && (
+        {propose && (
           <div className="tm-propose">
             Want to see it as a map?
             <span className="tm-actions">
-              <button className="solid" onClick={() => setPick(true)}>
+              <button className="solid" onClick={go}>
                 Yes
               </button>
               <button onClick={decline}>Talk a bit more</button>
-            </span>
-          </div>
-        )}
-        {pick && !ro && !s.risk && !typing && (
-          <div className="tm-propose">
-            I can lay out the whole map for you, already connected — or sort the cards into piles and you place and connect them yourself.
-            <span className="tm-actions">
-              <button className="solid" onClick={() => go('auto')}>
-                Lay it out for me
-              </button>
-              <button onClick={() => go('manual')}>I’ll arrange it myself</button>
-              <button className="tm-quiet" onClick={() => setPick(false)}>
-                Not yet
-              </button>
             </span>
           </div>
         )}
@@ -467,8 +538,8 @@ function Chat({ s, set, risky, onRisk, say, ro, focus, notice }: { s: State; set
               </button>
             </div>
           </div>
-          {!s.risk && s.msgs.some((m) => m.role === 'you' && !m.naming) && !propose && !pick && (
-            <button className="tm-early" onClick={() => setPick(true)}>
+          {!s.risk && s.msgs.some((m) => m.role === 'you' && !m.naming) && !propose && (
+            <button className="tm-early" onClick={go}>
               Spread it out now
             </button>
           )}
@@ -545,7 +616,7 @@ function Layout({ s, set, done }: { s: State; set: Set; done: () => void }) {
       }
       const laid = lay(cards, lines, { w: innerWidth, h: innerHeight })
       const arrangeLog: Log[] = lines ? [{ t: 'arrange', at: Date.now(), groups: [], lines: laid.edges.map((l) => ({ id: l.id, from: l.from, to: l.to, label: '' })) }] : []
-      set((p) => ({ ...p, phase: 'map', ...laid, log: [...(p.log ?? []), entry, ...arrangeLog], spreadAt: p.msgs.length }))
+      set((p) => ({ ...p, phase: 'map', ...laid, log: [...(p.log ?? []), entry, ...arrangeLog], spreadAt: p.msgs.length, walk: lines ? { step: 0 } : undefined }))
       done()
     })()
   })
@@ -559,7 +630,7 @@ const PICKABLE: Kind[] = ['A', 'B', 'C', 'DE']
 
 // The canvas is a board with an inner layer that is panned and zoomed (transform); everything inside the layer is in canvas coordinates.
 // onPick: a card was clicked (the app jumps the open conversation to where it came from)
-function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onOpen: (c: Card) => void; onPick: (c: Card) => void }) {
+function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onOpen: (c: Card) => void; onPick: (c: Card) => void; plan: Plan | null; onFinish: () => void }) {
   const board = useRef<HTMLDivElement>(null)
   const refs = useRef(new Map<string, HTMLDivElement>())
   const [h, setH] = useState<Record<string, number>>({})
@@ -581,6 +652,33 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
   const start = useRef({ x: 0, y: 0 })
   const added = useRef(new Set<string>()) // cards just created on the canvas, still to be sorted into a kind
   const ro = s.ended // read-only after the summary
+
+  // the guided walk: only the cards reached so far are on the map; the line into the newest card is dashed until the person confirms it
+  const walk = !ro && plan && s.walk ? { ...s.walk, plan, st: stages(plan) } : null
+  const shownIds = walk ? new Set([...plan!.path.slice(0, walk.step + 1), ...s.cards.filter((c) => walk.pick && c.kind === walk.pick).map((c) => c.id)]) : null
+  const shown = shownIds ? s.cards.filter((c) => shownIds.has(c.id)) : s.cards
+  const visible = (e: Edge) => {
+    if (!walk || !shownIds) return true
+    if (!shownIds.has(e.from) || !shownIds.has(e.to)) return false
+    const i = walk.plan.links.indexOf(e.id)
+    return i > 0 ? i <= walk.step : e.id === walk.plan.close ? walk.step >= walk.st.close : true
+  }
+  const walkTo = (w: State['walk'], f: (st: State) => State = (x) => x) => set((st) => f({ ...st, walk: w }))
+  const confirm = (edge?: string) => walkTo({ step: walk!.step + 1 }, (st) => ({ ...st, edges: st.edges.map((e) => (e.id === edge ? { ...e, by: undefined } : e)) }))
+  const breakAt = (edge: string, pick: 'DE' | 'NEXT') => {
+    walkTo({ step: walk!.st.placed, pick }, (st) => ({ ...st, edges: st.edges.map((e) => (e.id === edge ? { ...e, by: undefined, cut: true } : st.cards.find((c) => c.id === e.to)?.kind === pick ? { ...e, by: undefined } : e)) }))
+    if (pick === 'NEXT' && !s.cards.some((c) => c.kind === 'NEXT')) setBreaking(edge) // no step from the chat yet: write one now
+  }
+  const leave = () => walkTo(undefined) // the free map: every card, every tool
+  // the view follows the walk: close on the circle while it is built, wider once their card goes in
+  const walkStep = walk?.step
+  useEffect(() => {
+    if (walkStep === undefined || (walkStep !== 0 && walkStep !== walk!.st.close && walkStep !== walk!.st.placed)) return
+    const b = board.current!
+    const ids = walkStep === 0 ? walk!.plan.path : [...shownIds!]
+    const boxes = s.cards.filter((c) => ids.includes(c.id)).map((c) => ({ x: c.x, y: c.y, w: W, h: h[c.id] ?? 110 }))
+    setView(fitView(boxes, b.clientWidth, b.clientHeight - 140)) // room for the question box
+  }, [walkStep]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // once per visit: ask which cards repeat each other; the person stacks them by hand (or not)
   const askedStack = useRef(false)
@@ -626,7 +724,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
   const zoomBy = (f: number) => setView((v) => zoomAt(v, v.z * f, board.current!.clientWidth / 2, board.current!.clientHeight / 2))
   const fit = () => {
     const b = board.current!
-    const boxes = [...s.cards.map((c) => ({ x: c.x, y: c.y, w: W, h: h[c.id] ?? 90 })), ...s.edges.flatMap((e) => (routeOf(e) ?? []).map(([x, y]) => ({ x, y, w: 0, h: 0 })))]
+    const boxes = [...shown.map((c) => ({ x: c.x, y: c.y, w: W, h: h[c.id] ?? 90 })), ...live.flatMap((e) => (routeOf(e) ?? []).map(([x, y]) => ({ x, y, w: 0, h: 0 })))]
     setView(fitView(boxes, b.clientWidth, b.clientHeight))
   }
 
@@ -729,8 +827,6 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
     return () => removeEventListener('keydown', key)
   })
 
-  const groups = loops(s.edges)
-  const inLoop = new Set(groups.flat())
   // every line is horizontal and vertical runs only: it keeps the route it was given (the layout's, or the router's when a card moved or a line was drawn)
   // while both its cards stay put; otherwise a quick route is worked out for it
   const boxOf = (c: Card) => ({ x: c.x, y: c.y, w: W, h: hOf(c.id) })
@@ -744,7 +840,9 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
     return { d: smoothPath(r, 8), m: routeMid(r) }
   }
   const mid = (x: Edge) => geom(x).m
-  const live = s.edges.filter((x) => find(x.from) && find(x.to))
+  const live = s.edges.filter((x) => find(x.from) && find(x.to) && visible(x))
+  const groups = loops(live)
+  const inLoop = new Set(groups.flat())
   const loopOf = (edge: string) => groups.find((g) => g.includes(edge)) ?? []
   const keepLine = (id: string) => set((st) => ({ ...st, edges: st.edges.map((x) => (x.id === id ? { ...x, by: undefined } : x)) }))
   const dropLine = (id: string) => set((st) => ({ ...st, edges: st.edges.filter((x) => x.id !== id) }))
@@ -806,8 +904,8 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
 
   // one gap hint at a time, from the program: a feeling nothing leads into; a line straight from what happened to a feeling
   // the hint about the newest card or line comes first; a card that lies in a pile gets its hint to the left of the pile, clear of the pile label
-  const gaps = (ro || s.risk ? [] : [
-    ...s.cards.filter((c) => c.kind === 'C' && !s.edges.some((e) => e.to === c.id)).map((c) => ({ key: `c${c.id}`, text: 'What happened before this?', x: c.pile ? c.x - 12 : c.x, y: c.pile ? c.y + 10 : c.y - 34, left: !!c.pile, t: c.t ?? 0 })),
+  const gaps = (ro || s.risk || walk ? [] : [
+    ...shown.filter((c) => c.kind === 'C' && !s.edges.some((e) => e.to === c.id)).map((c) => ({ key: `c${c.id}`, text: 'What happened before this?', x: c.pile ? c.x - 12 : c.x, y: c.pile ? c.y + 10 : c.y - 34, left: !!c.pile, t: c.t ?? 0 })),
     ...live.filter((e) => card(e.from).kind === 'A' && card(e.to).kind === 'C').map((e) => ({ key: `e${e.id}`, text: 'What did you tell yourself in between?', x: mid(e).x - 110, y: mid(e).y - 44, left: false, t: e.t ?? 0 })),
   ])
     .filter((g) => !gapOff.includes(g.key))
@@ -844,10 +942,11 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
             </marker>
           </defs>
           {live.map((x) => {
-            const cls = [inLoop.has(x.id) && 'loop', x.between && 'cross', breaking === x.id && 'breaking', x.by === 'ai' && 'ai'].filter(Boolean).join(' ')
+            const cls = [inLoop.has(x.id) && 'loop', x.between && 'cross', breaking === x.id && 'breaking', x.by === 'ai' && 'ai', x.cut && 'cut'].filter(Boolean).join(' ')
             return <path key={x.id} d={geom(x).d} className={cls} markerEnd="url(#tm-arrow)" />
           })}
           {!ro &&
+            !walk &&
             live.map((x) => (
               <path key={x.id} d={geom(x).d} className="hit" onClick={() => (inLoop.has(x.id) && !s.risk ? (setOpenLoop(null), setLineMenu(null), setBreaking(x.id)) : (setBreaking(null), setLineMenu(lineMenu === x.id ? null : x.id)))}>
                 <title>{inLoop.has(x.id) ? 'Write one thing you could do here' : x.by === 'ai' ? 'Drawn for you. Click to keep or remove it' : 'Click to remove this line'}</title>
@@ -888,6 +987,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
         })}
 
         {groups.map((g, i) => {
+          if (walk || g.some((id) => s.edges.find((x) => x.id === id)?.cut)) return null // no chip while walking, or once the person broke the circle
           const ms = g.map((id) => mid(s.edges.find((x) => x.id === id)!))
           const c = { x: ms.reduce((t, m) => t + m.x, 0) / ms.length, y: ms.reduce((t, m) => t + m.y, 0) / ms.length }
           return (
@@ -911,12 +1011,12 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
           </span>
         )}
 
-        {s.cards.map((c) => (
+        {shown.map((c) => (
           <div
             key={c.id}
             data-card={c.id}
             ref={(el) => void (el ? refs.current.set(c.id, el) : refs.current.delete(c.id))}
-            className={`tm-card k-${c.kind ?? 'none'}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
+            className={`tm-card k-${c.kind ?? 'none'}${walk && walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step] ? ' ghost' : ''}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
             style={{ left: c.x, top: c.y, width: W }}
             onPointerDown={(e) => {
               if (editCard === c.id || (e.target as HTMLElement).closest('button,input')) return
@@ -1039,6 +1139,17 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
           drop={() => (dropLine(breaking), setBreaking(null))}
         />
       )}
+      {walk &&
+        (() => {
+          // the question sits on the map: under the card that just appeared, on the line that closes the circle, or just below the circle
+          const cs = walk.plan.path.map((id) => find(id)).filter((c): c is Card => !!c)
+          const now = walk.step < walk.plan.path.length ? find(walk.plan.path[walk.step]) : undefined
+          const closing = walk.step === walk.st.close && live.find((x) => x.id === walk.plan.close)
+          const p = now ? { x: now.x, y: now.y + hOf(now.id) + 14 } : closing ? mid(closing) : { x: Math.min(...cs.map((c) => c.x)), y: Math.max(...cs.map((c) => c.y + hOf(c.id))) + 24 }
+          const b = board.current
+          const at = { left: Math.max(8, Math.min(view.x + p.x * view.z, (b?.clientWidth ?? 900) - 340)), top: Math.max(8, Math.min(view.y + p.y * view.z, (b?.clientHeight ?? 600) - 240)) }
+          return <WalkStep s={s} walk={walk} at={at} confirm={confirm} breakAt={breakAt} leave={leave} finish={() => (leave(), onFinish())} />
+        })()}
       {!s.cards.length && <p className="tm-empty board">Double-click anywhere to add a card.</p>}
       <div className="tm-zoom" role="group" aria-label="Zoom">
         <button aria-label="Zoom out" onClick={() => zoomBy(1 / 1.25)}>
@@ -1053,6 +1164,87 @@ function MapCanvas({ s, set, risky, onOpen, onPick }: { s: State; set: Set; risk
         <button onClick={fit}>Fit</button>
       </div>
     </main>
+  )
+}
+
+// the guided walk's question box: one stage at a time (see walk.ts for the order)
+type Walking = { step: number; pick?: 'DE' | 'NEXT'; plan: Plan; st: ReturnType<typeof stages> }
+function WalkStep({ s, walk, at, confirm, breakAt, leave, finish }: { s: State; walk: Walking; at: { left: number; top: number }; confirm: (edge?: string) => void; breakAt: (edge: string, pick: 'DE' | 'NEXT') => void; leave: () => void; finish: () => void }) {
+  const { step, plan, st } = walk
+  const card = (id?: string) => s.cards.find((c) => c.id === id)
+  const back = card(s.edges.find((e) => e.id === plan.close)?.to)
+  const end = (text: string) => (
+    <>
+      <p>{text}</p>
+      <span className="tm-actions">
+        <button className="solid" onClick={finish}>
+          See the summary
+        </button>
+        <button onClick={leave}>Keep looking</button>
+      </span>
+    </>
+  )
+  let body: React.ReactNode
+  if (step < plan.path.length)
+    body = (
+      <>
+        <p>{ask(card(plan.path[step])!, step)}</p>
+        <span className="tm-actions">
+          <button className="solid" onClick={() => confirm(plan.links[step] || undefined)}>
+            Yes
+          </button>
+          {step > 0 && <button onClick={leave}>Not quite</button>}
+        </span>
+      </>
+    )
+  else if (!plan.close) body = end('That’s the map of tonight, in your own words.')
+  else if (step === st.close)
+    body = (
+      <>
+        <p>{askClose(card(s.edges.find((e) => e.id === plan.close)?.from)!, back!)}</p>
+        <span className="tm-actions">
+          <button className="solid" onClick={() => confirm(plan.close)}>
+            Yes
+          </button>
+          <button onClick={leave}>Not quite</button>
+        </span>
+      </>
+    )
+  else if (step === st.notice)
+    body = (
+      <>
+        <p>
+          Did you notice? It started with “{card(plan.path[0])?.text}”, went round, and came back to “{back?.text}”.
+        </p>
+        <span className="tm-actions">
+          <button className="solid" onClick={() => confirm()}>
+            Yes, I see it
+          </button>
+          <button onClick={leave}>Not really</button>
+        </span>
+      </>
+    )
+  else if (step === st.pick)
+    body = (
+      <>
+        <p>If you wanted this circle to stop, where would you start?</p>
+        <span className="tm-actions tm-options">
+          {plan.options.map((o) => (
+            <button key={o.edge + o.kind} onClick={() => breakAt(o.edge, o.kind)}>
+              {o.label}
+            </button>
+          ))}
+          <button className="tm-quiet" onClick={() => confirm()}>
+            I’m not sure yet
+          </button>
+        </span>
+      </>
+    )
+  else body = end(walk.pick === 'DE' ? 'Here’s the other way you found yourself. The circle is still there, but this line is broken.' : walk.pick === 'NEXT' ? 'Here’s the small step you came up with. The circle is still there, but this line is broken.' : 'That’s okay. Seeing the circle is already a step.')
+  return (
+    <div className={`tm-ask${step < plan.path.length || step === st.close ? ' on-card' : ''}`} style={at} role="dialog" aria-label="Building the map together">
+      {body}
+    </div>
   )
 }
 
@@ -1227,12 +1419,18 @@ function NextAsk({ risky, add, skip }: { risky: (t: string, where?: string) => b
   )
 }
 
-// --- 4 · summary: the person's own cards, laid out by the program (no AI sentence) ---------------
-// "Tonight's map" (Figma 5 · Summary): every card in the person's own words, grouped by kind in the map's reading order, feelings with the word they chose
+// --- 4 · summary: the person's own cards, put together by the program (no AI sentence) ---------
+// "Tonight's map": the circle told in their words, the other way they found, their step, and one question to take with them.
+// What CBT is stays folded away: only for those who want to know.
+const ROLE: Record<Kind, string> = { A: 'what happened', B: 'what you told yourself', C: 'what you felt', DE: 'another way', NEXT: 'next step' }
 function Summary({ s, close }: { s: State; close: () => void }) {
-  const groups = (['A', 'B', 'C', 'DE', 'NEXT'] as Kind[])
-    .map((k) => ({ k, cards: s.cards.filter((c) => c.kind === k).sort((a, b) => a.y - b.y || a.x - b.x) }))
-    .filter((g) => g.cards.length)
+  const p = walkPlan(s.cards, s.edges)
+  const card = (id?: string) => s.cards.find((c) => c.id === id)
+  const say = (c: Card) => (c.kind === 'C' && c.names?.length ? c.names.join(' and ') : `“${c.text}”`)
+  const path = p.path.map((id) => card(id)!).filter(Boolean)
+  const back = card(s.edges.find((e) => e.id === p.close)?.to)
+  const de = s.cards.filter((c) => c.kind === 'DE')
+  const next = s.cards.filter((c) => c.kind === 'NEXT')
   return (
     <>
       <div className="tm-dim" onClick={close} />
@@ -1240,18 +1438,42 @@ function Summary({ s, close }: { s: State; close: () => void }) {
         <h2>Tonight’s map</h2>
         {s.risk ? (
           <p>{SAFE}</p>
-        ) : groups.length ? (
-          groups.map(({ k, cards }) => (
-            <section key={k} className={`tm-sgroup k-${k}`}>
-              <span className="tm-kind">{TAG[k]}</span>
-              {cards.map((c) => (
-                <p key={c.id}>
-                  {c.text}
-                  {c.names?.length ? ` (${c.names.join(', ')})` : ''}
-                </p>
+        ) : path.length ? (
+          <>
+            <p className="tm-story">
+              {path.map((c, i) => (
+                <span key={c.id}>
+                  {i > 0 && ' → '}
+                  {say(c)} <span className="tm-role">({i > 0 && c.kind === 'A' ? 'what you did' : ROLE[c.kind ?? 'A']})</span>
+                </span>
               ))}
-            </section>
-          ))
+              {back ? <> → and back to “{back.text}”.</> : '.'}
+            </p>
+            {de.length > 0 && (
+              <section className="tm-sgroup k-DE">
+                <span className="tm-kind">The other way you found</span>
+                {de.map((c) => (
+                  <p key={c.id}>{c.text}</p>
+                ))}
+              </section>
+            )}
+            {next.length > 0 && (
+              <section className="tm-sgroup k-NEXT">
+                <span className="tm-kind">Your next step</span>
+                {next.map((c) => (
+                  <p key={c.id}>{c.text}</p>
+                ))}
+              </section>
+            )}
+            <p className="tm-takeaway">
+              Often it isn’t what happened that keeps us stuck, but the sentence we tell ourselves in between. Next time it starts going round, try asking: <b>what did I just tell myself?</b>
+            </p>
+            <details className="tm-method">
+              <summary>What is this method?</summary>
+              <p>It follows the ABC model from cognitive behavioural therapy (CBT): A, what happened; B, what you told yourself about it; C, what you felt.</p>
+              <p>Then D and E: questioning that thought, and finding a more accurate one in your own words. The next step at the end is our own addition.</p>
+            </details>
+          </>
         ) : (
           <p className="tm-hint">Nothing was put on the map tonight, and that’s okay.</p>
         )}

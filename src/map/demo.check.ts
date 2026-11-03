@@ -1,32 +1,29 @@
 // node src/map/demo.check.ts
 import assert from 'node:assert/strict'
-import { CARDS, SCRIPT, STORIES, afterNaming, demoLines, demoMade, setStory } from './demo.ts'
+import { CARDS, SCRIPT, afterNaming, demoLines, demoMade, demoMsgs } from './demo.ts'
 import { trimmed } from './mapchecks.ts'
+import { walkPlan } from './walk.ts'
 
+// 6–8 turns, the last reply offers the map, every reply has its popup text
+assert.ok(SCRIPT.length >= 6 && SCRIPT.length <= 8)
+assert.ok(SCRIPT.at(-1)!.propose)
+assert.ok(SCRIPT.every((s) => s.why))
 // every scripted card is a delete-only trim of the line it comes from
 for (const c of CARDS) assert.deepEqual(trimmed(c.text, SCRIPT[c.step].p), [], c.key)
-// the options steps and the naming follow-ups
-assert.deepEqual(SCRIPT.filter((s) => s.options).map((s) => s.options!.length), [2, 2])
-assert.match(afterNaming(SCRIPT[3].ai, ['dread', 'overwhelmed'])!.text, /^Dread and overwhelmed\. Thank you/)
-assert.equal(afterNaming(SCRIPT[3].ai, ['dread'])!.next, 4)
-assert.equal(afterNaming(SCRIPT[5].ai, ['afraid'])!.next, 7) // naming at step 6 skips "I don't know what to call it"
-// the scripted cut follows the messages that were really sent
-const msgs = SCRIPT.map((s) => ({ role: 'you' as const, text: s.p }))
-assert.equal(demoMade(msgs).length, 11)
-assert.equal(demoMade(msgs.filter((_, i) => i !== 6)).find((c) => c.text.startsWith('maybe'))!.from, 7)
-const cards = demoMade(msgs).map((c, i) => ({ id: `c${i}`, text: c.text }))
-assert.equal(demoLines(cards).length, 12)
-// the recorded stories: every card trims a line of its own script, every line joins two of its cards, the last reply offers the map
-for (let i = 1; i < STORIES.length; i++) {
-  setStory(i)
-  const st = STORIES[i]
-  assert.ok(st.script.length >= 8 && st.script.at(-1)!.propose, st.name)
-  assert.ok(st.script.filter((x) => x.options).length >= 1, `${st.name}: at least one feeling to name`)
-  assert.ok(st.cards.some((c) => c.kind === 'NEXT'), `${st.name}: at least one concrete next step`)
-  for (const c of CARDS) assert.deepEqual(trimmed(c.text, SCRIPT[c.step].p), [], `${st.name} ${c.key}`)
-  const made = demoMade(SCRIPT.map((x) => ({ role: 'you' as const, text: x.p })))
-  assert.equal(made.length, st.cards.length, st.name)
-  assert.equal(demoLines(made.map((c, j) => ({ id: `c${j}`, text: c.text }))).length, st.lines.length, st.name)
-}
-setStory(0)
+// the feeling is named once; an own word works like a chosen one
+assert.deepEqual(SCRIPT.filter((s) => s.options).map((s) => s.options!.length), [2])
+assert.match(afterNaming(SCRIPT[0].ai, ['embarrassed'])!.text, /^Embarrassed\. Thank you/)
+assert.equal(afterNaming(SCRIPT[0].ai, ['embarrassed'])!.next, 1)
+// all five labels are collected along the way
+const got = new Set(demoMsgs().flatMap((m) => m.why?.got ?? []))
+assert.deepEqual([...got].sort(), ['A', 'B', 'C', 'DE', 'NEXT'])
+// the scripted cut follows the messages that were really sent; the map walks the circle A1 → B1 → C1 → A2 → back to B1
+const made = demoMade(demoMsgs())
+assert.equal(made.length, CARDS.length)
+const cards = made.map((c, i) => ({ id: CARDS[i].key, text: c.text, kind: CARDS[i].kind }))
+const lines = demoLines(cards).map((l, i) => ({ id: `e${i}`, ...l }))
+const p = walkPlan(cards, lines)
+assert.deepEqual(p.path, ['A1', 'B1', 'C1', 'A2'])
+assert.deepEqual(lines.find((l) => l.id === p.close), { id: p.close, from: 'A2', to: 'B1' })
+assert.deepEqual(p.options.map((o) => o.kind), ['DE', 'NEXT'])
 console.log('demo ok')
