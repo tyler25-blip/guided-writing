@@ -22,7 +22,8 @@ export function walkPlan(cards: C[], edges: E[]): Plan {
     if (!start) return { path: [], links: [], options: [] }
     const path = [start.id]
     const links = ['']
-    for (let e = edges.find((x) => x.from === start.id); e && !path.includes(e.to); e = edges.find((x) => x.from === path.at(-1))) path.push(e.to), links.push(e.id)
+    const chain = (x: E) => ['A', 'B', 'C'].includes(kind(x.to) ?? '') // the walk only follows the circle's kinds, never into DE / Next step
+    for (let e = edges.find((x) => x.from === start.id && chain(x)); e && !path.includes(e.to); e = edges.find((x) => x.from === path.at(-1) && chain(x))) path.push(e.to), links.push(e.id)
     return { path, links, options: [] }
   }
   const ring = edges.filter((e) => cyc.includes(e.id))
@@ -56,8 +57,9 @@ export function walkPlan(cards: C[], edges: E[]): Plan {
   return { path, links, close, options: options.sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'DE' ? -1 : 1)) }
 }
 
-// the stages after the cards: the circle closes, the person notices it, picks where to start, sees the card go in
-export const stages = (p: Plan) => ({ close: p.path.length, notice: p.path.length + 1, pick: p.path.length + 2, placed: p.path.length + 3, last: p.close ? p.path.length + 3 : p.path.length })
+// the stages after the cards: the circle closes, the person notices it, picks where to start, sees the card go in,
+// confirms the other kind (the step after another way, or another way after the step), then it is done
+export const stages = (p: Plan) => ({ close: p.path.length, notice: p.path.length + 1, pick: p.path.length + 2, placed: p.path.length + 3, rest: p.path.length + 4, done: p.path.length + 5, last: p.close ? p.path.length + 3 : p.path.length })
 
 // the question on the card that has just appeared: said straight, in their own words
 export function ask(card: C, i: number): string {
@@ -84,5 +86,11 @@ export function walkWhy(p: Plan, step: number, cards: C[]): Why | null {
   if (step === st.close) return { what: 'The last line goes back to the thought. The circle closes.', mech: 'The loop: what they did makes the thought feel truer.', ai: 'Uses only what they already said in the chat.' }
   if (step === st.notice) return { what: 'The AI names what the map shows.', mech: 'Seeing the loop is the first intervention. In your head it feels like being stuck; on the map it has a shape.', ai: 'Describes the circle in their words. No interpretation.' }
   if (step === st.pick) return { what: 'Where to break the circle is their choice.', mech: 'Cut at a thought → see it another way (DE). Cut at something they did → do something different (Next step).', ai: 'The options come only from what they said. No new advice.' }
+  if (step === st.rest) return { what: 'The other half of the way out, from the chat.', mech: 'Another way to see it (DE) and one small step (Next step) together: a new thought, and something to do with it.', ai: 'Uses only what they already said. They confirm it, like every other card.' }
+  if (step >= st.done) return { what: 'The map is complete: all five labels, in their words.', mech: 'The circle, where it breaks, and what they will do. The summary puts it into one paragraph.', ai: 'Nothing new. The summary is built by the program from their own cards.' }
   return { what: 'The chosen line fades and their own card goes in.', mech: 'The circle stays visible, but broken: “I know this circle, and how to step out of it.”', ai: 'Nothing new: the card was already theirs, from the chat.' }
 }
+
+// after breaking the circle: the kind not chosen yet, and the question on it
+export const otherKind = (pick?: 'DE' | 'NEXT') => (pick === 'DE' ? 'NEXT' : pick === 'NEXT' ? 'DE' : undefined)
+export const askOther = (k: 'DE' | 'NEXT', c: C) => (k === 'NEXT' ? `And one small step from there: “${c.text}”, right?` : `And the other way you found: “${c.text}”, right?`)

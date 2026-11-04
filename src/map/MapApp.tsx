@@ -6,7 +6,7 @@ import { isCrisis } from '../triggers.ts'
 import { DevPanel } from './dev.tsx'
 import { loops } from './graph.ts'
 import { afterNaming, demoBreak, demoState, demoLines, demoMade, demoPair, MORE, norm, SCRIPT } from './demo.ts'
-import { ask, askClose, stages, walkPlan, walkWhy, type Plan, type Why } from './walk.ts'
+import { ask, askClose, askOther, otherKind, stages, walkPlan, walkWhy, type Plan, type Why } from './walk.ts'
 import { lay, makeCards, reroute } from './build.ts'
 import { ai, getKey, hasServer, NEED_KEY, setDemo, setKey } from './link.ts'
 import { describe, estH, feels, fitView, freeSpot, freeSpotLinked, guessKind, LABEL, optionsFor, routeMid, routeOrtho, segments, smoothPath, summaryOf, tidyPiles, zoomAt, layered, type Kind, type Piles, type View } from './place.ts'
@@ -655,7 +655,8 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
 
   // the guided walk: only the cards reached so far are on the map; the line into the newest card is dashed until the person confirms it
   const walk = !ro && plan && s.walk ? { ...s.walk, plan, st: stages(plan) } : null
-  const shownIds = walk ? new Set([...plan!.path.slice(0, walk.step + 1), ...s.cards.filter((c) => walk.pick && c.kind === walk.pick).map((c) => c.id)]) : null
+  const other = walk && otherKind(walk.pick)
+  const shownIds = walk ? new Set([...plan!.path.slice(0, walk.step + 1), ...s.cards.filter((c) => (walk.pick && c.kind === walk.pick) || (other && walk.step >= walk.st.rest && c.kind === other)).map((c) => c.id)]) : null
   const shown = shownIds ? s.cards.filter((c) => shownIds.has(c.id)) : s.cards
   const visible = (e: Edge) => {
     if (!walk || !shownIds) return true
@@ -664,16 +665,25 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
     return i > 0 ? i <= walk.step : e.id === walk.plan.close ? walk.step >= walk.st.close : true
   }
   const walkTo = (w: State['walk'], f: (st: State) => State = (x) => x) => set((st) => f({ ...st, walk: w }))
-  const confirm = (edge?: string) => walkTo({ step: walk!.step + 1 }, (st) => ({ ...st, edges: st.edges.map((e) => (e.id === edge ? { ...e, by: undefined } : e)) }))
+  const confirm = (edge?: string) => walkTo({ step: walk!.step + 1, pick: walk!.pick }, (st) => ({ ...st, edges: st.edges.map((e) => (e.id === edge ? { ...e, by: undefined } : e)) }))
   const breakAt = (edge: string, pick: 'DE' | 'NEXT') => {
     walkTo({ step: walk!.st.placed, pick }, (st) => ({ ...st, edges: st.edges.map((e) => (e.id === edge ? { ...e, by: undefined, cut: true } : st.cards.find((c) => c.id === e.to)?.kind === pick ? { ...e, by: undefined } : e)) }))
     if (pick === 'NEXT' && !s.cards.some((c) => c.kind === 'NEXT')) setBreaking(edge) // no step from the chat yet: write one now
   }
   const leave = () => walkTo(undefined) // the free map: every card, every tool
+  // "Not quite" on a card: they put it in their own words, then the line turns solid and the walk goes on
+  const fixCard = (id: string, text: string, edge?: string) => {
+    if (risky(text, 'card')) return
+    set((st) => ({ ...st, cards: st.cards.map((c) => (c.id === id ? { ...c, text, t: Date.now() } : c)) }))
+    confirm(edge)
+  }
+  const confirmOther = () => walkTo({ step: walk!.st.done, pick: walk!.pick }, (st) => ({ ...st, edges: st.edges.map((e) => (st.cards.find((c) => c.id === e.to)?.kind === other ? { ...e, by: undefined } : e)) }))
+  // "Not quite" on the line that closes the circle: no circle, the line goes
+  const dropClose = () => walkTo({ step: walk!.step }, (st) => ({ ...st, edges: st.edges.filter((e) => e.id !== walk!.plan.close) }))
   // the view follows the walk: close on the circle while it is built, wider once their card goes in
   const walkStep = walk?.step
   useEffect(() => {
-    if (walkStep === undefined || (walkStep !== 0 && walkStep !== walk!.st.close && walkStep !== walk!.st.placed)) return
+    if (walkStep === undefined || (walkStep !== 0 && walkStep !== walk!.st.close && walkStep !== walk!.st.placed && walkStep !== walk!.st.rest)) return
     const b = board.current!
     const ids = walkStep === 0 ? walk!.plan.path : [...shownIds!]
     const boxes = s.cards.filter((c) => ids.includes(c.id)).map((c) => ({ x: c.x, y: c.y, w: W, h: h[c.id] ?? 110 }))
@@ -1016,7 +1026,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
             key={c.id}
             data-card={c.id}
             ref={(el) => void (el ? refs.current.set(c.id, el) : refs.current.delete(c.id))}
-            className={`tm-card k-${c.kind ?? 'none'}${walk && walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step] ? ' ghost' : ''}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
+            className={`tm-card k-${c.kind ?? 'none'}${walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other)) ? ' ghost' : ''}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
             style={{ left: c.x, top: c.y, width: W }}
             onPointerDown={(e) => {
               if (editCard === c.id || (e.target as HTMLElement).closest('button,input')) return
@@ -1143,12 +1153,12 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
         (() => {
           // the question sits on the map: under the card that just appeared, on the line that closes the circle, or just below the circle
           const cs = walk.plan.path.map((id) => find(id)).filter((c): c is Card => !!c)
-          const now = walk.step < walk.plan.path.length ? find(walk.plan.path[walk.step]) : undefined
+          const now = walk.step < walk.plan.path.length ? find(walk.plan.path[walk.step]) : walk.step === walk.st.rest && other ? s.cards.find((c) => c.kind === other) : undefined
           const closing = walk.step === walk.st.close && live.find((x) => x.id === walk.plan.close)
-          const p = now ? { x: now.x, y: now.y + hOf(now.id) + 14 } : closing ? mid(closing) : { x: Math.min(...cs.map((c) => c.x)), y: Math.max(...cs.map((c) => c.y + hOf(c.id))) + 24 }
+          const p = now ? { x: now.x, y: now.y + hOf(now.id) + 14 } : closing ? mid(closing) : { x: Math.min(...cs.map((c) => c.x)), y: Math.max(...shown.map((c) => c.y + hOf(c.id))) + 24 }
           const b = board.current
           const at = { left: Math.max(8, Math.min(view.x + p.x * view.z, (b?.clientWidth ?? 900) - 340)), top: Math.max(8, Math.min(view.y + p.y * view.z, (b?.clientHeight ?? 600) - 240)) }
-          return <WalkStep s={s} walk={walk} at={at} confirm={confirm} breakAt={breakAt} leave={leave} finish={() => (leave(), onFinish())} />
+          return <WalkStep key={walk.step} s={s} walk={walk} at={at} confirm={confirm} confirmOther={confirmOther} fixCard={fixCard} dropClose={dropClose} breakAt={breakAt} leave={leave} finish={() => (leave(), onFinish())} />
         })()}
       {!s.cards.length && <p className="tm-empty board">Double-click anywhere to add a card.</p>}
       <div className="tm-zoom" role="group" aria-label="Zoom">
@@ -1169,7 +1179,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
 
 // the guided walk's question box: one stage at a time (see walk.ts for the order)
 type Walking = { step: number; pick?: 'DE' | 'NEXT'; plan: Plan; st: ReturnType<typeof stages> }
-function WalkStep({ s, walk, at, confirm, breakAt, leave, finish }: { s: State; walk: Walking; at: { left: number; top: number }; confirm: (edge?: string) => void; breakAt: (edge: string, pick: 'DE' | 'NEXT') => void; leave: () => void; finish: () => void }) {
+function WalkStep({ s, walk, at, confirm, confirmOther, fixCard, dropClose, breakAt, leave, finish }: { s: State; walk: Walking; at: { left: number; top: number }; confirm: (edge?: string) => void; confirmOther: () => void; fixCard: (id: string, text: string, edge?: string) => void; dropClose: () => void; breakAt: (edge: string, pick: 'DE' | 'NEXT') => void; leave: () => void; finish: () => void }) {
   const { step, plan, st } = walk
   const card = (id?: string) => s.cards.find((c) => c.id === id)
   const back = card(s.edges.find((e) => e.id === plan.close)?.to)
@@ -1184,8 +1194,26 @@ function WalkStep({ s, walk, at, confirm, breakAt, leave, finish }: { s: State; 
       </span>
     </>
   )
+  const [fix, setFix] = useState(false)
   let body: React.ReactNode
-  if (step < plan.path.length)
+  if (step < plan.path.length && fix) {
+    const c = card(plan.path[step])!
+    const save = (t: string) => t.trim() && fixCard(c.id, t.trim(), plan.links[step] || undefined)
+    body = (
+      <>
+        <p>How would you put it, in your own words?</p>
+        <textarea autoFocus defaultValue={c.text} rows={2} id="tm-fix" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), save(e.currentTarget.value))} />
+        <span className="tm-actions">
+          <button className="solid" onClick={() => save((document.getElementById('tm-fix') as HTMLTextAreaElement).value)}>
+            That’s it
+          </button>
+          <button className="tm-quiet" onClick={() => setFix(false)}>
+            Back
+          </button>
+        </span>
+      </>
+    )
+  } else if (step < plan.path.length)
     body = (
       <>
         <p>{ask(card(plan.path[step])!, step)}</p>
@@ -1193,7 +1221,7 @@ function WalkStep({ s, walk, at, confirm, breakAt, leave, finish }: { s: State; 
           <button className="solid" onClick={() => confirm(plan.links[step] || undefined)}>
             Yes
           </button>
-          {step > 0 && <button onClick={leave}>Not quite</button>}
+          {step > 0 && <button onClick={() => setFix(true)}>Not quite</button>}
         </span>
       </>
     )
@@ -1206,7 +1234,7 @@ function WalkStep({ s, walk, at, confirm, breakAt, leave, finish }: { s: State; 
           <button className="solid" onClick={() => confirm(plan.close)}>
             Yes
           </button>
-          <button onClick={leave}>Not quite</button>
+          <button onClick={dropClose}>Not quite</button>
         </span>
       </>
     )
@@ -1220,7 +1248,7 @@ function WalkStep({ s, walk, at, confirm, breakAt, leave, finish }: { s: State; 
           <button className="solid" onClick={() => confirm()}>
             Yes, I see it
           </button>
-          <button onClick={leave}>Not really</button>
+          <button onClick={() => confirm()}>Not really</button>
         </span>
       </>
     )
@@ -1240,9 +1268,38 @@ function WalkStep({ s, walk, at, confirm, breakAt, leave, finish }: { s: State; 
         </span>
       </>
     )
-  else body = end(walk.pick === 'DE' ? 'Here’s the other way you found yourself. The circle is still there, but this line is broken.' : walk.pick === 'NEXT' ? 'Here’s the small step you came up with. The circle is still there, but this line is broken.' : 'That’s okay. Seeing the circle is already a step.')
+  else {
+    const other = otherKind(walk.pick)
+    const more = other && s.cards.find((c) => c.kind === other)
+    const said = walk.pick === 'DE' ? 'Here’s the other way you found yourself. The circle is still there, but this line is broken.' : 'Here’s the small step you came up with. The circle is still there, but this line is broken.'
+    if (!walk.pick) body = end('That’s okay. Seeing the circle is already a step.')
+    else if (step === st.placed && more)
+      body = (
+        <>
+          <p>{said}</p>
+          <span className="tm-actions">
+            <button className="solid" onClick={() => confirm()}>
+              Continue
+            </button>
+          </span>
+        </>
+      )
+    else if (step === st.rest && more)
+      body = (
+        <>
+          <p>{askOther(other, more)}</p>
+          <span className="tm-actions">
+            <button className="solid" onClick={confirmOther}>
+              Yes
+            </button>
+            <button onClick={() => confirm()}>Not now</button>
+          </span>
+        </>
+      )
+    else body = end(step >= st.done ? 'That’s the whole map: what happened, what you told yourself, how it felt, where the circle breaks, and what you’ll do.' : said)
+  }
   return (
-    <div className={`tm-ask${step < plan.path.length || step === st.close ? ' on-card' : ''}`} style={at} role="dialog" aria-label="Building the map together">
+    <div className={`tm-ask${step < plan.path.length || step === st.close || step === st.rest ? ' on-card' : ''}`} style={at} role="dialog" aria-label="Building the map together">
       {body}
     </div>
   )

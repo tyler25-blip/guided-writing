@@ -312,3 +312,4 @@
 .tm-card.ghost::before { display: none; }
 .tm-card.ghost > * { visibility: hidden; }
 .tm-top .tm-progress { margin: 8px 12px 0; }
+.tm-ask textarea { font: inherit; font-size: 14px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
