@@ -327,7 +327,7 @@ export default function MapApp() {
           </span>
         </div>
         {s.phase === 'layout' && <Layout s={s} set={set} done={() => setTalk(false)} />}
-        {s.phase === 'map' && <MapCanvas key={JSON.stringify(s.view)} s={s} set={set} risky={risky} onOpen={openSource} onPick={(c) => talk && openSource(c)} plan={plan} onFinish={() => end()} />}
+        {s.phase === 'map' && <MapCanvas key={JSON.stringify(s.view)} s={s} set={set} risky={risky} onOpen={openSource} onPick={(c) => talk && openSource(c)} plan={plan} onFinish={(cards) => end(cards)} />}
         {s.phase === 'map' && s.ended && !summary && (
           <button className="tm-pinned" onClick={() => setSummary(true)} title="Open the summary">
             <span className="tm-tag">Tonight’s summary</span>
@@ -630,7 +630,7 @@ const PICKABLE: Kind[] = ['A', 'B', 'C', 'DE']
 
 // The canvas is a board with an inner layer that is panned and zoomed (transform); everything inside the layer is in canvas coordinates.
 // onPick: a card was clicked (the app jumps the open conversation to where it came from)
-function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onOpen: (c: Card) => void; onPick: (c: Card) => void; plan: Plan | null; onFinish: () => void }) {
+function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onOpen: (c: Card) => void; onPick: (c: Card) => void; plan: Plan | null; onFinish: (cards: Card[]) => void }) {
   const board = useRef<HTMLDivElement>(null)
   const refs = useRef(new Map<string, HTMLDivElement>())
   const [h, setH] = useState<Record<string, number>>({})
@@ -671,6 +671,12 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
     if (pick === 'NEXT' && !s.cards.some((c) => c.kind === 'NEXT')) setBreaking(edge) // no step from the chat yet: write one now
   }
   const leave = () => walkTo(undefined) // the free map: every card, every tool
+  // the summary right after the walk: only the cards the walk brought out stay on the map
+  const finishWalk = () => {
+    const keep = s.cards.filter((c) => shownIds!.has(c.id))
+    set((st) => ({ ...st, walk: undefined, cards: keep, edges: st.edges.filter((e) => shownIds!.has(e.from) && shownIds!.has(e.to)) }))
+    onFinish(keep)
+  }
   // "Not quite" on a card: they put it in their own words, then the line turns solid and the walk goes on
   const fixCard = (id: string, text: string, edge?: string) => {
     if (risky(text, 'card')) return
@@ -1158,7 +1164,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
           const p = now ? { x: now.x, y: now.y + hOf(now.id) + 14 } : closing ? mid(closing) : { x: Math.min(...cs.map((c) => c.x)), y: Math.max(...shown.map((c) => c.y + hOf(c.id))) + 24 }
           const b = board.current
           const at = { left: Math.max(8, Math.min(view.x + p.x * view.z, (b?.clientWidth ?? 900) - 340)), top: Math.max(8, Math.min(view.y + p.y * view.z, (b?.clientHeight ?? 600) - 240)) }
-          return <WalkStep key={walk.step} s={s} walk={walk} at={at} confirm={confirm} confirmOther={confirmOther} fixCard={fixCard} dropClose={dropClose} breakAt={breakAt} leave={leave} finish={() => (leave(), onFinish())} />
+          return <WalkStep key={walk.step} s={s} walk={walk} at={at} confirm={confirm} confirmOther={confirmOther} fixCard={fixCard} dropClose={dropClose} breakAt={breakAt} leave={leave} finish={finishWalk} />
         })()}
       {!s.cards.length && <p className="tm-empty board">Double-click anywhere to add a card.</p>}
       <div className="tm-zoom" role="group" aria-label="Zoom">

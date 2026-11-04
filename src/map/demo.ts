@@ -73,8 +73,6 @@ export const CARDS: StoryCard[] = [
   { key: 'C1', text: 'I just feel kind of pathetic tonight', kind: 'C', step: 0 },
   { key: 'A1', text: 'my friends all had dinner together on Saturday, and nobody asked me', kind: 'A', step: 1 },
   { key: 'B1', text: 'they don’t actually like me that much', kind: 'B', step: 2 },
-  { key: 'B2', text: 'I’m just the extra one', kind: 'B', step: 2 },
-  { key: 'B3', text: 'they’d rather hang out without me', kind: 'B', step: 4 },
   { key: 'A2', text: 'I just haven’t texted anyone all week', kind: 'A', step: 4 },
   { key: 'DE1', text: 'Amy planned it last minute, and I’d told everyone I was busy that week', kind: 'DE', step: 5 },
   { key: 'DE2', text: 'last month I was the one who set up dinner', kind: 'DE', step: 5 },
@@ -82,8 +80,7 @@ export const CARDS: StoryCard[] = [
   { key: 'NX', text: 'Text Mia and ask if she wants to get food on Thursday', kind: 'NEXT', step: 7 },
 ]
 // the circle: they don't like me → embarrassed → no texts → (no contact makes it feel truer) → they don't like me
-const LINES = [['A1', 'B1'], ['B1', 'C1'], ['C1', 'A2'], ['A2', 'B1'], ['B3', 'A2'], ['B1', 'DE1'], ['B1', 'DE2'], ['B1', 'DE3'], ['A2', 'NX']]
-const PAIR: [string, string] = ['B1', 'B2'] // the same thought twice: lit as a stacking partner
+const LINES = [['A1', 'B1'], ['B1', 'C1'], ['C1', 'A2'], ['A2', 'B1'], ['B1', 'DE1'], ['B1', 'DE2'], ['B1', 'DE3'], ['A2', 'NX']]
 export const NEXT = { when: 'I open their stories again', will: 'text Mia instead' }
 
 // cards for the messages the person actually sent (from = their message number); fewer than 3 → the caller uses the program stubs
@@ -100,11 +97,8 @@ export function demoLines(cards: { id: string; text: string }[]) {
   const id = (k: string) => cards.find((c) => keyOf(c.text) === k)?.id
   return LINES.flatMap(([a, b]) => (id(a) && id(b) ? [{ from: id(a)!, to: id(b)! }] : []))
 }
-// B1 and B2 say the same thought
-export function demoPair(cards: { id: string; text: string }[]) {
-  const [a, b] = PAIR.map((k) => cards.find((c) => keyOf(c.text) === k)?.id)
-  return a && b ? [{ a, b }] : []
-}
+// no two cards in this story say the same thought
+export const demoPair = (_cards: { id: string; text: string }[]): { a: string; b: string }[] => []
 export const demoBreak = (from: string, to: string) => ({ question: `Between “${from}” and “${to}”, what is one small thing you could do at that moment?`, when_example: NEXT.when, will_example: NEXT.will })
 
 // the whole chat as the presenter would play it (the feeling named in their own word)
