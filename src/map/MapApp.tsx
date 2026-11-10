@@ -1080,7 +1080,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
             key={c.id}
             data-card={c.id}
             ref={(el) => void (el ? refs.current.set(c.id, el) : refs.current.delete(c.id))}
-            className={`tm-card k-${c.kind ?? 'none'}${walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other)) ? ' ghost' : ''}${choosing && c.id !== guess!.from ? ' pickable' : ''}${choosing && c.id === guess!.from ? ' tail' : ''}${lit.includes(c.id) ? ' cand' : ''}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
+            className={`tm-card k-${c.kind ?? 'none'}${walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other)) ? ' ghost' : ''}${choosing && c.id !== guess!.from ? ` pickable${hint === 0 ? ' tappable' : ''}` : ''}${choosing && c.id === guess!.from ? ' tail' : ''}${lit.includes(c.id) ? ' cand' : ''}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
             style={{ left: c.x, top: c.y, width: W }}
             onPointerDown={(e) => {
               if (editCard === c.id || (e.target as HTMLElement).closest('button,input')) return
@@ -1288,7 +1288,7 @@ function WalkStep({ s, walk, at, hint, lit, moreHelp, takeGuess, addNew, confirm
     body = (
       <>
         <p>Where does it take you? Put it in your own words.</p>
-        <textarea autoFocus defaultValue={s.demo ? DEMO_NEW.text : ''} rows={2} id="tm-new" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), save(e.currentTarget.value))} />
+        <textarea autoFocus defaultValue={s.demo && !s.cards.some((c) => norm(c.text) === norm(DEMO_NEW.text)) ? DEMO_NEW.text : ''} rows={2} id="tm-new" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), save(e.currentTarget.value))} />
         <span className="tm-actions">
           <button className="solid" onClick={() => save((document.getElementById('tm-new') as HTMLTextAreaElement).value)}>
             Add it
