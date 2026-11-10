@@ -313,11 +313,21 @@
 .tm-card.ghost > * { visibility: hidden; }
 /* closing the circle: the last card has an open line; the other cards can be tapped; at hint level 1 two of them light up */
 .tm-edges > path.open { stroke: var(--ink); stroke-width: 1.6; stroke-dasharray: 5 5; fill: none; }
-.tm-card.tail { box-shadow: 0 0 0 2px var(--ink), var(--sh-lg); }
+.tm-card.tail { filter: drop-shadow(0 0 1px var(--ink)) drop-shadow(0 0 1px var(--ink)) drop-shadow(0 8px 14px rgba(0, 0, 0, 0.14)); }
 .tm-card.pickable { cursor: pointer; }
-.tm-card.pickable:hover { box-shadow: 0 0 0 2px var(--mid), var(--sh-lg); }
-.tm-card.cand { box-shadow: 0 0 0 2px var(--ink), 0 0 0 7px rgba(0, 0, 0, 0.1); animation: tm-cand 1.6s ease-in-out infinite; }
-@keyframes tm-cand { 50% { box-shadow: 0 0 0 2px var(--ink), 0 0 0 12px rgba(0, 0, 0, 0.05); } }
+/* the cards' shadows are filters that follow each card's shape (see "thought cards" above), so the glow is one too */
+/* level 0: every card that can be tapped glows softly, so it is clear the cards are the answer; level 1 narrows it to two (.cand) */
+.tm-card.tappable { animation: tm-glow 1.8s ease-in-out infinite; }
+@keyframes tm-glow {
+  0%, 100% { filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 4px rgba(255, 179, 80, 0.55)); }
+  50% { filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 10px rgba(255, 179, 80, 0.9)); }
+}
+.tm-card.cand { animation: tm-cand 1.6s ease-in-out infinite; }
+@keyframes tm-cand {
+  0%, 100% { filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 7px rgba(255, 179, 80, 0.8)); }
+  50% { filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 16px var(--told)); }
+}
+.tm-card.pickable:hover { animation: none; filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 12px var(--told)); }
 .tm-ask .tm-tip { font-size: 12px; color: var(--mid); }
 .tm-top .tm-progress { margin: 8px 12px 0; }
 .tm-ask textarea { font: inherit; font-size: 14px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
