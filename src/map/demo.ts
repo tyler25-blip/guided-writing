@@ -82,6 +82,9 @@ export const CARDS: StoryCard[] = [
 // the circle: they don't like me → embarrassed → no texts → (no contact makes it feel truer) → they don't like me
 const LINES = [['A1', 'B1'], ['B1', 'C1'], ['C1', 'A2'], ['A2', 'B1'], ['B1', 'DE1'], ['B1', 'DE2'], ['B1', 'DE3'], ['A2', 'NX']]
 export const NEXT = { when: 'I open their stories again', will: 'text Mia instead' }
+// closing the circle, "somewhere new": what the presenter can add between "no texts all week" and "they don't like me" (pre-filled in the box)
+export const NEW: { text: string; kind: Kind } = { text: 'if they care about me then they will text me', kind: 'B' }
+export const demoNewKind = (text: string): Kind | undefined => (norm(text) === norm(NEW.text) ? NEW.kind : undefined)
 
 // cards for the messages the person actually sent (from = their message number); fewer than 3 → the caller uses the program stubs
 export function demoMade(msgs: Msg[]) {

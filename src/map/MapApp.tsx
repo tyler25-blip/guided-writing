@@ -5,8 +5,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isCrisis } from '../triggers.ts'
 import { DevPanel } from './dev.tsx'
 import { loops } from './graph.ts'
-import { afterNaming, demoBreak, demoState, demoLines, demoMade, demoPair, MORE, norm, SCRIPT } from './demo.ts'
-import { ask, askClose, askOther, otherKind, stages, walkPlan, walkWhy, type Plan, type Why } from './walk.ts'
+import { afterNaming, demoBreak, demoNewKind, demoState, demoLines, demoMade, demoPair, MORE, NEW as DEMO_NEW, norm, SCRIPT } from './demo.ts'
+import { ask, askClose, askNarrow, askOther, askWhere, candidates, insertNew, otherKind, rewire, sayCircle, stages, walkPlan, walkWhy, type Hint, type Plan, type Why } from './walk.ts'
 import { lay, makeCards, reroute } from './build.ts'
 import { ai, getKey, hasServer, NEED_KEY, setDemo, setKey } from './link.ts'
 import { describe, estH, feels, fitView, freeSpot, freeSpotLinked, guessKind, LABEL, optionsFor, routeMid, routeOrtho, segments, smoothPath, summaryOf, tidyPiles, zoomAt, layered, type Kind, type Piles, type View } from './place.ts'
@@ -32,10 +32,11 @@ export type Log =
   | { t: 'break'; at: number; edge: string; question: string; example: string; card: string; what: string; when: string; where: string }
   | { t: 'summary'; at: number; restate: string; stuck: string; step: string }
   | { t: 'risk'; at: number; where: string; text: string }
+  | { t: 'close'; at: number; level: Hint; how: 'tap' | 'new' | 'offered' | 'none'; from: string; to: string; guess: string } // how the circle was closed: at which hint level, and whether it matches the program's guess
 // spreadAt: how many messages had been sent when the cards were made; areas: column titles; mode: how the person chose to arrange
 // demo: the scripted story (/map?demo), demoStep: the next script line; piles: where the piles lie (manual layout); view: pan and zoom
-// walk: the guided map is running (step = its stage, see walk.ts); pick = where the person chose to break the circle
-export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; mode?: 'auto' | 'manual'; risk?: boolean; log?: Log[]; spreadAt?: number; areas?: { name: string; x: number; y: number }[]; demo?: boolean; demoStep?: number; piles?: Piles; view?: View; walk?: { step: number; pick?: 'DE' | 'NEXT' } }
+// walk: the guided map is running (step = its stage, see walk.ts); pick = where the person chose to break the circle; hint = how much help closing the circle has taken so far
+export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; mode?: 'auto' | 'manual'; risk?: boolean; log?: Log[]; spreadAt?: number; areas?: { name: string; x: number; y: number }[]; demo?: boolean; demoStep?: number; piles?: Piles; view?: View; walk?: { step: number; pick?: 'DE' | 'NEXT'; hint?: Hint } }
 export const KEY = 'thought-map-v2'
 type Set = (f: (s: State) => State) => void
 type Entry = Log extends infer L ? (L extends Log ? Omit<L, 'at'> : never) : never
@@ -164,8 +165,8 @@ export default function MapApp() {
       const m = s.msgs[i]
       return m?.role === 'ai' && m.why ? { key: `m${i}`, why: m.why } : null
     }
-    const w = plan && s.walk && walkWhy(plan, s.walk.step, s.cards)
-    return w ? { key: `w${s.walk!.step}`, why: w } : null
+    const w = plan && s.walk && walkWhy(plan, s.walk.step, s.cards, s.walk.hint)
+    return w ? { key: `w${s.walk!.step}h${s.walk!.hint ?? 0}`, why: w } : null
   })()
   const due = pending && !seen.includes(pending.key) ? pending : null
   const downAt = useRef({ x: 0, y: 0 })
@@ -662,7 +663,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
     if (!walk || !shownIds) return true
     if (!shownIds.has(e.from) || !shownIds.has(e.to)) return false
     const i = walk.plan.links.indexOf(e.id)
-    return i > 0 ? i <= walk.step : e.id === walk.plan.close ? walk.step >= walk.st.close : true
+    return i > 0 ? i <= walk.step : e.id === walk.plan.close ? walk.step > walk.st.close || (walk.step === walk.st.close && walk.hint === 2) : true // the guess stays hidden until it is offered (hint 2) or the person made the line
   }
   const walkTo = (w: State['walk'], f: (st: State) => State = (x) => x) => set((st) => f({ ...st, walk: w }))
   const confirm = (edge?: string) => walkTo({ step: walk!.step + 1, pick: walk!.pick }, (st) => ({ ...st, edges: st.edges.map((e) => (e.id === edge ? { ...e, by: undefined } : e)) }))
@@ -685,7 +686,49 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
   }
   const confirmOther = () => walkTo({ step: walk!.st.done, pick: walk!.pick }, (st) => ({ ...st, edges: st.edges.map((e) => (st.cards.find((c) => c.id === e.to)?.kind === other ? { ...e, by: undefined } : e)) }))
   // "Not quite" on the line that closes the circle: no circle, the line goes
-  const dropClose = () => walkTo({ step: walk!.step }, (st) => ({ ...st, edges: st.edges.filter((e) => e.id !== walk!.plan.close) }))
+  const dropClose = () => {
+    if (guess) logIt(set, { t: 'close', level: 2, how: 'none', from: guess.from, to: '', guess: guess.to })
+    walkTo({ step: walk!.step }, (st) => ({ ...st, edges: st.edges.filter((e) => e.id !== walk!.plan.close) }))
+  }
+  // closing the circle (the hint ladder, see walk.ts): guess = the line the program expects; tail = the card with the open line
+  const guess = walk && walk.step === walk.st.close ? s.edges.find((e) => e.id === walk.plan.close) : undefined
+  const hint: Hint = walk?.hint ?? 0
+  const choosing = !!guess && hint < 2 // the person can tap a card
+  const lit = guess && hint === 1 ? candidates(walk!.plan, s.edges) : []
+  const moreHelp = () => walkTo({ step: walk!.step, hint: Math.min(2, hint + 1) as Hint })
+  const closedAt = (how: 'tap' | 'new' | 'offered', to: string) => guess && logIt(set, { t: 'close', level: hint, how, from: guess.from, to, guess: guess.to })
+  // they tapped a card: the guess → that line turns solid; another card → their line replaces the guess
+  const linkTo = (to: string) => {
+    if (!guess || to === guess.from) return
+    closedAt('tap', to)
+    if (to === guess.to) return confirm(guess.id)
+    set((st) => {
+      const edges = rewire(st.edges, walk!.plan, to, uid()) as Edge[]
+      const next = reroute({ ...st, edges }, { edges: [edges.at(-1)!.id] }, hOf)
+      return { ...next, walk: { step: stages(walkPlan(next.cards, next.edges)).pick } }
+    })
+  }
+  // they offered the guess and the person said yes
+  const takeGuess = () => (closedAt('offered', guess!.to), confirm(guess!.id))
+  // they wrote somewhere new: a new card after the last one, and the open line now starts from it
+  const addNew = async (text: string) => {
+    if (!guess || risky(text, 'card')) return
+    const tail = find(guess.from)!
+    const kind = (s.demo ? demoNewKind(text) : (await ai<{ kind: Kind }>('kind', { text }))?.kind) ?? guessKind(text)
+    closedAt('new', text)
+    set((st) => {
+      const id = uid()
+      const boxes = st.cards.map((c) => ({ x: c.x, y: c.y, h: hOf(c.id) }))
+      const row = st.cards.find((c) => c.kind === kind && c.y > tail.y + hOf(tail.id))?.y // its own row, when that row lies below
+      const want = { x: tail.x, y: row ?? tail.y + hOf(tail.id) + 70 }
+      const hit = boxes.some((b) => want.x < b.x + W + 16 && want.x + W + 16 > b.x && want.y < b.y + b.h + 16 && want.y + 100 + 16 > b.y)
+      const at = hit ? freeSpot(boxes, tail.x - W - 40, tail.y + hOf(tail.id) + 70) : want
+      const cards = [...st.cards, { id, text, src: 'you' as const, kind, x: at.x, y: at.y, stack: [], t: Date.now() }]
+      const edges = insertNew(st.edges, walk!.plan, id, [uid(), uid()]) as Edge[]
+      const next = reroute({ ...st, cards, edges }, { cards: [id], edges: edges.slice(-2).map((e) => e.id) }, hOf)
+      return { ...next, walk: { step: walkPlan(next.cards, next.edges).path.length } }
+    })
+  }
   // the view follows the walk: close on the circle while it is built, wider once their card goes in
   const walkStep = walk?.step
   useEffect(() => {
@@ -968,6 +1011,11 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
                 <title>{inLoop.has(x.id) ? 'Write one thing you could do here' : x.by === 'ai' ? 'Drawn for you. Click to keep or remove it' : 'Click to remove this line'}</title>
               </path>
             ))}
+          {choosing && find(guess!.from) && (() => {
+            const t = find(guess!.from)!
+            const [x, y] = [t.x + W / 2, t.y + hOf(t.id)]
+            return <path d={`M${x},${y} L${x},${y + 44}`} className="open" markerEnd="url(#tm-arrow)" />
+          })()}
           {drag?.kind === 'link' && (() => {
             const a = center(card(drag.from))
             return <line x1={a.x} y1={a.y} x2={drag.x} y2={drag.y} className="temp" />
@@ -1032,7 +1080,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
             key={c.id}
             data-card={c.id}
             ref={(el) => void (el ? refs.current.set(c.id, el) : refs.current.delete(c.id))}
-            className={`tm-card k-${c.kind ?? 'none'}${walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other)) ? ' ghost' : ''}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
+            className={`tm-card k-${c.kind ?? 'none'}${walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other)) ? ' ghost' : ''}${choosing && c.id !== guess!.from ? ' pickable' : ''}${choosing && c.id === guess!.from ? ' tail' : ''}${lit.includes(c.id) ? ' cand' : ''}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
             style={{ left: c.x, top: c.y, width: W }}
             onPointerDown={(e) => {
               if (editCard === c.id || (e.target as HTMLElement).closest('button,input')) return
@@ -1045,7 +1093,8 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
               setKindMenu(null)
               setDrag({ kind: 'move', id: c.id, dx: p.x - c.x, dy: p.y - c.y })
             }}
-            onDoubleClick={() => !ro && setEditCard(c.id)}
+            onClick={() => choosing && !moved.current && linkTo(c.id)}
+            onDoubleClick={() => !ro && !choosing && setEditCard(c.id)}
           >
             {editCard === c.id ? (
               <textarea
@@ -1161,10 +1210,11 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
           const cs = walk.plan.path.map((id) => find(id)).filter((c): c is Card => !!c)
           const now = walk.step < walk.plan.path.length ? find(walk.plan.path[walk.step]) : walk.step === walk.st.rest && other ? s.cards.find((c) => c.kind === other) : undefined
           const closing = walk.step === walk.st.close && live.find((x) => x.id === walk.plan.close)
-          const p = now ? { x: now.x, y: now.y + hOf(now.id) + 14 } : closing ? mid(closing) : { x: Math.min(...cs.map((c) => c.x)), y: Math.max(...shown.map((c) => c.y + hOf(c.id))) + 24 }
+          const tail = choosing ? find(guess!.from) : undefined
+          const p = now ? { x: now.x, y: now.y + hOf(now.id) + 14 } : tail ? { x: tail.x, y: tail.y + hOf(tail.id) + 62 } : closing ? mid(closing) : { x: Math.min(...cs.map((c) => c.x)), y: Math.max(...shown.map((c) => c.y + hOf(c.id))) + 24 }
           const b = board.current
-          const at = { left: Math.max(8, Math.min(view.x + p.x * view.z, (b?.clientWidth ?? 900) - 340)), top: Math.max(8, Math.min(view.y + p.y * view.z, (b?.clientHeight ?? 600) - 240)) }
-          return <WalkStep key={walk.step} s={s} walk={walk} at={at} confirm={confirm} confirmOther={confirmOther} fixCard={fixCard} dropClose={dropClose} breakAt={breakAt} leave={leave} finish={finishWalk} />
+          const at = { left: Math.max(8, Math.min(view.x + p.x * view.z, (b?.clientWidth ?? 900) - 340)), top: Math.max(8, Math.min(view.y + p.y * view.z, (b?.clientHeight ?? 600) - (walk.step === walk.st.pick ? 150 + 62 * (walk.plan.options.length + 1) : 240))) } // the box where to break the circle is taller: one row per option
+          return <WalkStep key={`${walk.step}-${hint}`} s={s} walk={walk} at={at} hint={hint} lit={lit.length} moreHelp={moreHelp} takeGuess={takeGuess} addNew={addNew} confirm={confirm} confirmOther={confirmOther} fixCard={fixCard} dropClose={dropClose} breakAt={breakAt} leave={leave} finish={finishWalk} />
         })()}
       {!s.cards.length && <p className="tm-empty board">Double-click anywhere to add a card.</p>}
       <div className="tm-zoom" role="group" aria-label="Zoom">
@@ -1185,7 +1235,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish }: { s: State
 
 // the guided walk's question box: one stage at a time (see walk.ts for the order)
 type Walking = { step: number; pick?: 'DE' | 'NEXT'; plan: Plan; st: ReturnType<typeof stages> }
-function WalkStep({ s, walk, at, confirm, confirmOther, fixCard, dropClose, breakAt, leave, finish }: { s: State; walk: Walking; at: { left: number; top: number }; confirm: (edge?: string) => void; confirmOther: () => void; fixCard: (id: string, text: string, edge?: string) => void; dropClose: () => void; breakAt: (edge: string, pick: 'DE' | 'NEXT') => void; leave: () => void; finish: () => void }) {
+function WalkStep({ s, walk, at, hint, lit, moreHelp, takeGuess, addNew, confirm, confirmOther, fixCard, dropClose, breakAt, leave, finish }: { s: State; walk: Walking; at: { left: number; top: number }; hint: Hint; lit: number; moreHelp: () => void; takeGuess: () => void; addNew: (text: string) => void; confirm: (edge?: string) => void; confirmOther: () => void; fixCard: (id: string, text: string, edge?: string) => void; dropClose: () => void; breakAt: (edge: string, pick: 'DE' | 'NEXT') => void; leave: () => void; finish: () => void }) {
   const { step, plan, st } = walk
   const card = (id?: string) => s.cards.find((c) => c.id === id)
   const back = card(s.edges.find((e) => e.id === plan.close)?.to)
@@ -1201,6 +1251,7 @@ function WalkStep({ s, walk, at, confirm, confirmOther, fixCard, dropClose, brea
     </>
   )
   const [fix, setFix] = useState(false)
+  const [fresh, setFresh] = useState(false) // writing "somewhere new"
   let body: React.ReactNode
   if (step < plan.path.length && fix) {
     const c = card(plan.path[step])!
@@ -1232,35 +1283,51 @@ function WalkStep({ s, walk, at, confirm, confirmOther, fixCard, dropClose, brea
       </>
     )
   else if (!plan.close) body = end('That’s the map of tonight, in your own words.')
+  else if (step === st.close && fresh) {
+    const save = (t: string) => t.trim() && addNew(t.trim())
+    body = (
+      <>
+        <p>Where does it take you? Put it in your own words.</p>
+        <textarea autoFocus defaultValue={s.demo ? DEMO_NEW.text : ''} rows={2} id="tm-new" onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), save(e.currentTarget.value))} />
+        <span className="tm-actions">
+          <button className="solid" onClick={() => save((document.getElementById('tm-new') as HTMLTextAreaElement).value)}>
+            Add it
+          </button>
+          <button className="tm-quiet" onClick={() => setFresh(false)}>
+            Back
+          </button>
+        </span>
+      </>
+    )
+  } else if (step === st.close && hint < 2)
+    body = (
+      <>
+        <p>{hint === 0 || !lit ? askWhere(card(s.edges.find((e) => e.id === plan.close)?.from)!) : askNarrow}</p>
+        <p className="tm-tip">{hint === 0 || !lit ? 'Tap the card it leads to.' : 'Tap one, or any other card.'}</p>
+        <span className="tm-actions">
+          <button onClick={() => setFresh(true)}>Somewhere new</button>
+          <button className="tm-quiet" onClick={moreHelp}>
+            I’m not sure
+          </button>
+        </span>
+      </>
+    )
   else if (step === st.close)
     body = (
       <>
         <p>{askClose(card(s.edges.find((e) => e.id === plan.close)?.from)!, back!)}</p>
         <span className="tm-actions">
-          <button className="solid" onClick={() => confirm(plan.close)}>
+          <button className="solid" onClick={takeGuess}>
             Yes
           </button>
           <button onClick={dropClose}>Not quite</button>
         </span>
       </>
     )
-  else if (step === st.notice)
-    body = (
-      <>
-        <p>
-          Did you notice? It started with “{card(plan.path[0])?.text}”, went round, and came back to “{back?.text}”.
-        </p>
-        <span className="tm-actions">
-          <button className="solid" onClick={() => confirm()}>
-            Yes, I see it
-          </button>
-          <button onClick={() => confirm()}>Not really</button>
-        </span>
-      </>
-    )
   else if (step === st.pick)
     body = (
       <>
+        <p>{sayCircle(card(plan.path[0])!, back!)}</p>
         <p>If you wanted this circle to stop, where would you start?</p>
         <span className="tm-actions tm-options">
           {plan.options.map((o) => (
@@ -1305,7 +1372,7 @@ function WalkStep({ s, walk, at, confirm, confirmOther, fixCard, dropClose, brea
     else body = end(step >= st.done ? 'That’s the whole map: what happened, what you told yourself, how it felt, where the circle breaks, and what you’ll do.' : said)
   }
   return (
-    <div className={`tm-ask${step < plan.path.length || step === st.close || step === st.rest ? ' on-card' : ''}`} style={at} role="dialog" aria-label="Building the map together">
+    <div className={`tm-ask${step < plan.path.length || (step === st.close && hint === 2) || step === st.rest ? ' on-card' : ''}`} style={at} role="dialog" aria-label="Building the map together">
       {body}
     </div>
   )
