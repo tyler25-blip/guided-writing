@@ -311,5 +311,13 @@
 .tm-card.ghost { border: 1.5px dashed var(--mid); background: transparent; box-shadow: none; pointer-events: none; }
 .tm-card.ghost::before { display: none; }
 .tm-card.ghost > * { visibility: hidden; }
+/* closing the circle: the last card has an open line; the other cards can be tapped; at hint level 1 two of them light up */
+.tm-edges > path.open { stroke: var(--ink); stroke-width: 1.6; stroke-dasharray: 5 5; fill: none; }
+.tm-card.tail { box-shadow: 0 0 0 2px var(--ink), var(--sh-lg); }
+.tm-card.pickable { cursor: pointer; }
+.tm-card.pickable:hover { box-shadow: 0 0 0 2px var(--mid), var(--sh-lg); }
+.tm-card.cand { box-shadow: 0 0 0 2px var(--ink), 0 0 0 7px rgba(0, 0, 0, 0.1); animation: tm-cand 1.6s ease-in-out infinite; }
+@keyframes tm-cand { 50% { box-shadow: 0 0 0 2px var(--ink), 0 0 0 12px rgba(0, 0, 0, 0.05); } }
+.tm-ask .tm-tip { font-size: 12px; color: var(--mid); }
 .tm-top .tm-progress { margin: 8px 12px 0; }
 .tm-ask textarea { font: inherit; font-size: 14px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
