@@ -1,6 +1,6 @@
 // node src/map/demo.check.ts
 import assert from 'node:assert/strict'
-import { CARDS, NEW, SCRIPT, afterNaming, demoLines, demoMade, demoMsgs, demoNewKind } from './demo.ts'
+import { CARDS, NEW, SCRIPT, SIDE, afterNaming, demoLines, demoMade, demoMsgs, demoNewKind, demoSide } from './demo.ts'
 import { trimmed } from './mapchecks.ts'
 import { candidates, insertNew, walkPlan } from './walk.ts'
 
@@ -34,4 +34,10 @@ const withNew = insertNew(lines, p, 'B2', ['n1', 'n2'])
 const p2 = walkPlan([...cards, { id: 'B2', text: NEW.text, kind: NEW.kind }], withNew)
 assert.deepEqual(p2.path, ['A1', 'B1', 'C1', 'A2', 'B2'])
 assert.deepEqual(withNew.find((l) => l.id === p2.close), { id: 'n2', from: 'B2', to: 'B1', by: 'ai' })
+// a card added beside another during the walk: the second thought of the same message (a delete-only trim of it), offered once
+for (const [key, text] of Object.entries(SIDE)) assert.deepEqual(trimmed(text, SCRIPT[CARDS.find((c) => c.key === key)!.step].p), [], key)
+const b1 = CARDS.find((c) => c.key === 'B1')!.text
+assert.equal(demoSide(b1, []), 'I’m just the extra one')
+assert.equal(demoSide(b1, [{ text: 'I’m just the extra one' }]), '')
+assert.equal(demoSide(CARDS[0].text, []), '')
 console.log('demo ok')

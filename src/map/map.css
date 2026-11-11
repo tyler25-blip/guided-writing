@@ -331,3 +331,49 @@
 .tm-ask .tm-tip { font-size: 12px; color: var(--mid); }
 .tm-top .tm-progress { margin: 8px 12px 0; }
 .tm-ask textarea { font: inherit; font-size: 14px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+
+/* ---- the causal map (Figma: Thought card, node 83:7736) ----------------------------------------- */
+/* cards: 220 wide; the three thoughts are white with an outlined tag, the two ways out are coloured. The shapes are Figma's own
+   vectors (cards/*.svg, shadow included, made to stretch with the card); "happened" is a plain rounded rectangle. */
+.tm-card { padding: 12px 16px; gap: 8px; letter-spacing: -0.005em; filter: none; }
+.tm-card::before { background: var(--paper); border-radius: 6px; clip-path: none; -webkit-mask: none; mask: none; box-shadow: 0 0 0 1px rgba(27, 27, 25, 0.05), 0 4px 12px rgba(27, 27, 25, 0.06); }
+.tm-card.k-B::before, .tm-card.k-C::before, .tm-card.k-DE::before, .tm-card.k-NEXT::before { background: center / 100% 100% no-repeat; border-radius: 0; box-shadow: none; clip-path: none; -webkit-mask: none; mask: none; }
+.tm-card.k-B::before { background-image: url('./cards/told.svg'); inset: -10.81% -5.45% -21.62% -5.45%; }
+.tm-card.k-C::before { background-image: url('./cards/felt.svg'); inset: -10.81% -5.45% -21.62% -5.45%; }
+.tm-card.k-DE::before { background-image: url('./cards/another.svg'); inset: -11.49% -5.68% -22.3% -5.68%; }
+.tm-card.k-NEXT::before { background-image: url('./cards/next.svg'); inset: -11.49% -5.72% -22.3% -5.68%; }
+.tm-card.k-NEXT { padding-right: 32px; }
+.tm-card.ghost::before { display: none; }
+.tm-card:hover, .tm-card.sel { filter: drop-shadow(0 0 0.5px var(--ink)) drop-shadow(0 0 0.5px var(--ink)); }
+.tm-card.dragging { filter: drop-shadow(0 16px 24px rgba(27, 27, 25, 0.18)); }
+/* tags: happened = dashed ink outline; told, felt = ink outline; another = blue; next = orange (never white on blue or orange) */
+.tm .tm-kind, .tm .tm-kind:disabled { letter-spacing: 0.08em; color: var(--ink); }
+.tm .k-A .tm-kind, .tm .k-A .tm-kind:disabled, .tm .k-B .tm-kind, .tm .k-B .tm-kind:disabled, .tm .k-C .tm-kind, .tm .k-C .tm-kind:disabled { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); outline: 0; }
+/* happened: a dashed ink outline (Figma node 92:8049) */
+.tm .k-A .tm-kind, .tm .k-A .tm-kind:disabled { box-shadow: none; outline: 1px dashed var(--ink); outline-offset: -1px; }
+.tm .k-DE .tm-kind, .tm .k-DE .tm-kind:disabled { background: var(--another); box-shadow: none; outline: 0; }
+.tm .k-NEXT .tm-kind, .tm .k-NEXT .tm-kind:disabled { background: var(--told); box-shadow: none; outline: 0; }
+
+/* lines: three kinds (black arrow, coloured arrow, dotted-end line between cards on the same level), two states (solid, dashed) */
+.tm-edges > path, .tm-edges > path.loop, .tm-edges > path.cross { stroke: var(--ink); stroke-width: 1.4; opacity: 1; stroke-dasharray: none; }
+.tm-edges > path.de { stroke: var(--another); stroke-width: 1.8; }
+.tm-edges > path.next { stroke: var(--told); stroke-width: 1.8; }
+.tm-edges > path.dash, .tm-edges > path.open { stroke-dasharray: 6 5; }
+.tm-edges > path.hit { stroke: transparent; stroke-width: 18; }
+.tm-edges > path.hit:hover { stroke: var(--line); }
+.tm-edges .join line { stroke: var(--ink); stroke-width: 1.4; }
+.tm-edges .join circle { fill: var(--ink); }
+.tm-edges .join.de line { stroke: var(--another); stroke-width: 1.8; }
+.tm-edges .join.de circle { fill: var(--another); }
+.tm-edges .join.next line { stroke: var(--told); stroke-width: 1.8; }
+.tm-edges .join.next circle { fill: var(--told); }
+
+/* the card being placed: its left and right points glow, a card can be added beside it */
+.tm .tm-side { position: absolute; z-index: 3; width: 14px; height: 14px; margin: -7px 0 0 -7px; padding: 0; border-radius: 50%; background: var(--paper); border: 1.5px solid var(--told); box-shadow: 0 0 0 4px rgba(255, 179, 80, 0.45); cursor: pointer; animation: tm-side 1.6s ease-in-out infinite; }
+@keyframes tm-side { 50% { box-shadow: 0 0 0 9px rgba(255, 179, 80, 0.18); } }
+.tm .tm-side:hover { background: var(--told); animation: none; }
+
+/* the map was laid out again (a card added, or the circle closed): the cards glide to their places, the lines come in after */
+.tm-layer.relaid .tm-card, .tm-layer.relaid .tm-side { transition: left 0.5s ease, top 0.5s ease; }
+.tm-layer.relaid .tm-edges { animation: tm-lines 0.6s ease; }
+@keyframes tm-lines { 0%, 55% { opacity: 0; } }

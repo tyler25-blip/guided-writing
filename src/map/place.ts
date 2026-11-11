@@ -17,7 +17,7 @@ export function guessKind(text: string): Kind {
 }
 
 // nearest free spot for a new card: right of the source, then lower down, in steps, until it overlaps no card
-export function freeSpot(boxes: { x: number; y: number; h: number }[], x: number, y: number, w = 180, nh = 100): { x: number; y: number } {
+export function freeSpot(boxes: { x: number; y: number; h: number }[], x: number, y: number, w = CARD_W, nh = 100): { x: number; y: number } {
   const hit = (cx: number, cy: number) => boxes.some((b) => cx < b.x + w + 16 && cx + w + 16 > b.x && cy < b.y + b.h + 16 && cy + nh + 16 > b.y)
   for (let j = 0; j < 30; j++)
     for (let i = j ? 0 : 1; i < 6; i++) {
@@ -59,10 +59,11 @@ export function segments(source: string, card: string): { s: string; keep: boole
 
 export type View = { x: number; y: number; z: number; n?: number } // n: bumped on every layout / jump, so the canvas starts from the fitted view
 export type Piles = Partial<Record<Kind, { x: number; y: number }>>
-const CW = 180 // card width, px
+export const CARD_W = 220 // card width, px (Figma: size-card)
+const CW = CARD_W
 const rowOf = (k?: Kind) => (k ? { A: 0, B: 1, C: 2, DE: 3, NEXT: 4 }[k] : 0)
 // roughly how tall a card is before it has been drawn (text lines + kind chip + names row)
-export const estH = (text: string, kind?: Kind) => 46 + 22 * Math.ceil(text.length / 19) + (kind === 'C' ? 26 : 0)
+export const estH = (text: string, kind?: Kind) => 54 + 20 * Math.ceil(text.length / (kind === 'NEXT' ? 23 : 26)) + (kind === 'C' ? 30 : 0)
 
 // the view that shows every box with a margin (zoom 25%–200%, never bigger than `max`)
 export function fitView(boxes: { x: number; y: number; w: number; h: number }[], bw: number, bh: number, pad = 60, max = 1.5): View {
@@ -611,7 +612,7 @@ export function freeSpotLinked(
   boxes: { x: number; y: number; h: number }[],
   lines: Pt[][],
   src: { x: number; y: number; h: number },
-  w = 180,
+  w = CARD_W,
   nh = 100,
 ): { x: number; y: number } {
   const g = 50
