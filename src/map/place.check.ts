@@ -1,6 +1,6 @@
 // node src/map/place.check.ts
 import assert from 'node:assert/strict'
-import { estH, feels, fitView, freeSpot, freeSpotLinked, guessKind, layered, namesFor, optionsFor, pilesLayout, segments, summaryOf, tidyPiles, type Kind } from './place.ts'
+import { CARD_W, estH, feels, fitView, freeSpot, freeSpotLinked, guessKind, layered, namesFor, optionsFor, pilesLayout, segments, summaryOf, tidyPiles, type Kind } from './place.ts'
 
 assert.equal(guessKind('My chest gets tight'), 'C')
 assert.equal(guessKind('I keep thinking I’m going to mess it up'), 'B')
@@ -49,7 +49,7 @@ const fv = fitView([{ x: 0, y: 0, w: 1000, h: 500 }], 800, 600)
 assert.ok(fv.z < 1 && fv.z >= 0.25)
 
 // layered layout: one column per story thread; no crossing lines, no line through a card, only horizontal and vertical runs
-const W = 180
+const W = CARD_W
 type Ln = { id: string; from: string; to: string }
 function verify(cards: { id: string; text: string; kind?: Kind }[], edges: Ln[]) {
   const r = layered(cards, edges)

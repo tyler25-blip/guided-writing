@@ -2,7 +2,7 @@
 // One story: a dinner they weren't invited to. Eight turns; the five labels come up along the way, not in order.
 // The person's lines contain fillers on purpose, so the delete-only trimming is visible.
 import type { Msg, State } from './MapApp.tsx'
-import { lay, makeCards } from './build.ts'
+import { arrange, lay, makeCards } from './build.ts'
 import type { Kind } from './place.ts'
 import { walkPlan, type Why } from './walk.ts'
 
@@ -84,6 +84,12 @@ const LINES = [['A1', 'B1'], ['B1', 'C1'], ['C1', 'A2'], ['A2', 'B1'], ['B1', 'D
 export const NEXT = { when: 'I open their stories again', will: 'text Mia instead' }
 // closing the circle, "somewhere new": what the presenter can add between "no texts all week" and "they don't like me" (pre-filled in the box)
 export const NEW: { text: string; kind: Kind } = { text: 'if they care about me then they will text me', kind: 'B' }
+// a card the presenter can add beside the one being placed (pre-filled once): the second thought in the same message
+export const SIDE: Record<string, string> = { B1: 'I’m just the extra one' }
+export const demoSide = (of: string, cards: { text: string }[]) => {
+  const t = SIDE[CARDS.find((c) => c.text === of)?.key ?? ''] ?? ''
+  return cards.some((c) => norm(c.text) === norm(t)) ? '' : t
+}
 export const demoNewKind = (text: string): Kind | undefined => (norm(text) === norm(NEW.text) ? NEW.kind : undefined)
 
 // cards for the messages the person actually sent (from = their message number); fewer than 3 → the caller uses the program stubs
@@ -122,5 +128,5 @@ export function demoState(to: 'chat' | 'laid' | 'summary', size = { w: innerWidt
   if (to === 'laid') return { ...st, walk: { step: 0 } }
   // after the walk: every line kept, the person chose to see the thought another way
   const cut = walkPlan(st.cards, st.edges).options.find((o) => o.kind === 'DE')?.edge
-  return { ...st, edges: st.edges.map((e) => ({ ...e, by: undefined, cut: e.id === cut || undefined })), ended: true }
+  return arrange({ ...st, edges: st.edges.map((e) => ({ ...e, by: undefined, cut: e.id === cut || undefined })), ended: true }) // the circle is closed: its cards lie on the ring
 }
