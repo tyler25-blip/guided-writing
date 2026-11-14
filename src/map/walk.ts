@@ -58,7 +58,8 @@ export function walkPlan(cards: C[], edges: E[]): Plan {
   for (const e of [...links.slice(lead.length + 1), close!].map((id) => ring.find((x) => x.id === id)!)) {
     const [a, b] = [by.get(e.from)!, by.get(e.to)!]
     if (b.kind === 'B' && !used.has(b.id)) options.push({ edge: e.id, kind: 'DE', label: `See “${b.text}” another way` }), used.add(b.id)
-    const act = b.kind === 'A' ? b : a.kind === 'A' ? a : null
+    const what = b.kind === 'A' ? b : a.kind === 'A' ? a : null
+    const act = what && what.id !== path[0] ? what : null // the event it all started with happened to them: nothing to do differently there
     if (act && !used.has(act.id)) options.push({ edge: e.id, kind: 'NEXT', label: `Do something other than “${act.text}”` }), used.add(act.id)
   }
   return { path, links, close, options: options.sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'DE' ? -1 : 1)) }
@@ -78,16 +79,17 @@ export function ask(card: C, i: number): string {
   return `And then ${q}, right?`
 }
 // Closing the circle is the person's move. The program has a guess (the closing line the AI drew), but it stays hidden
-// and the help comes in steps, least first:
-//   0  an open question on the last card: they tap the card it leads to, or write somewhere new
-//   1  two or three cards light up: "could it lead back to one of these?"
+// and the help comes in two steps:
+//   0  an open question on the last card; two cards glow (the guess and where it started), any card can be tapped, or they write somewhere new (once)
 //   2  the guess is shown as a dashed line and offered, not stated
+// (1 was a separate "two cards light up" step; it is level 0 now. Older saved maps may still hold it: it reads as 0.)
 export type Hint = 0 | 1 | 2
 export const askWhere = (tail: C) => `After “${tail.text}”, where does it take you?`
-export const askNarrow = 'Could it lead back to one of these?'
 export const askClose = (from: C, to: C) => `For some people, “${from.text}” makes “${to.text}” feel even truer. Is it like that for you?`
 // what the box says once the circle is closed (no question: they just made the line themselves)
-export const sayCircle = (first: C, back: C) => `It started with “${first.text}”, went round, and came back to ${first.id === back.id ? 'where it started' : `“${back.text}”`}.`
+export const sayCircle = (back: C) => `From “${back.text}” it went round, and came back to where it started.`
+// they tapped a card they had added beside another: the open line now starts from that card, and where it leads on is theirs to say too
+export const askVia = (via: C, after: C) => `For some people, “${via.text}” leads on to “${after.text}” too. Is it like that for you?`
 // level 1: the guess and where it all started (and the card after that, if those are the same one); never the card they are on
 export function candidates(p: Plan, edges: E[]): string[] {
   const guess = edges.find((e) => e.id === p.close)
@@ -99,6 +101,11 @@ type L = E & { by?: 'ai' }
 export const rewire = <T extends L>(edges: T[], p: Plan, to: string, id: string): L[] => {
   const guess = edges.find((e) => e.id === p.close)!
   return [...edges.filter((e) => e.id !== p.close), { id, from: guess.from, to }]
+}
+// the circle runs through a card they added beside another: the guess goes, their two lines come in (last card → that card → the card they tapped next)
+export const through = <T extends L>(edges: T[], p: Plan, via: string, to: string, ids: [string, string]): L[] => {
+  const guess = edges.find((e) => e.id === p.close)!
+  return [...edges.filter((e) => e.id !== p.close), { id: ids[0], from: guess.from, to: via }, { id: ids[1], from: via, to }]
 }
 // they wrote somewhere new: the new card goes in after the last one (their line, solid), and the guess now starts from it
 export const insertNew = <T extends L>(edges: T[], p: Plan, card: string, ids: [string, string]): L[] => {
@@ -118,9 +125,9 @@ export function walkWhy(p: Plan, step: number, cards: C[], hint: Hint = 0): Why 
   if (!p.close) return null
   if (step === st.close)
     return [
-      { what: 'The last card has an open line. Where it leads is theirs to say.', mech: 'Guided discovery, least help first. The program has a guess but keeps it hidden.', ai: 'Asks an open question. They tap a card, or write somewhere new.' },
-      { what: 'They were not sure, so the question gets narrower.', mech: 'Hint ladder, level 1: two cards light up. The answer is still theirs.', ai: 'Points at where to look. Does not say which one.' },
-      { what: 'Still not sure, so the guess is put on the map as a dashed line.', mech: 'Hint ladder, level 2: the guess is offered as something that happens to some people.', ai: 'Offers, does not state. “Not quite” removes the line.' },
+      { what: 'The last card has an open line. Where it leads is theirs to say.', mech: 'Guided discovery: two cards glow (the program’s guess and where it started), but any card can be tapped.', ai: 'Asks an open question. Points at where to look, does not say which one.' },
+      { what: 'The last card has an open line. Where it leads is theirs to say.', mech: 'Guided discovery: two cards glow (the program’s guess and where it started), but any card can be tapped.', ai: 'Asks an open question. Points at where to look, does not say which one.' },
+      { what: 'They were not sure, so the guess is put on the map as a dashed line.', mech: 'The guess is offered as something that happens to some people.', ai: 'Offers, does not state. “Not quite” removes the line.' },
     ][hint]
   if (step === st.pick) return { what: 'The circle is closed. Where to break it is their choice.', mech: 'Cut at a thought → see it another way (DE). Cut at something they did → do something different (Next step).', ai: 'The options come only from what they said. No new advice.' }
   if (step === st.rest) return { what: 'The other half of the way out, from the chat.', mech: 'Another way to see it (DE) and one small step (Next step) together: a new thought, and something to do with it.', ai: 'Uses only what they already said. They confirm it, like every other card.' }

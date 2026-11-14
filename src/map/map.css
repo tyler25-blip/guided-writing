@@ -329,6 +329,10 @@
 }
 .tm-card.pickable:hover { animation: none; filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 12px var(--told)); }
 .tm-ask .tm-tip { font-size: 12px; color: var(--mid); }
+/* how to answer, said as plainly as the question, with a dot in the colour the cards glow in */
+.tm-ask .tm-how { display: flex; align-items: baseline; gap: 8px; font-weight: 500; }
+.tm-ask .tm-how::before { content: ''; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--told); box-shadow: 0 0 0 3px rgba(255, 179, 80, 0.35); transform: translateY(-1px); }
+.tm-edges > path.open.reach { stroke: var(--told); stroke-width: 2; }
 .tm-top .tm-progress { margin: 8px 12px 0; }
 .tm-ask textarea { font: inherit; font-size: 14px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
 

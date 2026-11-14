@@ -1,6 +1,6 @@
 // node src/map/walk.check.ts
 import assert from 'node:assert/strict'
-import { ask, candidates, insertNew, rewire, stages, walkPlan } from './walk.ts'
+import { ask, candidates, insertNew, rewire, sayCircle, stages, through, walkPlan } from './walk.ts'
 
 type C = Parameters<typeof walkPlan>[0][number]
 type E = Parameters<typeof walkPlan>[1][number]
@@ -53,4 +53,18 @@ assert.equal(more.find((e) => e.id === 'n2')!.by, 'ai')
 assert.equal(more.find((e) => e.id === 'n1')!.by, undefined)
 assert.deepEqual(candidates(p3, more), ['b1', 'a1'])
 assert.deepEqual(p3.options.map((o) => [o.edge, o.kind]), [['n1', 'DE'], ['n2', 'DE'], ['e3', 'NEXT']])
+// they tap where it all started: the dinner is on the circle, but there is nothing to "do differently" about an event that happened to them
+assert.deepEqual(p2.options.map((o) => [o.edge, o.kind]), [['e1', 'DE'], ['e3', 'NEXT']])
+// the sentence about the circle starts on the circle (the dinner led into it, it is not where the circle "came back" to)
+assert.equal(sayCircle(cards[1]), 'From “they don’t like me” it went round, and came back to where it started.')
+// the circle through a card they added beside the thought: both lines are theirs (no line is added for them)
+const cards4 = [...cards, { id: 's1', text: 'I’m the extra one', kind: 'B' as const }]
+const edges4 = [...edges, { id: 'e9', from: 'a1', to: 's1' }]
+const via = through(edges4, walkPlan(cards4, edges4), 's1', 'c1', ['v1', 'v2'])
+assert.ok(!via.some((e) => e.id === 'e4'))
+assert.deepEqual(via.slice(-2), [{ id: 'v1', from: 'a2', to: 's1' }, { id: 'v2', from: 's1', to: 'c1' }])
+const p4 = walkPlan(cards4, via)
+assert.deepEqual(p4.path, ['a1', 's1', 'c1', 'a2'])
+assert.equal(p4.close, 'v1')
+assert.deepEqual(walkPlan(cards4, through(edges4, walkPlan(cards4, edges4), 's1', 'b1', ['v1', 'v2'])).path, ['a1', 'b1', 'c1', 'a2', 's1']) // or back through the thought itself
 console.log('walk ok')
