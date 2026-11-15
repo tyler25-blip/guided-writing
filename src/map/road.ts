@@ -24,7 +24,7 @@ const push = (q: Pt, from: Pt, n: number): Pt => {
 }
 
 // a right-angled route, with rounded corners (the radius shrinks on short runs)
-export function routeGeo(route: Pt[], r = 36): Geo {
+export function routeGeo(route: Pt[], r = 56): Geo {
   const p = route.map((q) => [...q] as Pt)
   if (p.length > 1) {
     p[0] = push(p[0], p[1], UNDER)
@@ -113,7 +113,7 @@ export function buildRoad(i: RoadIn): { segs: Seg[]; walk: string; order: string
   const order: Seg[] = []
   const first = i.plan?.path[0]
   if (i.story && first && i.boxes[first]) {
-    const s: Seg = { key: 'in', geo: entryGeo(i.boxes[first]), state: 'in' }
+    const s: Seg = { key: 'in', geo: entryGeo(i.boxes[first]), state: i.pending?.has(first) ? 'flow' : 'in' } // while the first card waits for its yes, the way in waits too
     segs.push(s)
     order.push(s)
   }
