@@ -150,7 +150,8 @@ export default function MapApp() {
   const [toast, setToast] = useState('')
   const [crisis, setCrisis] = useState(false)
   const [summary, setSummary] = useState(false)
-  const [tour, setTour] = useState(0) // bumped to play the road's light walk (MapCanvas) before the summary sheet opens
+  const [touring, setTouring] = useState(false) // the road is being drawn again: no explanation panel, no sheet yet
+  const [tour, setTour] = useState(0) // bumped to draw the road again (MapCanvas) before the summary sheet opens
   const [talk, setTalk] = useState(() => s.phase !== 'map') // the conversation pane; shut once the map is laid out
   const [help, setHelp] = useState(false)
   const [focus, setFocus] = useState<{ msg: number; text: string } | null>(null) // the message a clicked card came from, and the card's words
@@ -161,7 +162,7 @@ export default function MapApp() {
   const [explain, setExplainRaw] = useState(() => localStorage.getItem('tm-explain') === '1')
   const setExplain = (on: boolean) => (setExplainRaw(on), localStorage.setItem('tm-explain', on ? '1' : '0'))
   const plan = s.walk ? walkPlan(s.cards, s.edges) : null
-  const panel = s.demo && explain
+  const panel = s.demo && explain && !summary && !touring // the panel and the summary sheet would overlap
   const current = ((): { key: string; why: Why } | null => {
     if (!panel) return null
     if (s.phase === 'chat') {
@@ -235,8 +236,8 @@ export default function MapApp() {
     if (s.risk) setSummary(true)
     else openSummary()
   }
-  // the summary: first the light walks the road (MapCanvas, `tour`), then the sheet; with reduced motion, or no road to walk, the sheet at once
-  const openSummary = () => (s.phase === 'map' && !s.risk && !matchMedia('(prefers-reduced-motion: reduce)').matches ? setTour((n) => n + 1) : setSummary(true))
+  // the summary: first the road is drawn again (MapCanvas, `tour`), then the sheet; with reduced motion, or no road to walk, the sheet at once
+  const openSummary = () => (s.phase === 'map' && !s.risk && !matchMedia('(prefers-reduced-motion: reduce)').matches ? (setTouring(true), setTour((n) => n + 1)) : setSummary(true))
   // missing-key notice: in the chat it sits just above the input box, on the map at the top centre
   const notice = needKey && !keyOpen && (
     <div className="tm-needkey" role="status">
@@ -305,7 +306,7 @@ export default function MapApp() {
           </span>
         </div>
         {s.phase === 'layout' && <Layout s={s} set={set} done={() => setTalk(false)} />}
-        {s.phase === 'map' && <MapCanvas key={JSON.stringify(s.view)} s={s} set={set} risky={risky} onOpen={openSource} onPick={(c) => talk && openSource(c)} plan={plan} onFinish={(cards) => end(cards)} tour={tour} onTour={() => setSummary(true)} />}
+        {s.phase === 'map' && <MapCanvas key={JSON.stringify(s.view)} s={s} set={set} risky={risky} onOpen={openSource} onPick={(c) => talk && openSource(c)} plan={plan} onFinish={(cards) => end(cards)} tour={tour} onTour={() => (setTouring(false), setSummary(true))} />}
         {s.phase === 'map' && s.ended && !summary && (
           <button className="tm-pinned" onClick={openSummary} title="Open the summary">
             <span className="tm-tag">Tonight’s summary</span>
@@ -939,25 +940,31 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   const fan = new Set(esc?.chain)
   const rplan = walkPlan(s.cards, s.edges)
   const road = buildRoad({ edges: drawn.map((x) => ({ ...x, geo: geom(x) })), plan: rplan, esc, round: s.round, boxes: Object.fromEntries(shown.map((c) => [c.id, boxOf(c)])), story: s.mode === 'auto' && (!!s.walk || !!rplan.close), exitUncut: !walk })
-  // the summary walk: fit the whole road (the panel's width is already left out of the board), then a cream light travels it from outside to outside,
-  // lighting each card as it passes; a click or key press skips it. The path is road.walk, positioned with getPointAtLength.
-  const walkPath = useRef<SVGPathElement>(null)
-  const light = useRef<SVGGElement>(null)
+  // the summary walk: fit the whole road (the panel is hidden, so the whole board), hide the road, then draw it again piece by piece from outside to outside
+  // (stroke-dashoffset), lighting each card as the drawing reaches it; a click or key press skips it.
   const tour0 = useRef(tour) // the canvas can remount (new view) while `tour` already counts earlier walks: only a later bump starts one
   useEffect(() => {
     if (!tour || tour === tour0.current) return
     const b = board.current
-    if (!b || !road.walk || matchMedia('(prefers-reduced-motion: reduce)').matches) return onTour()
-    const bb = walkPath.current?.getBBox() // the whole road, from outside to outside
-    setView(fitView([...shown.map((c) => ({ x: c.x, y: c.y, w: W, h: h[c.id] ?? 110 })), ...(bb ? [{ x: bb.x, y: bb.y, w: bb.width, h: bb.height }] : [])], b.clientWidth, b.clientHeight, 60, 1))
+    const pieces = road.order.map((k) => b?.querySelector<SVGPathElement>(`.tm-road path[data-seg="${k}"]`)).filter((x): x is SVGPathElement => !!x)
+    if (!b || !pieces.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return onTour()
+    const all = [...b.querySelectorAll<SVGPathElement>('.tm-road path')]
+    const lens = pieces.map((x) => x.getTotalLength())
+    const total = lens.reduce((t, l) => t + l, 0)
+    const hide = (x: SVGPathElement) => (x.style.strokeDasharray = '1', (x.style.strokeDashoffset = '1')) // pathLength is 1: a whole piece
+    all.forEach(hide)
     const boxes = shown.map((c) => ({ id: c.id, x: c.x, y: c.y, w: W, h: h[c.id] ?? 110 }))
+    const bb = all.map((x) => x.getBBox())
+    const [x0, y0] = [Math.min(...bb.map((r) => r.x)), Math.min(...bb.map((r) => r.y))]
+    const [x1, y1] = [Math.max(...bb.map((r) => r.x + r.width)), Math.max(...bb.map((r) => r.y + r.height))]
+    setView(fitView([...boxes, { id: '', x: x0, y: y0, w: x1 - x0, h: y1 - y0 }], b.clientWidth, b.clientHeight, 60, 1))
     const passed = new Map<string, number>()
     let raf = 0
     let done = false
     const stop = () => {
       done = true
       cancelAnimationFrame(raf)
-      light.current?.setAttribute('visibility', 'hidden')
+      all.forEach((x) => (x.style.removeProperty('stroke-dasharray'), x.style.removeProperty('stroke-dashoffset')))
       refs.current.forEach((el) => el.classList.remove('passed'))
     }
     const finish = () => {
@@ -966,23 +973,25 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
       onTour()
     }
     const start = setTimeout(() => {
-      const path = walkPath.current
-      if (!path || !light.current) return finish()
-      const total = path.getTotalLength()
       const dur = Math.min(6000, Math.max(4000, total * 3))
       const t0 = performance.now()
-      light.current.setAttribute('visibility', 'visible')
       const step = (now: number) => {
         const k = Math.min(1, (now - t0) / dur)
-        const p = path.getPointAtLength(k * total)
-        light.current?.setAttribute('transform', `translate(${p.x},${p.y})`)
+        let d = k * total
+        const head: { p?: DOMPoint } = {}
+        pieces.forEach((x, i) => {
+          const f = Math.max(0, Math.min(1, d / lens[i]))
+          d -= lens[i]
+          x.style.strokeDashoffset = String(1 - f)
+          if (f > 0 && f < 1) head.p = x.getPointAtLength(f * lens[i])
+        })
         for (const c of boxes) {
           const el = refs.current.get(c.id)
-          if (p.x > c.x && p.x < c.x + c.w && p.y > c.y && p.y < c.y + c.h) passed.set(c.id, now)
+          if (head.p && head.p.x > c.x && head.p.x < c.x + c.w && head.p.y > c.y && head.p.y < c.y + c.h) passed.set(c.id, now)
           el?.classList.toggle('passed', now - (passed.get(c.id) ?? -1e9) < 900)
         }
         if (k < 1) raf = requestAnimationFrame(step)
-        else setTimeout(finish, 500)
+        else setTimeout(finish, 400)
       }
       raf = requestAnimationFrame(step)
     }, 600)
@@ -996,6 +1005,24 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
       stop()
     }
   }, [tour]) // eslint-disable-line react-hooks/exhaustive-deps
+  // everything new on the map arrives slowly: the road grows toward the new card first, then the card fades in (never a pop). The cards and pieces
+  // already there when the canvas opened stay as they are (unless the guided walk has only just begun).
+  const known = useRef<{ cards: Record<string, true>; segs: Record<string, true> } | null>(null)
+  useEffect(() => {
+    const b = board.current
+    if (!b) return
+    const [cards, segs] = [[...refs.current.entries()], [...b.querySelectorAll<SVGPathElement>('.tm-road path[data-seg]')]]
+    const first = !known.current
+    known.current ??= { cards: {}, segs: {} }
+    const k = known.current
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches || (first && !(s.walk && s.walk.step === 0))
+    const grown = segs.filter((x) => !k.segs[x.dataset.seg!] && !['in', 'out'].includes(x.dataset.seg!))
+    grown.forEach((x) => !calm && x.animate([{ strokeDasharray: '1 1', strokeDashoffset: 1 }, { strokeDasharray: '1 1', strokeDashoffset: 0 }], { duration: 500, easing: 'ease-out', fill: 'backwards' }))
+    for (const [id, el] of cards)
+      if (!k.cards[id] && !calm) el.animate([{ opacity: 0, transform: 'translateY(10px) scale(0.96)' }, { opacity: 1, transform: 'none' }], { duration: 400, delay: grown.length ? 450 : 0, easing: 'ease-out', fill: 'backwards' })
+    cards.forEach(([id]) => (k.cards[id] = true))
+    segs.forEach((x) => (k.segs[x.dataset.seg!] = true))
+  })
 
   const isShown = (id: string) => !shownIds || shownIds.has(id)
   const joins = (s.peers ?? []).flatMap((p) => {
@@ -1145,19 +1172,6 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
             const a = center(card(drag.from))
             return <line x1={a.x} y1={a.y} x2={drag.x} y2={drag.y} className="temp" />
           })()}
-        </svg>
-        <svg className="tm-light" aria-hidden="true" width="6000" height="6000" viewBox="-2000 -2000 6000 6000">
-          <path ref={walkPath} d={road.walk} fill="none" stroke="none" />
-          <g ref={light} visibility="hidden">
-            <circle r="46" fill="url(#tm-glow)" />
-            <circle r="7" fill="#FDF6E9" />
-          </g>
-          <defs>
-            <radialGradient id="tm-glow">
-              <stop offset="0" stopColor="#FDF6E9" stopOpacity="0.85" />
-              <stop offset="1" stopColor="#FDF6E9" stopOpacity="0" />
-            </radialGradient>
-          </defs>
         </svg>
 
         {!ro &&

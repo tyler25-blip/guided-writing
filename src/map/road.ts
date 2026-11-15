@@ -8,7 +8,7 @@ import type { Plan } from './walk.ts'
 export type Pt = [number, number]
 export const ROAD_W = 28
 export const DIM = '#3A332E'
-export const BRIGHT = '#D8D1C6'
+export const BRIGHT = '#F3F0EB'
 // a line as a road piece: d = the path (its ends run a little under the cards so butt caps never show), a → b = the stretch between the
 // cards where the gradient runs (dim → bright), m = its middle
 export type Geo = { d: string; a: Pt; b: Pt; m: { x: number; y: number } }
@@ -82,17 +82,14 @@ function underRing(rd: Round, a: Box, b: Box): Pt[] | null {
   const [x, y, by] = [a.x + a.w / 2, Math.max(rd.cy + rd.r + 60, a.y + a.h + 40), b.y + b.h / 2]
   return [[x, a.y + a.h], [x, y], [b.x - 40, y], [b.x - 40, by], [b.x, by]]
 }
-// from the ring out to the first card of the column (round the cards that are in the way); remembered while nothing moves
-const linkCache = new Map<string, Pt[]>()
-const linkGeo = (a: Box, b: Box, others: Box[], rd?: Round): Geo => {
-  const key = JSON.stringify([a, b, others, rd])
-  let r = linkCache.get(key)
-  if (!r) {
-    if (linkCache.size > 200) linkCache.clear()
-    r = (rd && underRing(rd, a, b)) || routeOrtho(a, b, others, [], true)
-    linkCache.set(key, r)
-  }
-  return routeGeo(r)
+// from the ring out to the first card of the column
+const linkGeo = (a: Box, b: Box, rd?: Round): Geo => {
+  const under = rd && underRing(rd, a, b)
+  if (under) return routeGeo(under)
+  // otherwise one smooth S: out of the card's right side, into the first card's left side, no corners
+  const [x0, y0, x1, y1] = [a.x + a.w, a.y + a.h / 2, b.x, b.y + b.h / 2]
+  const xm = (x0 + x1) / 2
+  return { d: `M${x0 - UNDER},${y0} L${x0},${y0} C${xm},${y0} ${xm},${y1} ${x1},${y1} L${x1 + UNDER},${y1}`, a: [x0, y0], b: [x1, y1], m: { x: xm, y: (y0 + y1) / 2 } }
 }
 
 export type RoadEdge = { id: string; from: string; to: string; by?: 'ai'; cut?: boolean; geo: Geo }
@@ -106,7 +103,7 @@ export type RoadIn = {
   exitUncut: boolean // no cut: the road still leaves from the ring's last card
 }
 // the road: its pieces in the order they are drawn, and the one path the light travels (entry → cards in order → round the ring to the cut → down the column → out)
-export function buildRoad(i: RoadIn): { segs: Seg[]; walk: string } {
+export function buildRoad(i: RoadIn): { segs: Seg[]; walk: string; order: string[] } {
   const segs: Seg[] = []
   const hide = new Set(i.esc?.chain) // the fan of lines from one card to every way out is replaced by the chain
   const edgeSeg = (e: RoadEdge): Seg => ({ key: e.id, geo: e.geo, state: e.cut ? 'cut' : e.by === 'ai' ? 'flow' : 'road' })
@@ -132,13 +129,12 @@ export function buildRoad(i: RoadIn): { segs: Seg[]; walk: string } {
   let end: string | undefined
   if (i.esc) {
     let prev = i.esc.at
-    const all = Object.entries(i.boxes)
     i.esc.chain
       .filter((id) => i.boxes[id])
       .forEach((id, k) => {
         const [a, b] = [i.boxes[prev], i.boxes[id]]
         const into = i.edges.find((e) => e.to === id)
-        const s: Seg = { key: `esc${k}`, geo: k ? colGeo(a, b) : linkGeo(a, b, all.filter(([x]) => x !== prev && x !== id).map(([, v]) => v), i.round), state: into?.by === 'ai' ? 'flow' : 'road' }
+        const s: Seg = { key: `esc${k}`, geo: k ? colGeo(a, b) : linkGeo(a, b, i.round), state: into?.by === 'ai' ? 'flow' : 'road' }
         segs.push(s)
         order.push(s)
         prev = id
@@ -150,5 +146,5 @@ export function buildRoad(i: RoadIn): { segs: Seg[]; walk: string } {
     segs.push(s)
     order.push(s)
   }
-  return { segs, walk: order.map((s, k) => (k ? s.geo.d.replace(/^M/, 'L') : s.geo.d)).join(' ') }
+  return { segs, order: order.map((x) => x.key), walk: order.map((s, k) => (k ? s.geo.d.replace(/^M/, 'L') : s.geo.d)).join(' ') }
 }

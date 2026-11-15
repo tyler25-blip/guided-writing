@@ -298,7 +298,7 @@
 .tm-ask { position: absolute; z-index: 8; width: 320px; box-sizing: border-box; background: var(--paper); border-radius: 12px; box-shadow: var(--sh-lg); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
 .tm-ask p { margin: 0; line-height: 1.45; }
 .tm-ask.on-card::before { content: ''; position: absolute; left: 22px; top: -6px; width: 12px; height: 12px; background: var(--paper); transform: rotate(45deg); box-shadow: -2px -2px 3px rgba(0, 0, 0, 0.04); }
-.tm-card.ghost { border: 1.5px dashed var(--mid); background: transparent; box-shadow: none; pointer-events: none; }
+.tm-card.ghost { border: 1.5px dashed rgba(179, 173, 166, 0.7); background: transparent; box-shadow: none; pointer-events: none; }
 .tm-card.ghost::before { display: none; }
 .tm-card.ghost > * { visibility: hidden; }
 /* closing the circle: the last card has an open line; the other cards can be tapped; at hint level 1 two of them light up */
@@ -431,12 +431,19 @@
 
 /* ---- the road (road.ts / Road.tsx): confirmed lines are a thick gradient road under the cards ---- */
 .tm-road path { fill: none; stroke-width: 28px; stroke-linecap: butt; stroke-linejoin: round; }
-.tm-road path.cut { opacity: 0.3; } /* the line the person broke */
-.tm-road path.flow { stroke-linecap: round; stroke-dasharray: 16 54; animation: tm-flow 1.8s linear infinite; } /* waiting for a yes: dashes flow toward the bright end */
-@keyframes tm-flow { to { stroke-dashoffset: -70; } }
-@media (prefers-reduced-motion: reduce) { .tm-road path.flow { animation: none; } }
+.tm-road path.cut { opacity: 0.15; stroke-width: 14px; } /* the line the person broke: fainter and thinner */
+/* a line waiting for a yes is solid like the rest: its gradient flows (SMIL in Road.tsx, off with reduced motion) */
 .tm-edges > path.hit { stroke-width: 28px; }
-/* the summary walk: a cream light over the cards, and each card glows as it passes */
-.tm-light { position: absolute; left: -2000px; top: -2000px; pointer-events: none; overflow: visible; z-index: 7; }
+/* the summary walk: each card glows as the road is drawn to it */
 .tm-card { transition: filter 0.4s; isolation: isolate; } /* the card keeps its own surface (::before) above the road */
 .tm-card.passed { filter: drop-shadow(0 0 3px var(--cream)) drop-shadow(0 0 18px rgba(253, 246, 233, 0.75)); }
+
+/* the waiting card: its side handles glow cream (not orange), and the placeholder box is clearly visible */
+.tm .tm-side { border-color: var(--cream); box-shadow: 0 0 0 4px rgba(253, 246, 233, 0.45); }
+@keyframes tm-side { 50% { box-shadow: 0 0 0 9px rgba(253, 246, 233, 0.18); } }
+.tm .tm-side:hover { background: var(--cream); }
+.tm-card.ghost { border-color: rgba(179, 173, 166, 0.7); }
+/* the dots on a card's sides are perfect circles: no minimum button height, no stretching */
+.tm .tm-side, .tm .tm-handle { box-sizing: border-box; min-width: 0; min-height: 0; padding: 0; aspect-ratio: 1 / 1; border-radius: 50%; }
+.tm .tm-side { width: 14px; height: 14px; }
+.tm .tm-handle { width: 12px; height: 12px; }

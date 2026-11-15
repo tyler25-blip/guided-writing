@@ -111,10 +111,10 @@ export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) =>
     } else put(c.id, pos[parent].x, pos[parent].y + H(parent) + GY, 1) // one level down; to the right if the place is taken
     moved = true
   }
-  // the escape column: left edge clear of every card placed so far, the first card level with the card the road leaves from
+  // the escape column: left edge clear of every card placed so far, the first card centre-level with the card the road leaves from
   if (esc) {
     const x = Math.max(...Object.keys(pos).map((id) => pos[id].x + CARD_W)) + 2 * GX
-    let yy = pos[esc.at]?.y ?? 0
+    let yy = pos[esc.at] ? pos[esc.at].y + H(esc.at) / 2 - H(esc.chain[0]) / 2 : 0 // level with the card the road leaves from, centre to centre: the road leaves straight
     for (const id of esc.chain) {
       pos[id] = { x, y: yy }
       yy += H(id) + GY
