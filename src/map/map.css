@@ -1,8 +1,8 @@
 /* Thought map MVP — the Figma design system (Thought map library): tokens, Geist, shadows for every hover and lift. No grid, no dots. */
-.tm { --ink: #1b1b19; --mid: #66645f; --soft: #8c8a85; --line: #e6e5e1; --fill: #f0f0ed; --paper: #fff; --bg: #f7f7f5; --ctl: #85837e; --hover: #33332f; --told: #ffb350; --another: #78b0db;
-  --sh-sm: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.06); --sh-md: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.06); --sh-lg: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 12px 32px rgba(0, 0, 0, 0.12);
+.tm { color-scheme: dark; --ink: #F3F0EB; --mid: #B3ADA6; --soft: #8A847D; --line: #3A342F; --fill: #26211D; --paper: #1B1714; --bg: #120F0D; --ctl: #6B645D; --hover: #FFFFFF; --told: #F5782E; --another: #6FA8DA; --ring: #FDF6E9; --cream: #FDF6E9; --cream-ink: #0A0908;
+  --sh-sm: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5); --sh-md: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.5); --sh-lg: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 32px rgba(0, 0, 0, 0.7);
   position: fixed; inset: 0; display: flex; flex-direction: row; background: var(--bg); color: var(--ink); font: 15px/1.5 Geist, Inter, system-ui, sans-serif; }
-.tm button { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; }
+.tm button { font: inherit; font-size: 13px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; }
 .tm button.solid { background: var(--ink); color: var(--paper); }
 .tm button:disabled { opacity: 0.35; cursor: default; }
 .tm button:focus-visible, .tm textarea:focus-visible, .tm input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -105,7 +105,7 @@
 .tm-msg.you { align-self: flex-end; background: var(--fill); }
 .tm-msg.ai { align-self: flex-start; border: 1px solid var(--line); background: var(--paper); }
 .tm-msg.lit { outline: 2px solid var(--ink); outline-offset: 3px; background: var(--paper); }
-.tm-faded { color: #bbb; }
+.tm-faded { color: var(--soft); }
 .tm-typing { color: var(--mid); }
 .tm-pill { align-self: flex-end; margin: 0; font-size: 13px; padding: 3px 12px; border: 1px solid var(--ink); border-radius: 999px; background: var(--paper); }
 .tm-propose { align-self: flex-start; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; border: 1px dashed var(--mid); border-radius: 12px; padding: 10px 14px; background: var(--paper); margin-top: 6px; max-width: 85%; }
@@ -193,11 +193,11 @@
 
 /* ---- design system layer (overrides the greyscale rules above) ---- */
 /* buttons: slim (28 px), no outlines; hover = one shadow step up, pressed = one step down */
-.tm button { font: 500 13px/20px Geist, Inter, system-ui, sans-serif; padding: 4px 12px; border: 0; border-radius: 10px; background: var(--paper); color: var(--ink); box-shadow: var(--sh-sm); transition: box-shadow 0.12s, background-color 0.12s; }
+.tm button { font: 500 13px/20px Geist, Inter, system-ui, sans-serif; padding: 3px 10px; min-height: 28px; border: 0; border-radius: 999px; background: var(--paper); color: var(--ink); box-shadow: var(--sh-sm); transition: box-shadow 0.12s, background-color 0.12s; }
 .tm button:hover:not(:disabled) { box-shadow: var(--sh-md); }
 .tm button:active:not(:disabled) { box-shadow: var(--sh-sm); }
-.tm button.solid { background: var(--ink); color: var(--paper); }
-.tm button.solid:hover:not(:disabled) { background: var(--hover); }
+.tm button.solid { background: var(--cream); color: var(--cream-ink); }
+.tm button.solid:hover:not(:disabled) { background: #fff; }
 .tm button:disabled { opacity: 1; background: var(--fill); color: var(--soft); box-shadow: none; }
 .tm .tm-quiet, .tm .tm-conv, .tm .tm-keybtn, .tm .tm-early, .tm .tm-demotag, .tm .tm-zoom button, .tm .tm-area button, .tm .tm-gap button, .tm .tm-demomenu button { background: transparent; box-shadow: none; border: 0; }
 .tm .tm-quiet:hover:not(:disabled), .tm .tm-conv:hover, .tm .tm-keybtn:hover, .tm .tm-early:hover, .tm .tm-demotag:hover, .tm .tm-zoom button:hover, .tm .tm-demomenu button:hover { background: var(--paper); box-shadow: var(--sh-sm); }
@@ -233,7 +233,7 @@
 .tm-propose { border: 0; border-radius: 14px; box-shadow: var(--sh-md); }
 .tm:not(.solo) .tm-left { background: var(--bg); }
 .tm-board { background-color: var(--bg); }
-.tm .tm-chip { flex: 0 0 auto; min-width: 0; border-radius: 999px; padding: 6px 14px; font-weight: 400; font-size: 14px; box-shadow: 0 0 0 1px var(--ctl), var(--sh-sm); }
+.tm .tm-chip { flex: 0 0 auto; min-width: 0; border-radius: 999px; padding: 4px 12px; font-weight: 400; font-size: 14px; box-shadow: 0 0 0 1px var(--ctl), var(--sh-sm); }
 .tm .tm-chip:hover:not(:disabled) { box-shadow: 0 0 0 1px var(--ctl), var(--sh-md); }
 .tm .tm-chip.on { background: var(--paper); color: var(--ink); box-shadow: 0 0 0 1.5px var(--ink), var(--sh-md); }
 .tm-ownrow input { border-style: dashed; border-color: var(--soft); border-radius: 999px; }
@@ -280,7 +280,7 @@
 .tm-sgroup { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .tm-sgroup p { margin: 0; font-size: 14px; line-height: 20px; }
 .tm-sgroup .tm-kind { display: inline-flex; align-items: center; }
-.tm .tm-summary > button { align-self: flex-start; margin-top: 0; padding: 6px 14px; }
+.tm .tm-summary > button { align-self: flex-start; margin-top: 0; padding: 3px 12px; }
 
 /* v3 · guided map, presenter's explanations, framing */
 .tm-edges > path.cut { stroke: var(--soft); stroke-dasharray: 3 7; stroke-width: 1.4; opacity: 0.6; }
@@ -291,24 +291,14 @@
 .tm-intro details { font-size: 13px; text-align: left; display: flex; flex-direction: column; gap: 6px; }
 .tm-intro summary, .tm-method summary { cursor: pointer; color: var(--mid); font-size: 13px; }
 .tm-intro details p { margin-top: 6px; }
-.tm-progress { flex: none; align-self: center; margin: 24px auto 8px; display: flex; gap: 6px; margin: 0; padding: 4px; list-style: none; background: var(--paper); border-radius: 999px; box-shadow: var(--sh-md); }
-.tm-progress li { white-space: nowrap; font-size: 12px; padding: 3px 10px; border-radius: 999px; color: var(--soft); transition: background 0.3s, color 0.3s; }
-.tm-progress li b { font-family: 'Geist Mono', 'IBM Plex Mono', monospace; margin-right: 2px; }
-.tm-progress li.on { background: var(--ink); color: var(--paper); }
-.tm-dim.tm-explain-dim { z-index: 40; background: rgba(10, 10, 9, 0.88); }
-.tm-explain { position: fixed; z-index: 41; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, 90vw); box-sizing: border-box; background: var(--paper); border-radius: 14px; box-shadow: var(--sh-lg); padding: 24px 28px; display: flex; flex-direction: column; gap: 6px; }
-.tm-explain p { margin: 0 0 10px; font-size: 16px; line-height: 1.45; }
-.tm-explain-foot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--mid); margin-top: 4px; }
 .tm-story { font-size: 15px; line-height: 1.6; }
 .tm-role { color: var(--mid); font-size: 12px; }
 .tm-takeaway { font-size: 14px; line-height: 1.5; padding-top: 12px; border-top: 1px solid var(--line); }
 .tm-method p { font-size: 13px; color: var(--mid); margin-top: 6px; }
-.tm .tm-explain-next { width: 48px; height: 48px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--paper); box-shadow: var(--sh-md); }
-.tm .tm-explain-next:hover { background: var(--hover); }
 .tm-ask { position: absolute; z-index: 8; width: 320px; box-sizing: border-box; background: var(--paper); border-radius: 12px; box-shadow: var(--sh-lg); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
 .tm-ask p { margin: 0; line-height: 1.45; }
 .tm-ask.on-card::before { content: ''; position: absolute; left: 22px; top: -6px; width: 12px; height: 12px; background: var(--paper); transform: rotate(45deg); box-shadow: -2px -2px 3px rgba(0, 0, 0, 0.04); }
-.tm-card.ghost { border: 1.5px dashed var(--mid); background: transparent; box-shadow: none; pointer-events: none; }
+.tm-card.ghost { border: 1.5px dashed rgba(179, 173, 166, 0.7); background: transparent; box-shadow: none; pointer-events: none; }
 .tm-card.ghost::before { display: none; }
 .tm-card.ghost > * { visibility: hidden; }
 /* closing the circle: the last card has an open line; the other cards can be tapped; at hint level 1 two of them light up */
@@ -319,21 +309,20 @@
 /* level 0: every card that can be tapped glows softly, so it is clear the cards are the answer; level 1 narrows it to two (.cand) */
 .tm-card.tappable { animation: tm-glow 1.8s ease-in-out infinite; }
 @keyframes tm-glow {
-  0%, 100% { filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 4px rgba(255, 179, 80, 0.55)); }
-  50% { filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 10px rgba(255, 179, 80, 0.9)); }
+  0%, 100% { filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 4px rgba(253, 246, 233, 0.55)); }
+  50% { filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 10px rgba(253, 246, 233, 0.9)); }
 }
 .tm-card.cand { animation: tm-cand 1.6s ease-in-out infinite; }
 @keyframes tm-cand {
-  0%, 100% { filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 7px rgba(255, 179, 80, 0.8)); }
-  50% { filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 16px var(--told)); }
+  0%, 100% { filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 9px rgba(253, 246, 233, 0.9)); }
+  50% { filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 16px var(--cream)); }
 }
-.tm-card.pickable:hover { animation: none; filter: drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 1px var(--told)) drop-shadow(0 0 12px var(--told)); }
+.tm-card.pickable:hover { animation: none; filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 12px var(--cream)); }
 .tm-ask .tm-tip { font-size: 12px; color: var(--mid); }
 /* how to answer, said as plainly as the question, with a dot in the colour the cards glow in */
 .tm-ask .tm-how { display: flex; align-items: baseline; gap: 8px; font-weight: 500; }
-.tm-ask .tm-how::before { content: ''; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--told); box-shadow: 0 0 0 3px rgba(255, 179, 80, 0.35); transform: translateY(-1px); }
-.tm-edges > path.open.reach { stroke: var(--told); stroke-width: 2; }
-.tm-top .tm-progress { margin: 8px 12px 0; }
+.tm-ask .tm-how::before { content: ''; flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--cream); box-shadow: 0 0 0 3px rgba(253, 246, 233, 0.35); transform: translateY(-1px); }
+.tm-edges > path.open.reach { stroke: var(--cream); stroke-width: 2; }
 .tm-ask textarea { font: inherit; font-size: 14px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
 
 /* ---- the causal map (Figma: Thought card, node 83:7736) ----------------------------------------- */
@@ -381,3 +370,87 @@
 .tm-layer.relaid .tm-card, .tm-layer.relaid .tm-side { transition: left 0.5s ease, top 0.5s ease; }
 .tm-layer.relaid .tm-edges { animation: tm-lines 0.6s ease; }
 @keyframes tm-lines { 0%, 55% { opacity: 0; } }
+
+/* ---- dark theme (the only theme): the tokens above are the dark values; this layer fixes what they cannot reach ---- */
+:where(.tm) :is(input, textarea, select) { background: var(--bg); color: var(--ink); }
+.tm ::placeholder { color: var(--soft); opacity: 1; }
+.tm button.solid:disabled { background: var(--fill); color: var(--soft); }
+.tm button:focus-visible, .tm textarea:focus-visible, .tm input:focus-visible { outline-color: var(--ring); }
+.tm-dim { background: rgba(0, 0, 0, 0.5); }
+.tm-referral { box-shadow: 0 0 0 2px #d4503f, var(--sh-lg); }
+.tm-toast { background: var(--cream); color: var(--cream-ink); }
+/* composer: dark pill, dark round mic, cream round send with a dark arrow */
+.tm-input { background: var(--paper); border: 1px solid var(--line); box-shadow: none; }
+.tm-input:hover, .tm-input:focus-within { border-color: var(--ctl); box-shadow: none; }
+.tm .tm-input textarea { background: transparent; }
+.tm .tm-mic { background: var(--bg); color: var(--ink); }
+.tm .tm-send { background: var(--cream); color: var(--cream-ink); }
+.tm .tm-send:disabled { background: var(--fill); color: var(--soft); }
+.tm .tm-conv[aria-pressed='true'] { background: var(--paper); }
+/* cards: A / B / C are cream with dark text; the tokens are re-scoped inside them so every child reads on cream */
+.tm-card.k-A, .tm-card.k-B, .tm-card.k-C { --ink: #0A0908; --mid: #5C564F; --soft: #7A746D; --line: #D9D2C5; --paper: var(--cream); --fill: #ECE4D4; }
+.tm-card::before { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 12px rgba(0, 0, 0, 0.5); }
+.tm-card:hover, .tm-card.sel { filter: drop-shadow(0 0 0.5px var(--ring)) drop-shadow(0 0 0.5px var(--ring)); }
+.tm-card.dragging { filter: drop-shadow(0 16px 24px rgba(0, 0, 0, 0.7)); }
+.tm-card.lit { filter: drop-shadow(0 0 2px var(--ring)) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.6)); }
+.tm-card.tail { filter: drop-shadow(0 0 1px var(--ring)) drop-shadow(0 0 1px var(--ring)) drop-shadow(0 8px 14px rgba(0, 0, 0, 0.6)); }
+.tm-card.stacked, .tm-card.stacked.sel { filter: drop-shadow(5px 5px 0 var(--ctl)) drop-shadow(0 0 1px rgba(255, 255, 255, 0.1)); }
+.tm-card.k-A .tm-text, .tm-card.k-B .tm-text, .tm-card.k-C .tm-text { color: #0A0908; }
+.tm-card.k-DE .tm-text, .tm-card.k-NEXT .tm-text { color: var(--ink); }
+.tm .k-B .tm-kind, .tm .k-C .tm-kind, .tm .k-B .tm-kind:disabled, .tm .k-C .tm-kind:disabled { box-shadow: inset 0 0 0 1px #463F39; }
+.tm .k-A .tm-kind, .tm .k-A .tm-kind:disabled { outline-color: #463F39; }
+.tm .k-DE .tm-kind, .tm .k-DE .tm-kind:disabled, .tm .k-NEXT .tm-kind, .tm .k-NEXT .tm-kind:disabled { color: #0A0908; }
+.tm .tm-card .tm-name { background: #1B1714; color: #F3F0EB; } /* the cream cards re-scope --ink to dark, so the feeling chip names its light text itself */
+.tm-edges .join line { stroke: var(--ink); }
+.tm-edges .join circle { fill: var(--ink); }
+.tm-edges > path.hit:hover { stroke: rgba(255, 255, 255, 0.12); }
+.tm-card.tappable { animation-name: tm-glow; }
+@keyframes tm-glow {
+  0%, 100% { filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 4px rgba(253, 246, 233, 0.55)); }
+  50% { filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 10px rgba(253, 246, 233, 0.9)); }
+}
+.tm .tm-side { box-shadow: 0 0 0 4px rgba(253, 246, 233, 0.45); }
+@keyframes tm-side { 50% { box-shadow: 0 0 0 9px rgba(253, 246, 233, 0.18); } }
+.tm-ask .tm-how::before { box-shadow: 0 0 0 3px rgba(253, 246, 233, 0.35); }
+.tm-ask.on-card::before { box-shadow: -2px -2px 3px rgba(0, 0, 0, 0.3); }
+
+/* ---- explanation panel (demo mode, explanations on): fixed on the right, never a popup ---- */
+.tm.has-panel { padding-right: 392px; box-sizing: border-box; } /* 360 panel + 16 gap + 16 inset: the chat column and the map's fit-view stay clear of it */
+.tm-xp { position: fixed; z-index: 15; top: 16px; right: 16px; bottom: 16px; width: 360px; box-sizing: border-box; padding: 44px 22px 20px; display: flex; flex-direction: column; gap: 14px; border-radius: 20px; background: rgba(27, 23, 20, 0.82); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: var(--sh-lg); overflow-y: auto; }
+.tm-xp-tab { position: absolute; left: 50%; top: 0; transform: translateX(-50%); padding: 6px 20px; border-radius: 0 0 12px 12px; background: var(--bg); color: var(--ink); font: 600 14px/20px Geist, Inter, system-ui, sans-serif; white-space: nowrap; }
+.tm-xp-labels { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.tm-xp-labels li { font: 500 11px/20px 'Geist Mono', 'IBM Plex Mono', monospace; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 9px; border-radius: 999px; color: var(--soft); box-shadow: inset 0 0 0 1px var(--line); transition: background 0.3s, color 0.3s, box-shadow 0.3s; }
+.tm-xp-labels li b { font-weight: 600; margin-right: 3px; }
+.tm-xp-labels li.on { color: #0A0908; box-shadow: none; background: var(--cream); }
+.tm-xp-labels li.on.k-DE { background: var(--another); }
+.tm-xp-labels li.on.k-NEXT { background: var(--told); }
+.tm-xp-body { display: flex; flex-direction: column; gap: 4px; }
+.tm-xp-body p { margin: 0 0 10px; font-size: 15px; line-height: 1.5; }
+.tm-xp-empty { color: var(--mid); font-size: 14px; margin: 0; }
+@media (max-width: 900px) { .tm.has-panel { padding-right: 0; } .tm-xp { display: none; } }
+
+/* ---- the road (road.ts / Road.tsx): confirmed lines are a thick gradient road under the cards ---- */
+.tm-road path { fill: none; stroke-width: 28px; stroke-linecap: butt; stroke-linejoin: round; }
+.tm-road path.cut { opacity: 0.15; stroke-width: 14px; } /* the line the person broke: fainter and thinner */
+/* a line waiting for a yes is solid like the rest: its gradient flows (SMIL in Road.tsx, off with reduced motion) */
+.tm-edges > path.hit { stroke-width: 28px; }
+/* the summary walk: each card glows as the road is drawn to it */
+.tm-card { transition: filter 0.4s; isolation: isolate; } /* the card keeps its own surface (::before) above the road */
+.tm-card.passed { filter: drop-shadow(0 0 3px var(--cream)) drop-shadow(0 0 18px rgba(253, 246, 233, 0.75)); }
+
+/* the waiting card: its side handles glow cream (not orange), and the placeholder box is clearly visible */
+.tm .tm-side { border-color: var(--cream); box-shadow: 0 0 0 4px rgba(253, 246, 233, 0.45); }
+@keyframes tm-side { 50% { box-shadow: 0 0 0 9px rgba(253, 246, 233, 0.18); } }
+.tm .tm-side:hover { background: var(--cream); }
+.tm-card.ghost { border-color: rgba(179, 173, 166, 0.7); }
+/* the dots on a card's sides are perfect circles: no minimum button height, no stretching */
+.tm .tm-side, .tm .tm-handle { box-sizing: border-box; min-width: 0; min-height: 0; padding: 0; aspect-ratio: 1 / 1; border-radius: 50%; }
+.tm .tm-side { width: 14px; height: 14px; }
+.tm .tm-handle { width: 12px; height: 12px; }
+
+/* thin dark scrollbars everywhere on /map (the conversation pane, panels, sheets) */
+.tm, .tm * { scrollbar-width: thin; scrollbar-color: #3A342F transparent; }
+.tm *::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+.tm *::-webkit-scrollbar-track { background: transparent; }
+.tm *::-webkit-scrollbar-thumb { background: #3A342F; border-radius: 3px; }
+.tm *::-webkit-scrollbar-thumb:hover { background: #5A524B; }

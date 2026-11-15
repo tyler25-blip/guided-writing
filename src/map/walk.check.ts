@@ -1,5 +1,6 @@
 // node src/map/walk.check.ts
 import assert from 'node:assert/strict'
+import { escapeOf } from './flow.ts'
 import { ask, candidates, insertNew, rewire, sayCircle, stages, through, walkPlan } from './walk.ts'
 
 type C = Parameters<typeof walkPlan>[0][number]
@@ -67,4 +68,8 @@ const p4 = walkPlan(cards4, via)
 assert.deepEqual(p4.path, ['a1', 's1', 'c1', 'a2'])
 assert.equal(p4.close, 'v1')
 assert.deepEqual(walkPlan(cards4, through(edges4, walkPlan(cards4, edges4), 's1', 'b1', ['v1', 'v2'])).path, ['a1', 'b1', 'c1', 'a2', 's1']) // or back through the thought itself
+// where the road leaves after each option of the plan: another way → at the thought, DE cards then the step; do something different → at what they did, the step then DE cards
+const cutOf = (edge: string) => edges.map((e) => ({ ...e, cut: e.id === edge || undefined }))
+const ways = p.options.map((o) => ({ kind: o.kind, esc: escapeOf(cards, cutOf(o.edge), o.kind) }))
+assert.deepEqual(ways.map((w) => [w.kind, w.esc?.at, w.esc?.chain]), [['DE', 'b1', ['d1']], ['NEXT', 'a2', ['d1']]])
 console.log('walk ok')

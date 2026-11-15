@@ -128,5 +128,5 @@ export function demoState(to: 'chat' | 'laid' | 'summary', size = { w: innerWidt
   if (to === 'laid') return { ...st, walk: { step: 0 } }
   // after the walk: every line kept, the person chose to see the thought another way
   const cut = walkPlan(st.cards, st.edges).options.find((o) => o.kind === 'DE')?.edge
-  return arrange({ ...st, edges: st.edges.map((e) => ({ ...e, by: undefined, cut: e.id === cut || undefined })), ended: true }) // the circle is closed: its cards lie on the ring
+  return arrange({ ...st, pick: 'DE', edges: st.edges.map((e) => ({ ...e, by: undefined, cut: e.id === cut || undefined })), ended: true }) // the circle is closed: its cards lie on the ring
 }

@@ -234,9 +234,19 @@ function shapes(pa: Pt, sa: Side, pb: Pt, sb: Side, m: number, shift: number, o:
 }
 // A line from card a to card b made of horizontal and vertical runs: leaves the middle of a side (a different spot along the side if that
 // avoids a clash), never runs through a card (`obstacles`), crosses or lies on top of the fewest existing lines (`existing`).
+export const LOOP_CLEAR = 64 // how far a loop-back line keeps from the cards' edges
 export function routeOrtho(a: Box, b: Box, obstacles: Box[], existing: Pt[][], fast = false): Pt[] {
   const avoid = [...obstacles, a, b]
   const all = [a, b, ...obstacles]
+  // a line back up (or down) a column, past other cards of that column: a generous loop out to the left, well clear of the cards, never a tight bracket
+  if (Math.abs(a.x - b.x) < 2) {
+    const [top, bot] = a.y < b.y ? [a, b] : [b, a]
+    if (obstacles.some((o) => Math.abs(o.x - a.x) < a.w && o.y >= top.y + top.h - 1 && o.y + o.h <= bot.y + 1)) {
+      const x = a.x - LOOP_CLEAR
+      const [ya, yb] = [a.y + a.h / 2, b.y + b.h / 2]
+      return [[a.x, ya], [x, ya], [x, yb], [b.x, yb]]
+    }
+  }
   const o = { x0: Math.min(...all.map((x) => x.x)), y0: Math.min(...all.map((x) => x.y)), x1: Math.max(...all.map((x) => x.x + x.w)), y1: Math.max(...all.map((x) => x.y + x.h)) }
   const below = b.y > a.y + a.h + 10
   const above = b.y + b.h < a.y - 10
