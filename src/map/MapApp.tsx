@@ -6,6 +6,7 @@ import { isCrisis } from '../triggers.ts'
 import { DevPanel } from './dev.tsx'
 import { loops } from './graph.ts'
 import { afterNaming, demoBreak, demoNewKind, demoSide, demoState, demoLines, demoMade, demoPair, MORE, NEW as DEMO_NEW, norm, SCRIPT } from './demo.ts'
+import { ExplainPanel } from './ExplainPanel.tsx'
 import { ask, askClose, askOther, askVia, askWhere, candidates, insertNew, otherKind, rewire, sayCircle, stages, through, walkPlan, walkWhy, type Hint, type Plan, type Why } from './walk.ts'
 import { arrange, lay, makeCards, reroute } from './build.ts'
 import { arcMid, arcPath, quietEdges, type Arc, type Peer } from './flow.ts'
@@ -153,14 +154,13 @@ export default function MapApp() {
   const [keyOpen, setKeyOpen] = useState(false)
   const [needKey, setNeedKey] = useState(false)
   const [demoMenu, setDemoMenu] = useState(false)
-  // demo presenter's explanations: a popup after each reply and each map step (click anywhere to open it, the arrow button to go on); remembered
+  // demo presenter's explanations: an always-visible panel on the right that follows the current step (see ExplainPanel); remembered
   const [explain, setExplainRaw] = useState(() => localStorage.getItem('tm-explain') === '1')
   const setExplain = (on: boolean) => (setExplainRaw(on), localStorage.setItem('tm-explain', on ? '1' : '0'))
-  const [seen, setSeen] = useState<string[]>([]) // popups already shown
-  const [why, setWhy] = useState<{ key: string; why: Why } | null>(null) // the popup on screen
   const plan = s.walk ? walkPlan(s.cards, s.edges) : null
-  const pending = ((): { key: string; why: Why } | null => {
-    if (!s.demo || !explain) return null
+  const panel = s.demo && explain
+  const current = ((): { key: string; why: Why } | null => {
+    if (!panel) return null
     if (s.phase === 'chat') {
       const i = s.msgs.length - 1
       const m = s.msgs[i]
@@ -169,46 +169,18 @@ export default function MapApp() {
     const w = plan && s.walk && walkWhy(plan, s.walk.step, s.cards, s.walk.hint)
     return w ? { key: `w${s.walk!.step}h${s.walk!.hint ?? 0}`, why: w } : null
   })()
-  const due = pending && !seen.includes(pending.key) ? pending : null
-  const downAt = useRef({ x: 0, y: 0 })
-  useEffect(() => {
-    const down = (e: PointerEvent) => void (downAt.current = { x: e.clientX, y: e.clientY })
-    addEventListener('pointerdown', down, true)
-    return () => removeEventListener('pointerdown', down, true)
-  }, [])
-  useEffect(() => {
-    if (!due && !why) return
-    const go = () => (why ? (setSeen((l) => [...l, why.key]), setWhy(null)) : setWhy(due))
-    const click = (e: MouseEvent) => {
-      const t = e.target as HTMLElement
-      if (t.closest('.tm-explain-off')) return (setExplain(false), setWhy(null))
-      if (t.closest('.tm-demo') && !why) return // the demo menu keeps working
-      if (!why && Math.hypot(e.clientX - downAt.current.x, e.clientY - downAt.current.y) > 4) return // a drag (moving the map) is not a click
-      if (!why && s.phase === 'map' && !t.closest('.tm-ask')) return // on the map only the question box opens it, so the map can still be moved
-      e.preventDefault()
-      e.stopPropagation()
-      if (!why || t.closest('.tm-explain-next')) go() // while the popup is open, only its arrow goes on
+  // labels light up as collected: from the replies in the chat, and on the map from the kinds of the cards the walk has brought out
+  const collected = new Set<Kind>(s.msgs.flatMap((m) => m.why?.got ?? []))
+  if (s.phase === 'map') {
+    const st = plan && s.walk ? stages(plan) : null
+    const upto = plan && s.walk ? new Set(plan.path.slice(0, s.walk.step + 1)) : null
+    for (const c of s.cards) {
+      if (!c.kind) continue
+      const k = c.kind as Kind
+      const reached = !plan || !s.walk || !st || !upto ? true : upto.has(c.id) || (!!s.walk.pick && k === s.walk.pick && s.walk.step >= st.placed) || (!!s.walk.pick && k === otherKind(s.walk.pick) && s.walk.step >= st.rest)
+      if (reached) collected.add(k)
     }
-    const key = (e: KeyboardEvent) => {
-      if (!(e.key === 'Enter' || e.key === ' ' || (e.key === 'ArrowRight' && why))) return
-      e.preventDefault()
-      e.stopPropagation()
-      go()
-    }
-    addEventListener('click', click, true)
-    addEventListener('keydown', key, true)
-    return () => (removeEventListener('click', click, true), removeEventListener('keydown', key, true))
-  })
-  const collected = new Set(s.msgs.flatMap((m) => m.why?.got ?? []))
-  const legend = s.demo && explain && (
-    <ol className="tm-progress" aria-label="Collected so far">
-      {(['A', 'B', 'C', 'DE', 'NEXT'] as Kind[]).map((k) => (
-        <li key={k} className={collected.has(k) ? 'on' : ''}>
-          <b>{k === 'NEXT' ? 'Next' : k}</b> {TAG[k]}
-        </li>
-      ))}
-    </ol>
-  )
+  }
   const [asking, setAsking] = useState(false) // "Before you go, is there one small thing…"
   const [undo, setUndo] = useState<State | null>(null) // the map as it was before "Arrange for me"
   // the conversation pane's width, dragged by its edge and remembered
@@ -243,7 +215,7 @@ export default function MapApp() {
     return () => removeEventListener(NEED_KEY, on)
   }, [])
   const say = (t: string) => (setToast(t), setTimeout(() => setToast(''), 2200))
-  const restart = () => (setS(s.demo ? demoState('chat') : fresh()), setSummary(false), setFocus(null), setTalk(true), setAsking(false), setUndo(null), setSeen([]))
+  const restart = () => (setS(s.demo ? demoState('chat') : fresh()), setSummary(false), setFocus(null), setTalk(true), setAsking(false), setUndo(null))
   // any text the person writes
   const risky = (t: string, where = 'chat') => isCrisis(t) && (set((p) => ({ ...p, risk: true })), logIt(set, { t: 'risk', where: `${where} (risk words)`, text: t }), setCrisis(true), true)
   const openSource = (c: Card) => {
@@ -272,7 +244,6 @@ export default function MapApp() {
   // the demo menu (any build): jump to a screen of the story
   const jump = (to: 'chat' | 'laid' | 'summary') => {
     setS(demoState(to))
-    setSeen([])
     setSummary(to === 'summary')
     setTalk(to === 'chat')
     setFocus(null)
@@ -281,9 +252,9 @@ export default function MapApp() {
   }
   const finish = () => (s.risk || s.cards.some((c) => c.kind === 'NEXT') ? end() : setAsking(true))
   return (
-    <div className={`tm${s.phase === 'map' ? (talk ? ' talk-open' : '') : ' solo'}`}>
+    <div className={`tm${s.phase === 'map' ? (talk ? ' talk-open' : '') : ' solo'}${panel ? ' has-panel' : ''}`}>
       <aside className={`tm-left${talk || s.phase !== 'map' ? '' : ' shut'}`} aria-label="Conversation" style={s.phase === 'map' ? { width: paneW } : undefined}>
-        <Chat s={s} set={set} risky={risky} onRisk={() => setCrisis(true)} say={say} ro={s.phase !== 'chat'} focus={focus} notice={s.phase === 'chat' && notice} top={s.phase === 'chat' && legend} />
+        <Chat s={s} set={set} risky={risky} onRisk={() => setCrisis(true)} say={say} ro={s.phase !== 'chat'} focus={focus} notice={s.phase === 'chat' && notice} />
         {s.phase === 'map' && <div className="tm-resize" role="separator" aria-orientation="vertical" aria-label="Drag to resize the conversation" onPointerDown={resize} />}
       </aside>
       <div className="tm-right">
@@ -299,7 +270,6 @@ export default function MapApp() {
           ) : (
             <span />
           )}
-          {s.phase === 'map' && legend}
           <span className="tm-actions">
             {s.risk && (
               <button className="solid" onClick={() => setCrisis(true)}>
@@ -384,27 +354,7 @@ export default function MapApp() {
           </button>
         </div>
       )}
-      {why && (
-        <>
-          <div className="tm-dim tm-explain-dim" />
-          <div className="tm-explain" role="dialog" aria-label="What just happened">
-            <span className="tm-tag">What just happened</span>
-            <p>{why.why.what}</p>
-            <span className="tm-tag">Mechanism</span>
-            <p>{why.why.mech}</p>
-            <span className="tm-tag">What the AI did, and didn’t</span>
-            <p>{why.why.ai}</p>
-            <span className="tm-explain-foot">
-              <button className="tm-explain-off tm-quiet">Turn off explanations</button>
-              <button className="tm-explain-next" aria-label="Continue">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M5 12h14M13 6l6 6-6 6" />
-                </svg>
-              </button>
-            </span>
-          </div>
-        </>
-      )}
+      {panel && <ExplainPanel collected={collected} current={current} />}
       {toast && <div className="tm-toast">{toast}</div>}
       {import.meta.env.DEV && !s.demo && <DevPanel s={s} setS={setS} openSummary={setSummary} crisis={() => setCrisis(true)} pane={setTalk} />}
     </div>
@@ -412,7 +362,7 @@ export default function MapApp() {
 }
 
 // --- 1 · chat (left pane) ----------------------------------------------------------------------
-function Chat({ s, set, risky, onRisk, say, ro, focus, notice, top }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onRisk: () => void; say: (t: string) => void; ro: boolean; focus: { msg: number; text: string } | null; notice?: React.ReactNode; top?: React.ReactNode }) {
+function Chat({ s, set, risky, onRisk, say, ro, focus, notice }: { s: State; set: Set; risky: (t: string, where?: string) => boolean; onRisk: () => void; say: (t: string) => void; ro: boolean; focus: { msg: number; text: string } | null; notice?: React.ReactNode }) {
   // demo mode: the box is pre-filled with the script's next line (editable); anything else the person writes gets the program stubs
   const cur = s.demo ? (s.demoStep ?? 0) : -1
   const step = SCRIPT[cur]
@@ -469,7 +419,6 @@ function Chat({ s, set, risky, onRisk, say, ro, focus, notice, top }: { s: State
   const go = () => set((p) => ({ ...p, mode: 'auto', phase: 'layout' })) // one way in: the guided map
   return (
     <main className="tm-chat">
-      {top}
       <div className="tm-msgs">
         {!s.msgs.length && (
           <div className="tm-empty tm-intro">
