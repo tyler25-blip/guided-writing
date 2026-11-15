@@ -7,12 +7,16 @@ import { walkPlan } from './walk.ts'
 
 type Pt = [number, number]
 type FC = { id: string; text: string; kind?: Kind }
-type FE = { id: string; from: string; to: string; by?: 'ai' }
+type FE = { id: string; from: string; to: string; by?: 'ai'; cut?: boolean }
 // a joins b on the same level; own = made by the person (kept across layouts); side = which side of a they added it on
 export type Peer = { a: string; b: string; own?: boolean; side?: 'l' | 'r' }
 // a line along the ring: centre, radius, the angle it leaves its card at, the angle it arrives at (radians, clockwise on screen)
 export type Arc = [cx: number, cy: number, r: number, from: number, to: number]
-export type Flow = { pos: Record<string, { x: number; y: number }>; routes: Record<string, Pt[]>; arcs: Record<string, Arc>; peers: Peer[]; ring: string[] }
+// the ring's circle: centre, radius and the cards on it (clockwise). The arcs are always drawn from this, never from where a card happens to be
+export type Round = { cx: number; cy: number; r: number; ids: string[] }
+// the one road after the cut: it leaves the ring at `at`, then runs down a column through `chain` (the chosen kind first, in the order the cards were made, then the other kind)
+export type Escape = { at: string; chain: string[]; first: 'DE' | 'NEXT' }
+export type Flow = { pos: Record<string, { x: number; y: number }>; routes: Record<string, Pt[]>; arcs: Record<string, Arc>; peers: Peer[]; ring: string[]; round?: Round; escape?: Escape }
 
 export const GX = 40 // between cards on the same level
 export const GY = 56 // between one level and the next
@@ -28,7 +32,19 @@ export function quietEdges(edges: FE[], peers: Peer[]): Set<string> {
   return out
 }
 
-export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) => number = (c) => estH(c.text, c.kind)): Flow {
+// where the road leaves the ring and which cards it passes after that; null while no line is cut. pick = what the person chose (older maps: guessed from the cut line)
+export function escapeOf(cards: FC[], edges: FE[], pick?: 'DE' | 'NEXT'): Escape | null {
+  const cut = edges.find((e) => e.cut)
+  const to = cards.find((c) => c.id === cut?.to)
+  if (!cut || !to || !cards.some((c) => c.id === cut.from)) return null
+  const first = pick ?? (to.kind === 'B' ? 'DE' : 'NEXT')
+  // another way → it leaves at the thought; do something different → at the card for what they did (the end of the cut line, or its start)
+  const at = first === 'DE' ? cut.to : to.kind === 'A' ? cut.to : cut.from
+  const ids = (k: string) => cards.filter((c) => c.kind === k).map((c) => c.id)
+  return { at, chain: [...ids(first), ...ids(first === 'DE' ? 'NEXT' : 'DE')], first }
+}
+
+export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) => number = (c) => estH(c.text, c.kind), pick?: 'DE' | 'NEXT'): Flow {
   const by = new Map(cards.map((c) => [c.id, c]))
   const H = (id: string) => hOf(by.get(id)!)
   const plan = walkPlan(cards, edges)
@@ -56,6 +72,9 @@ export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) =>
     ring.forEach((id, i) => (pos[id] = { x: Math.round(cx + R * Math.cos(angle(i)) - CARD_W / 2), y: Math.round(cy + R * Math.sin(angle(i)) - H(id) / 2) }))
   }
 
+  // after the cut the way out is one road in a column to the right of everything else: those cards are placed below, not beside their parent
+  const esc = ring.length ? escapeOf(cards, edges, pick) : null
+  const chain = new Set(esc?.chain)
   // everything else hangs off a card that is already placed
   const free = (x: number, yy: number, h: number) => !Object.keys(pos).some((id) => x < pos[id].x + CARD_W + 16 && x + CARD_W + 16 > pos[id].x && yy < pos[id].y + H(id) + 16 && yy + h + 16 > pos[id].y)
   const put = (id: string, x: number, yy: number, dx: number) => {
@@ -79,7 +98,7 @@ export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) =>
     }
     if (moved) continue
     // then, one at a time, a card that follows from a placed one (and after each, its own side cards again)
-    const c = cards.find((x) => !pos[x.id] && !own.some((o) => o.a === x.id || o.b === x.id) && edges.some((e) => e.to === x.id && e.id !== plan.close && pos[e.from])) ?? cards.find((x) => !pos[x.id] && edges.some((e) => e.to === x.id && e.id !== plan.close && pos[e.from]))
+    const c = cards.find((x) => !pos[x.id] && !chain.has(x.id) && !own.some((o) => o.a === x.id || o.b === x.id) && edges.some((e) => e.to === x.id && e.id !== plan.close && pos[e.from])) ?? cards.find((x) => !pos[x.id] && !chain.has(x.id) && edges.some((e) => e.to === x.id && e.id !== plan.close && pos[e.from]))
     if (!c) break
     const parent = edges.find((e) => e.to === c.id && e.id !== plan.close && pos[e.from])!.from
     if (ring.length || c.kind === 'DE' || c.kind === 'NEXT') {
@@ -91,6 +110,15 @@ export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) =>
       put(c.id, pos[parent].x + d * (CARD_W + GX), pos[parent].y, d)
     } else put(c.id, pos[parent].x, pos[parent].y + H(parent) + GY, 1) // one level down; to the right if the place is taken
     moved = true
+  }
+  // the escape column: left edge clear of every card placed so far, the first card level with the card the road leaves from
+  if (esc) {
+    const x = Math.max(...Object.keys(pos).map((id) => pos[id].x + CARD_W)) + 2 * GX
+    let yy = pos[esc.at]?.y ?? 0
+    for (const id of esc.chain) {
+      pos[id] = { x, y: yy }
+      yy += H(id) + GY
+    }
   }
   // cards with no line at all: a last level at the bottom
   const rest = cards.filter((c) => !pos[c.id])
@@ -129,7 +157,7 @@ export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) =>
   const routes: Flow['routes'] = {}
   const done: Pt[][] = []
   for (const e of edges) {
-    if (arcs[e.id] || quiet.has(e.id) || !pos[e.from] || !pos[e.to]) continue
+    if (arcs[e.id] || quiet.has(e.id) || chain.has(e.to) || !pos[e.from] || !pos[e.to]) continue
     const [a, b] = [box(e.from), box(e.to)]
     // side by side on one level: a straight line, at the height of the card it points at (its point, for a next step)
     const level = Math.abs(a.y - b.y) < 1 && Math.abs(Math.abs(a.x - b.x) - (CARD_W + GX)) < 1
@@ -138,7 +166,7 @@ export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) =>
     routes[e.id] = r
     done.push(r)
   }
-  return { pos, routes, arcs, peers, ring }
+  return { pos, routes, arcs, peers, ring, round: ring.length ? { cx, cy, r: R, ids: ring } : undefined, escape: esc ?? undefined }
 }
 
 // an arc as an SVG path, and the point half-way along it

@@ -400,7 +400,7 @@
 .tm .k-B .tm-kind, .tm .k-C .tm-kind, .tm .k-B .tm-kind:disabled, .tm .k-C .tm-kind:disabled { box-shadow: inset 0 0 0 1px #463F39; }
 .tm .k-A .tm-kind, .tm .k-A .tm-kind:disabled { outline-color: #463F39; }
 .tm .k-DE .tm-kind, .tm .k-DE .tm-kind:disabled, .tm .k-NEXT .tm-kind, .tm .k-NEXT .tm-kind:disabled { color: #0A0908; }
-.tm .tm-card .tm-name { background: #26211D; color: var(--ink); }
+.tm .tm-card .tm-name { background: #1B1714; color: #F3F0EB; } /* the cream cards re-scope --ink to dark, so the feeling chip names its light text itself */
 .tm-edges .join line { stroke: var(--ink); }
 .tm-edges .join circle { fill: var(--ink); }
 .tm-edges > path.hit:hover { stroke: rgba(255, 255, 255, 0.12); }
@@ -428,3 +428,15 @@
 .tm-xp-body p { margin: 0 0 10px; font-size: 15px; line-height: 1.5; }
 .tm-xp-empty { color: var(--mid); font-size: 14px; margin: 0; }
 @media (max-width: 900px) { .tm.has-panel { padding-right: 0; } .tm-xp { display: none; } }
+
+/* ---- the road (road.ts / Road.tsx): confirmed lines are a thick gradient road under the cards ---- */
+.tm-road path { fill: none; stroke-width: 28px; stroke-linecap: butt; stroke-linejoin: round; }
+.tm-road path.cut { opacity: 0.3; } /* the line the person broke */
+.tm-road path.flow { stroke-linecap: round; stroke-dasharray: 16 54; animation: tm-flow 1.8s linear infinite; } /* waiting for a yes: dashes flow toward the bright end */
+@keyframes tm-flow { to { stroke-dashoffset: -70; } }
+@media (prefers-reduced-motion: reduce) { .tm-road path.flow { animation: none; } }
+.tm-edges > path.hit { stroke-width: 28px; }
+/* the summary walk: a cream light over the cards, and each card glows as it passes */
+.tm-light { position: absolute; left: -2000px; top: -2000px; pointer-events: none; overflow: visible; z-index: 7; }
+.tm-card { transition: filter 0.4s; isolation: isolate; } /* the card keeps its own surface (::before) above the road */
+.tm-card.passed { filter: drop-shadow(0 0 3px var(--cream)) drop-shadow(0 0 18px rgba(253, 246, 233, 0.75)); }

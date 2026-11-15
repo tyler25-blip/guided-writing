@@ -1,10 +1,10 @@
 // node src/map/flow.check.ts
 import assert from 'node:assert/strict'
-import { flow, GX, GY, quietEdges, type Peer } from './flow.ts'
+import { escapeOf, flow, GX, GY, quietEdges, type Peer } from './flow.ts'
 import { CARD_W, type Kind } from './place.ts'
 
 type C = { id: string; text: string; kind?: Kind }
-type E = { id: string; from: string; to: string; by?: 'ai' }
+type E = { id: string; from: string; to: string; by?: 'ai'; cut?: boolean }
 const cards: C[] = [
   { id: 'c1', text: 'pathetic', kind: 'C' },
   { id: 'a1', text: 'nobody asked me', kind: 'A' },
@@ -103,4 +103,35 @@ assert.ok(quietEdges(viaSide, side.peers).has('e1') && !quietEdges(viaSide, side
 assert.ok(quietEdges(viaSide, side.peers).has('e2') && !quietEdges(viaSide, side.peers).has('e10')) // both lead to the feeling: one arrow, from the card on the ring
 assert.ok(!side.routes.e2)
 assert.ok(!overlap(side))
+
+// the ring is a circle: every ring card sits on it, centre = the circle's centre
+assert.deepEqual(ring.round?.ids, ring.ring)
+assert.ok(ring.round && ring.ring.every((id) => Math.abs(Math.hypot(ring.pos[id].x + CARD_W / 2 - ring.round!.cx, ring.pos[id].y + 40 - ring.round!.cy) - ring.round!.r) < 1.5))
+
+// after the cut: one road. It leaves the ring at the chosen cut and runs down a column to the right of the ring: the chosen kind first (in the order the cards were made), then the other
+const cutAt = (id: string) => kept.map((e) => ({ ...e, cut: e.id === id || undefined }))
+const colOf = (f: ReturnType<typeof flow>, ids: string[]) => {
+  const xs = new Set(ids.map((id) => f.pos[id].x))
+  assert.equal(xs.size, 1) // one column
+  assert.ok(ids.every((id) => f.pos[id].x >= Math.max(...f.ring.map((r) => f.pos[r].x)) + CARD_W + GX)) // right of the ring
+  assert.ok(ids.every((id, i) => i === 0 || f.pos[id].y === f.pos[ids[i - 1]].y + 80 + GY)) // top to bottom, in order
+}
+// "see it another way": cut at the line into the thought, the road leaves at the thought, another ways, then the next step
+const de = flow(cards, cutAt('e4'), [], h, 'DE')
+assert.deepEqual(de.escape, { at: 'b1', chain: ['d1', 'd2', 'd3', 'n1'], first: 'DE' })
+colOf(de, de.escape!.chain)
+assert.equal(de.pos.d1.y, de.pos.b1.y)
+assert.ok(['b1', 'c1', 'a2'].every((id) => de.pos[id].x === ring.pos[id].x && de.pos[id].y === ring.pos[id].y)) // the ring does not move
+assert.ok(!de.routes.e5 && !de.routes.e8 && de.routes.e1) // the fan of lines to the ways out is gone
+assert.ok(!overlap(de))
+// "do something different": cut at the line into what they did, the road leaves at that card, the next step, then the other ways
+const act = flow(cards, cutAt('e3'), [], h, 'NEXT')
+assert.deepEqual(act.escape, { at: 'a2', chain: ['n1', 'd1', 'd2', 'd3'], first: 'NEXT' })
+colOf(act, act.escape!.chain)
+assert.equal(act.pos.n1.y, act.pos.a2.y)
+assert.ok(!overlap(act))
+// older maps have no pick: it is read from the cut line
+assert.deepEqual(escapeOf(cards, cutAt('e4')), de.escape)
+assert.deepEqual(escapeOf(cards, cutAt('e3')), act.escape)
+assert.equal(escapeOf(cards, kept), null) // nothing cut: no escape
 console.log('flow ok')
