@@ -83,10 +83,9 @@ text buttons, keep the pill radius, keep a minimum hit area of 28px height. Roun
 
 ### Unconfirmed lines
 - A line waiting for "Yes" is the same width as the road, not a thin dashed line.
-- It is drawn as a dashed/segmented road (long dashes, round caps) whose dashes slowly flow toward the bright end
-  (`stroke-dashoffset` animation, about one dash length every 1.5–2 s), hinting where the road is going next.
-- On "Yes" it becomes the solid gradient road.
-- `prefers-reduced-motion`: no flow, static dashes.
+- It is a static road with a softer dim → `#7A736B` gradient. (Flowing variants were tried during review and
+  removed by the designer: they read as a light running rather than a calm hint.)
+- On "Yes" it becomes the full gradient road.
 
 ### After the cut: one road
 - The road leaves the ring at the cut the person chose.
