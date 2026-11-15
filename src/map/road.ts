@@ -101,6 +101,7 @@ export type RoadIn = {
   boxes: Record<string, Box> // the cards on the map
   story: boolean // the road comes in from outside (and, once the circle is closed, goes out again)
   exitUncut: boolean // no cut: the road still leaves from the ring's last card
+  pending?: Set<string> // cards that are only a placeholder, waiting for a yes: the road does not leave from them yet
 }
 // the road: its pieces in the order they are drawn, and the one path the light travels (entry → cards in order → round the ring to the cut → down the column → out)
 export function buildRoad(i: RoadIn): { segs: Seg[]; walk: string; order: string[] } {
@@ -141,7 +142,7 @@ export function buildRoad(i: RoadIn): { segs: Seg[]; walk: string; order: string
         end = id
       })
   } else if (i.exitUncut && i.plan?.close) end = i.plan.path[i.plan.path.length - 1]
-  if (i.story && end && i.boxes[end]) {
+  if (i.story && end && i.boxes[end] && !i.pending?.has(end)) {
     const s: Seg = { key: 'out', geo: exitGeo(i.boxes[end]), state: 'out' }
     segs.push(s)
     order.push(s)
