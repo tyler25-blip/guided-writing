@@ -1,20 +1,19 @@
 // Draws the road (geometry in road.ts): every piece is a thick stroke with its own gradient, dim → bright in the direction of travel.
-// A piece waiting for a yes is solid like the rest, but one wide soft band keeps travelling along it from its dim end to its bright end.
-// The band is moved by changing the gradient's stop offsets from a timer (SMIL did not work in every browser).
+// A piece waiting for a yes gets a swell on top: one broad, soft crest of light that rolls slowly along the road. The crest is a dashed copy of
+// the road's own path (so it follows corners and arcs), a fixed size in px on every piece, blurred for soft ends and masked to the road's width (drawn much wider than the road, so the blur does not thin the light out; the mask cuts it back).
+// It is moved by a timer that changes stroke-dashoffset (a timer keeps running in panes the browser treats as hidden).
 import { useEffect, useRef } from 'react'
-import { BRIGHT, DIM, type Seg } from './road.ts'
+import { BRIGHT, DIM, ROAD_W, type Seg } from './road.ts'
 
-const CYCLE = 4000 // ms for the band to cross a piece
-const BASE = [0x3a, 0x33, 0x2e] // the dim road
-const PEAK = [0xe9, 0xe3, 0xda] // the brightest the band gets (gently brighter than the base)
-const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
-const clamp = (n: number) => Math.max(0, Math.min(1, n))
-const KS = [-1, -0.66, -0.33, 0, 0.33, 0.66, 1] // across the band, edge to edge
-const W = 0.28 // half the band, as a share of the piece: one wide band (~56%), never two at once
-const hex = (m: number) => '#' + BASE.map((b, i) => Math.round(b + (PEAK[i] - b) * m).toString(16).padStart(2, '0')).join('')
-// the stops for a band centred at p: a long, soft (cosine) falloff on both sides, base colour outside
-const stops = (p: number): { o: number; c: string }[] => [{ o: 0, c: hex(0) }, ...KS.map((k) => ({ o: clamp(p + k * W), c: hex(0.5 * (1 + Math.cos(Math.PI * k))) })), { o: 1, c: hex(0) }]
+const CREST = 360 // px of soft light: the same on every piece, however short or long
+const GAP = 6000 // px after the crest before the pattern repeats: longer than any piece, so there is only ever one crest on a piece
+const PASS = 7000 // ms for the crest to travel the piece
+const CYCLE = 8500 // ms between starts of a pass (a short rest in between)
 const ease = (t: number) => t * t * (3 - 2 * t) // slow in, slow out
+const MID = '#7A736B' // the waiting road's bright end: gently brighter than the dim end, so the direction still reads
+const PEAK = '#E9E3DA' // the crest
+const PAD = 180 // room round a piece for the blur
+const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
 export function Road({ segs }: { segs: Seg[] }) {
   const root = useRef<SVGGElement>(null)
@@ -22,15 +21,17 @@ export function Road({ segs }: { segs: Seg[] }) {
   useEffect(() => {
     const g = root.current
     if (!g || !waiting) return
-    const move = (p: number) => {
-      const st = stops(p)
-      g.querySelectorAll<SVGLinearGradientElement>('linearGradient[data-flow]').forEach((lg) =>
-        lg.querySelectorAll('stop').forEach((el, i) => (el.setAttribute('offset', String(st[i].o)), el.setAttribute('stop-color', st[i].c))),
-      )
-    }
-    if (reduced()) return move(0.6) // still: the band rests near the bright end
-    // a timer rather than requestAnimationFrame: it keeps running in panes the browser treats as hidden, and ~25 fps is plenty for a slow band
-    const tick = () => move(-W + (1 + 2 * W) * ease((performance.now() % CYCLE) / CYCLE)) // from before the dim end to past the bright end
+    // the filter and mask areas follow each waiting piece (a straight piece has a zero-width box, so they are set in user space)
+    g.querySelectorAll<SVGPathElement>('path.flow[data-seg]').forEach((p) => {
+      const bb = p.getBBox()
+      for (const el of g.querySelectorAll(`[data-area="${p.dataset.seg}"]`))
+        for (const [k, v] of [['x', bb.x - PAD], ['y', bb.y - PAD], ['width', bb.width + 2 * PAD], ['height', bb.height + 2 * PAD]]) el.setAttribute(k as string, String(v))
+    })
+    const waves = [...g.querySelectorAll<SVGPathElement>('path.wave')].map((w) => ({ w, len: g.querySelector<SVGPathElement>(`path.flow[data-seg="${w.dataset.for}"]`)?.getTotalLength() ?? 0 }))
+    // pos = where the crest starts along the piece: from fully before it to fully past it
+    const move = (k: number) => waves.forEach(({ w, len }) => w.setAttribute('stroke-dashoffset', String(CREST - (len + CREST) * k)))
+    if (reduced()) return move(0.5) // still: one soft swell, mid-piece
+    const tick = () => move(ease(Math.min(1, ((performance.now() % CYCLE) / PASS))))
     tick()
     const t = setInterval(tick, 40)
     return () => clearInterval(t)
@@ -40,38 +41,50 @@ export function Road({ segs }: { segs: Seg[] }) {
       <defs>
         {segs.map((s) => {
           const [a, b] = [s.geo.a, s.geo.b]
-          if (s.state === 'flow')
-            return (
-              <linearGradient key={s.key} id={`tm-g-${s.key}`} gradientUnits="userSpaceOnUse" x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} data-flow="1">
-                {stops(0).map((_, i) => (
-                  <stop key={i} stopColor={DIM} />
-                ))}
-              </linearGradient>
-            )
+          const box = { x: Math.min(a[0], b[0]) - PAD, y: Math.min(a[1], b[1]) - PAD, width: Math.abs(a[0] - b[0]) + 2 * PAD, height: Math.abs(a[1] - b[1]) + 2 * PAD }
           return (
-            <linearGradient key={s.key} id={`tm-g-${s.key}`} gradientUnits="userSpaceOnUse" x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]}>
-              {s.state === 'in' ? (
+            <g key={s.key}>
+              <linearGradient id={`tm-g-${s.key}`} gradientUnits="userSpaceOnUse" x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]}>
+                {s.state === 'in' ? (
+                  <>
+                    <stop offset="0" stopColor={BRIGHT} stopOpacity="0" />
+                    <stop offset="1" stopColor={BRIGHT} stopOpacity="0.6" />
+                  </>
+                ) : s.state === 'out' ? (
+                  <>
+                    <stop offset="0" stopColor={BRIGHT} stopOpacity="0.9" />
+                    <stop offset="1" stopColor={BRIGHT} stopOpacity="0" />
+                  </>
+                ) : (
+                  <>
+                    <stop offset="0" stopColor={DIM} />
+                    <stop offset="1" stopColor={s.state === 'flow' ? MID : BRIGHT} />
+                  </>
+                )}
+              </linearGradient>
+              {s.state === 'flow' && (
                 <>
-                  <stop offset="0" stopColor={BRIGHT} stopOpacity="0" />
-                  <stop offset="1" stopColor={BRIGHT} stopOpacity="0.6" />
-                </>
-              ) : s.state === 'out' ? (
-                <>
-                  <stop offset="0" stopColor={BRIGHT} stopOpacity="0.9" />
-                  <stop offset="1" stopColor={BRIGHT} stopOpacity="0" />
-                </>
-              ) : (
-                <>
-                  <stop offset="0" stopColor={DIM} />
-                  <stop offset="1" stopColor={BRIGHT} />
+                  <filter id={`tm-f-${s.key}`} filterUnits="userSpaceOnUse" data-area={s.key} {...box}>
+                    <feGaussianBlur stdDeviation="55" />
+                  </filter>
+                  <mask id={`tm-m-${s.key}`} maskUnits="userSpaceOnUse" data-area={s.key} {...box}>
+                    <path d={s.geo.d} fill="none" stroke="#fff" strokeWidth={ROAD_W} />
+                  </mask>
                 </>
               )}
-            </linearGradient>
+            </g>
           )
         })}
       </defs>
       {segs.map((s) => (
-        <path key={s.key} data-seg={s.key} d={s.geo.d} pathLength={1} className={s.state} stroke={`url(#tm-g-${s.key})`} />
+        <g key={s.key}>
+          <path data-seg={s.key} d={s.geo.d} pathLength={1} className={s.state} stroke={`url(#tm-g-${s.key})`} />
+          {s.state === 'flow' && (
+            <g mask={`url(#tm-m-${s.key})`}>
+              <path d={s.geo.d} className="wave" style={{ strokeWidth: 220 }} stroke={PEAK} strokeOpacity="0.9" strokeDasharray={`${CREST} ${GAP}`} data-for={s.key} filter={`url(#tm-f-${s.key})`} />
+            </g>
+          )}
+        </g>
       ))}
     </g>
   )
