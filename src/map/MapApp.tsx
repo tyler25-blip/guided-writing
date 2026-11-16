@@ -811,7 +811,9 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   const fit = () => {
     const b = board.current!
     const boxes = [...shown.map((c) => ({ x: c.x, y: c.y, w: W, h: h[c.id] ?? 90 })), ...live.flatMap((e) => (routeOf(e) ?? []).map(([x, y]) => ({ x, y, w: 0, h: 0 })))]
-    setView(fitView(boxes, b.clientWidth, b.clientHeight))
+    // during the guided walk, fit the way the walk does: leave room for the question box (beside the circle when picking, else under the cards), never closer than life-size
+    const pick = walk?.step === walk?.st.pick
+    setView(walk ? fitView(boxes, b.clientWidth - (pick ? 380 : 0), b.clientHeight - (pick ? 0 : 240), 60, 1) : fitView(boxes, b.clientWidth, b.clientHeight))
   }
 
   // pointer → canvas coordinates
@@ -1451,7 +1453,7 @@ function WalkStep({ s, walk, at, hint, viaAfter, takeVia, moreHelp, takeGuess, a
         <p>{ask(card(plan.path[step])!, step)}</p>
         <span className="tm-actions">
           <button className="solid" onClick={() => confirm(plan.links[step] || undefined)}>
-            Yes
+            That’s it
           </button>
           <button onClick={() => setFix(true)}>Not quite</button>
         </span>
@@ -1542,7 +1544,7 @@ function WalkStep({ s, walk, at, hint, viaAfter, takeVia, moreHelp, takeGuess, a
           <p>{askOther(other, more)}</p>
           <span className="tm-actions">
             <button className="solid" onClick={confirmOther}>
-              Yes
+              That’s it
             </button>
             <button onClick={() => confirm()}>Not now</button>
           </span>
