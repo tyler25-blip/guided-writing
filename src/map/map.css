@@ -431,7 +431,10 @@
 
 /* ---- the road (road.ts / Road.tsx): confirmed lines are a thick gradient road under the cards ---- */
 .tm-road path { fill: none; stroke-width: 28px; stroke-linecap: butt; stroke-linejoin: round; }
-.tm-road path.cut { opacity: 0.15; stroke-width: 14px; } /* the line the person broke: fainter and thinner */
+.tm-road path.cut { opacity: 0.15; } /* the line the person broke: fainter, the same width as the rest of the ring */
+/* the slow current on the confirmed road (Road.tsx): it arrives after its piece has drawn in */
+.tm-road .tm-current { pointer-events: none; animation: tm-current-in 0.8s ease-out 0.5s backwards; }
+@keyframes tm-current-in { from { opacity: 0; } }
 /* a line waiting for a yes is solid like the rest: its gradient flows (SMIL in Road.tsx, off with reduced motion) */
 .tm-edges > path.hit { stroke-width: 28px; }
 /* the summary walk: each card glows as the road is drawn to it */

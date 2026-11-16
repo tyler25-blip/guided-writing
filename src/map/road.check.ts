@@ -44,8 +44,32 @@ for (const [cut, pick, column] of [['e4', 'DE', ['d1', 'd2', 'n1']], ['e3', 'NEX
   // the light's path: one path from outside to outside
   assert.equal(r.walk.match(/M/g)!.length, 1)
 }
-// the cut line is walked when the road leaves from the card it points at, not when it leaves from the card it starts at
-assert.ok(road('e4', 'DE').walk.includes('A')) // round the ring
+// the light goes once round the whole circle (the cut line included) whichever line was cut, then straight out: no line is walked twice
+for (const [cut, pick] of [['e4', 'DE'], ['e3', 'NEXT'], ['e3', 'DE'], ['e2', 'NEXT']] as const) {
+  const o = road(cut, pick).order
+  assert.deepEqual(o, ['in', 'e1', 'e2', 'e3', 'e4', 'esc0', 'esc1', 'esc2', 'out'])
+}
+// the road out to the first card of the column is a straight line
+for (const [cut, pick] of [['e4', 'DE'], ['e3', 'NEXT'], ['e3', 'DE']] as const) {
+  const d = road(cut, pick).segs.find((s) => s.key === 'esc0')!.geo.d
+  assert.match(d, /^M[-\d.]+,([-\d.]+) L[-\d.]+,\1$/, `${cut} ${pick}: ${d}`)
+}
+// the road always leaves on the right: whichever line is cut and whatever was chosen, the card it leaves from is never on the ring's left half,
+// the top card stays on top, and the way out does not cross the ring (it starts at that card's right side)
+for (const cut of ['e2', 'e3', 'e4'])
+  for (const pick of ['DE', 'NEXT'] as const) {
+    const r = road(cut, pick)
+    const rd = r.f.round!
+    const at = r.boxes[r.f.escape!.at]
+    assert.ok(at.x + CARD_W / 2 >= rd.cx - 1, `${cut} ${pick}: leaves on the left`)
+    assert.equal(r.boxes.b1.x + CARD_W / 2, rd.cx)
+    assert.ok(r.boxes.b1.y < r.boxes.c1.y && r.boxes.b1.y < r.boxes.a2.y)
+    assert.ok(r.segs.find((s) => s.key === 'esc0')!.geo.d.startsWith(`M${at.x + CARD_W - 20},`) || r.segs.find((s) => s.key === 'esc0')!.geo.a[0] === at.x + CARD_W, `${cut} ${pick}: not from the right side`)
+    // every arc of a flipped ring is drawn anticlockwise (sweep flag 0), of an unflipped one clockwise
+    for (const s of r.segs.filter((x) => / A/.test(x.geo.d))) assert.ok(new RegExp(` 0 [01] ${rd.ccw ? 0 : 1} `).test(s.geo.d))
+  }
+assert.equal(road('e3', 'NEXT').f.round!.ccw, true) // a2 would be lower left: flipped
+assert.equal(road('e4', 'DE').f.round!.ccw, undefined) // b1 is on top: as before
 // dragging a ring card along the ring keeps it on the circle
 const f = flow(cards, lines.map(([id, from, to]) => ({ id, from, to })), [], h)
 for (const [dx, dy] of [[60, -90], [-200, 30], [10, 400]]) {
