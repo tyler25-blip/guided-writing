@@ -13,7 +13,7 @@ export type Peer = { a: string; b: string; own?: boolean; side?: 'l' | 'r' }
 // a line along the ring: centre, radius, the angle it leaves its card at, the angle it arrives at (radians, clockwise on screen)
 export type Arc = [cx: number, cy: number, r: number, from: number, to: number]
 // the ring's circle: centre, radius and the cards on it (clockwise). The arcs are always drawn from this, never from where a card happens to be
-export type Round = { cx: number; cy: number; r: number; ids: string[] }
+export type Round = { cx: number; cy: number; r: number; ids: string[]; ccw?: boolean } // ccw: the ring runs anticlockwise (flipped left to right, so the road can leave on the right)
 // the one road after the cut: it leaves the ring at `at`, then runs down a column through `chain` (the chosen kind first, in the order the cards were made, then the other kind)
 export type Escape = { at: string; chain: string[]; first: 'DE' | 'NEXT' }
 export type Flow = { pos: Record<string, { x: number; y: number }>; routes: Record<string, Pt[]>; arcs: Record<string, Arc>; peers: Peer[]; ring: string[]; round?: Round; escape?: Escape }
@@ -62,19 +62,22 @@ export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) =>
     pos[id] = { x: 0, y }
     y += H(id) + GY
   }
-  // the ring: clockwise from the top, the first card straight under the column
+  // after the cut the way out is one road in a column to the right of everything else: those cards are placed below, not beside their parent
+  const esc = ring.length ? escapeOf(cards, edges, pick) : null
+  const chain = new Set(esc?.chain)
+  // the ring: clockwise from the top, the first card straight under the column. The road always leaves on the right: if the card it leaves from
+  // would sit on the left half, the ring is flipped left to right (it then runs anticlockwise; the top card and the way in stay where they are)
   const cx = CARD_W / 2
   let [cy, R] = [0, 0]
-  const angle = (i: number) => -Math.PI / 2 + (i * 2 * Math.PI) / ring.length
+  const out = esc ? ring.indexOf(esc.at) : -1
+  const ccw = out >= 0 && Math.cos(-Math.PI / 2 + (out * 2 * Math.PI) / ring.length) < -0.05
+  const angle = (i: number) => -Math.PI / 2 + ((ccw ? -1 : 1) * i * 2 * Math.PI) / ring.length
   if (ring.length) {
     R = Math.max(180, 125 / Math.sin(Math.PI / ring.length))
     cy = y + H(ring[0]) / 2 + R
     ring.forEach((id, i) => (pos[id] = { x: Math.round(cx + R * Math.cos(angle(i)) - CARD_W / 2), y: Math.round(cy + R * Math.sin(angle(i)) - H(id) / 2) }))
   }
 
-  // after the cut the way out is one road in a column to the right of everything else: those cards are placed below, not beside their parent
-  const esc = ring.length ? escapeOf(cards, edges, pick) : null
-  const chain = new Set(esc?.chain)
   // everything else hangs off a card that is already placed
   const free = (x: number, yy: number, h: number) => !Object.keys(pos).some((id) => x < pos[id].x + CARD_W + 16 && x + CARD_W + 16 > pos[id].x && yy < pos[id].y + H(id) + 16 && yy + h + 16 > pos[id].y)
   const put = (id: string, x: number, yy: number, dx: number) => {
@@ -148,9 +151,9 @@ export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) =>
     const next = ring[(i + 1) % ring.length]
     const e = edges.find((x) => x.from === id && x.to === next)
     if (!e) return
-    let [a0, a1] = [angle(i), angle(i + 1)]
-    while (a0 < a1 && inside(box(id), cx + R * Math.cos(a0), cy + R * Math.sin(a0), 4)) a0 += 0.01
-    while (a1 > a0 && inside(box(next), cx + R * Math.cos(a1), cy + R * Math.sin(a1), 9)) a1 -= 0.01 // room for the arrowhead
+    let [a0, a1] = ccw ? [angle(i + 1), angle(i)] : [angle(i), angle(i + 1)] // always the smaller angle first
+    while (a0 < a1 && inside(box(ccw ? next : id), cx + R * Math.cos(a0), cy + R * Math.sin(a0), 4)) a0 += 0.01
+    while (a1 > a0 && inside(box(ccw ? id : next), cx + R * Math.cos(a1), cy + R * Math.sin(a1), 9)) a1 -= 0.01
     if (a1 - a0 > 0.05) arcs[e.id] = [cx, cy, R, a0, a1]
   })
   const quiet = quietEdges(edges, peers)
@@ -166,7 +169,7 @@ export function flow(cards: FC[], edges: FE[], own: Peer[] = [], hOf: (c: FC) =>
     routes[e.id] = r
     done.push(r)
   }
-  return { pos, routes, arcs, peers, ring, round: ring.length ? { cx, cy, r: R, ids: ring } : undefined, escape: esc ?? undefined }
+  return { pos, routes, arcs, peers, ring, round: ring.length ? { cx, cy, r: R, ids: ring, ...(ccw ? { ccw } : {}) } : undefined, escape: esc ?? undefined }
 }
 
 // an arc as an SVG path, and the point half-way along it

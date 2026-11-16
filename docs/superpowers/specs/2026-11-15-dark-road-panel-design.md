@@ -92,8 +92,11 @@ text buttons, keep the pill radius, keep a minimum hit area of 28px height. Roun
   110px per second, about 0.67 opacity in the middle). Waiting, cut, entry and exit pieces stay still.
 - The bands carry on from one piece into the next; they rest while the summary redraws the road.
 - `prefers-reduced-motion`: no current.
-- The summary walk goes once round the whole circle (the cut line included, same width as the ring, fainter), then on to
-  the card the road leaves from. A card on the left of the ring sends its way out under the ring, not across it.
+- The summary walk goes once round the whole circle (the cut line included, same width as the ring, fainter), then
+  straight out along the way out, without going round again.
+- The way out always leaves on the right: if the card it leaves from would sit on the left half of the ring, the ring is
+  flipped left to right when the person cuts it (it then runs anticlockwise; the top card and the way in stay put).
+- The road from that card to the first card of the column is a straight line.
 
 ### After the cut: one road
 - The road leaves the ring at the cut the person chose.
