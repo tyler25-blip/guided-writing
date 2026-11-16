@@ -966,9 +966,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
     const b = board.current
     const pieces = road.order.map((k) => b?.querySelector<SVGPathElement>(`.tm-road path[data-seg="${k}"]`)).filter((x): x is SVGPathElement => !!x)
     if (!b || !pieces.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return onTour()
-    const all = [...b.querySelectorAll<SVGPathElement>('.tm-road path[data-seg]')]
-    const current = [...b.querySelectorAll<SVGGElement>('.tm-current')] // the moving light rests while the road is drawn again
-    current.forEach((x) => (x.style.display = 'none'))
+    const all = [...b.querySelectorAll<SVGPathElement>('.tm-road path')]
     const lens = pieces.map((x) => x.getTotalLength())
     const total = lens.reduce((t, l) => t + l, 0)
     const hide = (x: SVGPathElement) => (x.style.strokeDasharray = '1', (x.style.strokeDashoffset = '1')) // pathLength is 1: a whole piece
@@ -985,7 +983,6 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
       done = true
       cancelAnimationFrame(raf)
       all.forEach((x) => (x.style.removeProperty('stroke-dasharray'), x.style.removeProperty('stroke-dashoffset')))
-      current.forEach((x) => x.style.removeProperty('display'))
       refs.current.forEach((el) => el.classList.remove('passed'))
     }
     const finish = () => {
@@ -1000,14 +997,12 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
         const k = Math.min(1, (now - t0) / dur)
         let d = k * total
         const head: { p?: DOMPoint } = {}
-        const drawnTo = new Map<SVGPathElement, number>() // a piece walked twice (round the circle, then on to where the road leaves) stays drawn the second time
         pieces.forEach((x, i) => {
           const f = Math.max(0, Math.min(1, d / lens[i]))
           d -= lens[i]
-          drawnTo.set(x, Math.max(f, drawnTo.get(x) ?? 0))
+          x.style.strokeDashoffset = String(1 - f)
           if (f > 0 && f < 1) head.p = x.getPointAtLength(f * lens[i])
         })
-        drawnTo.forEach((f, x) => (x.style.strokeDashoffset = String(1 - f)))
         for (const c of boxes) {
           const el = refs.current.get(c.id)
           if (head.p && head.p.x > c.x && head.p.x < c.x + c.w && head.p.y > c.y && head.p.y < c.y + c.h) passed.set(c.id, now)
@@ -1150,7 +1145,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
     >
       <div className={`tm-layer${relaid ? ' relaid' : ''}`} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
         <svg className="tm-edges" aria-hidden="true" width="6000" height="6000" viewBox="-2000 -2000 6000 6000">
-          <Road segs={[...road.segs, ...openSegs]} order={road.order} />
+          <Road segs={[...road.segs, ...openSegs]} />
           {joins.map((j) => (
             <g key={j.key} className={`join${j.kind === 'DE' ? ' de' : j.kind === 'NEXT' ? ' next' : ''}`}>
               <line x1={j.x1} y1={j.y1} x2={j.x2} y2={j.y2} />

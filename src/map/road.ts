@@ -75,13 +75,11 @@ const colGeo = (a: Box, b: Box): Geo => {
   if (Math.abs(ax - bx) < 2 && b.y > a.y + a.h) return { d: `M${ax},${a.y + a.h / 2} L${bx},${b.y + b.h / 2}`, a: [ax, a.y + a.h], b: [bx, b.y], m: { x: ax, y: (a.y + a.h + b.y) / 2 } }
   return routeGeo(routeOrtho(a, b, [], [], true))
 }
-// a card on the left or lower left of the ring cannot go straight to the column (the ring is in the way): down from it, under the ring, then up into the column's first card
+// a card on the lower left of the ring cannot go straight to the column (the ring is in the way): down from it, under the ring, then up into the column's first card
 function underRing(rd: Round, a: Box, b: Box): Pt[] | null {
   const ang = Math.atan2(a.y + a.h / 2 - rd.cy, a.x + a.w / 2 - rd.cx)
-  const side = Math.cos(ang) < -0.3 && Math.abs(Math.sin(ang)) <= 0.3 // straight left of the centre
-  if (!side && !(Math.sin(ang) > 0.3 && Math.cos(ang) < 0.3)) return null
-  // from the side the road goes down from the card's outer part, clear of the ring's own curve
-  const [x, y, by] = [side ? a.x + 40 : a.x + a.w / 2, Math.max(rd.cy + rd.r + 60, a.y + a.h + 40), b.y + b.h / 2]
+  if (!(Math.sin(ang) > 0.3 && Math.cos(ang) < 0.3)) return null
+  const [x, y, by] = [a.x + a.w / 2, Math.max(rd.cy + rd.r + 60, a.y + a.h + 40), b.y + b.h / 2]
   return [[x, a.y + a.h], [x, y], [b.x - 40, y], [b.x - 40, by], [b.x, by]]
 }
 // from the ring out to the first card of the column
@@ -105,7 +103,7 @@ export type RoadIn = {
   exitUncut: boolean // no cut: the road still leaves from the ring's last card
   pending?: Set<string> // cards that are only a placeholder, waiting for a yes: the road does not leave from them yet
 }
-// the road: its pieces in the order they are drawn, and the one path the light travels (entry → cards in order → once round the whole ring → on to the card it leaves from → down the column → out)
+// the road: its pieces in the order they are drawn, and the one path the light travels (entry → cards in order → round the ring to the cut → down the column → out)
 export function buildRoad(i: RoadIn): { segs: Seg[]; walk: string; order: string[] } {
   const segs: Seg[] = []
   const hide = new Set(i.esc?.chain) // the fan of lines from one card to every way out is replaced by the chain
@@ -119,21 +117,16 @@ export function buildRoad(i: RoadIn): { segs: Seg[]; walk: string; order: string
     segs.push(s)
     order.push(s)
   }
-  // the light follows the path's lines in order, then the line that closes the circle: once round the whole circle, the cut line included.
-  // If the road leaves further along the circle than where that round ended, the light goes on over the same lines to that card (they come up twice in `order`).
-  if (i.plan) {
+  // the light follows the path's lines in order, then the line that closes the circle, and stops at the cut
+  const cut = i.edges.find((e) => e.cut)
+  if (i.plan)
     for (const id of [...i.plan.links.slice(1), ...(i.plan.close ? [i.plan.close] : [])]) {
       const s = drawn.get(id)
-      if (s) order.push(s)
+      if (!s) continue
+      if (cut?.id === id && i.esc?.at === cut.from) break // the road leaves from the card the cut line starts at: the cut itself is not walked
+      order.push(s)
+      if (cut?.id === id && i.esc) break
     }
-    const back = i.edges.find((e) => e.id === i.plan!.close)?.to
-    const from = back ? i.plan.path.indexOf(back) : -1
-    const to = i.esc ? i.plan.path.indexOf(i.esc.at) : -1
-    for (let k = from + 1; from >= 0 && k <= to; k++) {
-      const s = drawn.get(i.plan.links[k])
-      if (s) order.push(s)
-    }
-  }
   let end: string | undefined
   if (i.esc) {
     let prev = i.esc.at
