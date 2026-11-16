@@ -87,14 +87,6 @@ text buttons, keep the pill radius, keep a minimum hit area of 28px height. Roun
   removed by the designer: they read as a light running rather than a calm hint.)
 - On "Yes" it becomes the full gradient road.
 
-### The current on the confirmed road (added 2026-11-16)
-- A confirmed piece carries soft bands of light that keep moving in the direction of travel (280px of light every 720px,
-  110px per second, about 0.67 opacity in the middle). Waiting, cut, entry and exit pieces stay still.
-- The bands carry on from one piece into the next; they rest while the summary redraws the road.
-- `prefers-reduced-motion`: no current.
-- The summary walk goes once round the whole circle (the cut line included, same width as the ring, fainter), then on to
-  the card the road leaves from. A card on the left of the ring sends its way out under the ring, not across it.
-
 ### After the cut: one road
 - The road leaves the ring at the cut the person chose.
 - It runs down a column to the right of the ring through the cards of the kind they chose (DE or Next step), in the

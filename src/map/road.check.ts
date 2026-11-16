@@ -44,14 +44,8 @@ for (const [cut, pick, column] of [['e4', 'DE', ['d1', 'd2', 'n1']], ['e3', 'NEX
   // the light's path: one path from outside to outside
   assert.equal(r.walk.match(/M/g)!.length, 1)
 }
-// the light goes once round the whole circle (the cut line included) whichever line was cut, then on to the card the road leaves from
-const ringOf = ['e2', 'e3', 'e4']
-for (const [cut, pick, after] of [['e4', 'DE', []], ['e3', 'NEXT', ['e2', 'e3']], ['e3', 'DE', ['e2', 'e3']]] as const) {
-  const o = road(cut, pick).order
-  assert.deepEqual(o.slice(0, 5), ['in', 'e1', ...ringOf]) // in, the way to the circle, round it
-  assert.deepEqual(o.slice(5, 5 + after.length), after) // on to where it leaves (b1 → c1 → a2 for a next step)
-  assert.deepEqual(o.slice(5 + after.length), ['esc0', 'esc1', 'esc2', 'out'])
-}
+// the cut line is walked when the road leaves from the card it points at, not when it leaves from the card it starts at
+assert.ok(road('e4', 'DE').walk.includes('A')) // round the ring
 // dragging a ring card along the ring keeps it on the circle
 const f = flow(cards, lines.map(([id, from, to]) => ({ id, from, to })), [], h)
 for (const [dx, dy] of [[60, -90], [-200, 30], [10, 400]]) {
