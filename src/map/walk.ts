@@ -69,14 +69,14 @@ export function walkPlan(cards: C[], edges: E[]): Plan {
 // confirms the other kind (the step after another way, or another way after the step), then it is done
 export const stages = (p: Plan) => ({ close: p.path.length, pick: p.path.length + 1, placed: p.path.length + 2, rest: p.path.length + 3, done: p.path.length + 4, last: p.close ? p.path.length + 2 : p.path.length })
 
-// the question on the card that has just appeared: said straight, in their own words
+// the line on the card that has just appeared: said, not asked (the buttons do the checking), in their own words.
+// A thought "came" rather than "you told yourself": it turned up, nobody is blamed for it.
 export function ask(card: C, i: number): string {
   const q = `“${card.text}”`
-  if (i === 0) return `It started with this: ${q}, right?`
-  if (card.kind === 'B') return `So you told yourself ${q}, right?`
-  if (card.kind === 'C') return `And that left you feeling ${card.names?.join(' and ') || q}, right?`
-  if (card.kind === 'A') return `And then ${q}, right?`
-  return `And then ${q}, right?`
+  if (i === 0) return `It started here: ${q}`
+  if (card.kind === 'B') return `Then a thought came: ${q}`
+  if (card.kind === 'C') return card.names?.length ? `And it left you feeling ${card.names.join(' and ')}.` : `And it left you feeling: ${q}`
+  return `And then: ${q}`
 }
 // Closing the circle is the person's move. The program has a guess (the closing line the AI drew), but it stays hidden
 // and the help comes in two steps:
@@ -137,4 +137,4 @@ export function walkWhy(p: Plan, step: number, cards: C[], hint: Hint = 0): Why 
 
 // after breaking the circle: the kind not chosen yet, and the question on it
 export const otherKind = (pick?: 'DE' | 'NEXT') => (pick === 'DE' ? 'NEXT' : pick === 'NEXT' ? 'DE' : undefined)
-export const askOther = (k: 'DE' | 'NEXT', c: C) => (k === 'NEXT' ? `And one small step from there: “${c.text}”, right?` : `And the other way you found: “${c.text}”, right?`)
+export const askOther = (k: 'DE' | 'NEXT', c: C) => (k === 'NEXT' ? `And one small step: “${c.text}”` : `The other way you found: “${c.text}”`)

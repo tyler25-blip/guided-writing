@@ -1,7 +1,7 @@
 // node src/map/walk.check.ts
 import assert from 'node:assert/strict'
 import { escapeOf } from './flow.ts'
-import { ask, candidates, insertNew, rewire, sayCircle, stages, through, walkPlan } from './walk.ts'
+import { ask, askOther, candidates, insertNew, rewire, sayCircle, stages, through, walkPlan } from './walk.ts'
 
 type C = Parameters<typeof walkPlan>[0][number]
 type E = Parameters<typeof walkPlan>[1][number]
@@ -24,8 +24,13 @@ assert.deepEqual(p.path, ['a1', 'b1', 'c1', 'a2'])
 assert.deepEqual(p.links, ['', 'e1', 'e2', 'e3'])
 assert.equal(p.close, 'e4')
 assert.deepEqual(p.options.map((o) => [o.edge, o.kind]), [['e4', 'DE'], ['e3', 'NEXT']])
-assert.equal(ask(cards[2], 2), 'And that left you feeling embarrassed, right?')
-assert.equal(ask(cards[1], 1), 'So you told yourself “they don’t like me”, right?')
+// said, not asked: the buttons do the checking
+assert.equal(ask(cards[0], 0), `It started here: “${cards[0].text}”`)
+assert.equal(ask(cards[1], 1), 'Then a thought came: “they don’t like me”')
+assert.equal(ask(cards[2], 2), 'And it left you feeling embarrassed.')
+assert.equal(ask(cards[3], 3), `And then: “${cards[3].text}”`)
+assert.equal(askOther('DE', cards[1]), 'The other way you found: “they don’t like me”')
+assert.equal(askOther('NEXT', cards[1]), 'And one small step: “they don’t like me”')
 // no circle: the chain from the first A
 assert.deepEqual(walkPlan(cards, edges.slice(0, 3)).path, ['a1', 'b1', 'c1', 'a2'])
 assert.equal(walkPlan(cards, edges.slice(0, 3)).close, undefined)
