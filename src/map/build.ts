@@ -1,7 +1,7 @@
 // Turning the person's words into cards and putting them on the canvas (plain code, no AI). Shared by the layout step and the demo's jump buttons.
 import type { Card, Edge, Msg, State } from './MapApp.tsx'
 import { flow, type Peer } from './flow.ts'
-import { CARD_W, estH, fitView, hitsBox, namesFor, personIdx, pilesLayout, routeOrtho, type Box, type Kind } from './place.ts'
+import { estH, estW, fitView, hitsBox, namesFor, personIdx, pilesLayout, routeOrtho, type Box, type Kind } from './place.ts'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -16,14 +16,14 @@ export function makeCards(msgs: Msg[], got: { text: string; kind: string; from: 
   })
 }
 
-type Laid = Pick<State, 'cards' | 'edges' | 'areas' | 'piles' | 'view' | 'peers' | 'round'>
+type Laid = Pick<State, 'cards' | 'edges' | 'areas' | 'piles' | 'view' | 'peers' | 'round' | 'rounds'>
 // Put the cards where cause and effect put them (flow.ts) and draw the lines again. hOf: the cards' real heights once they have been drawn.
 export function arrange<T extends Pick<State, 'cards' | 'edges' | 'peers' | 'pick'>>(st: T, hOf?: (id: string) => number): T {
   const f = flow(st.cards, st.edges, (st.peers ?? []).filter((p) => p.own), hOf && ((c) => hOf(c.id)), st.pick)
   const cards = st.cards.map((c) => ({ ...c, ...f.pos[c.id], pile: undefined }))
   const at = (id: string) => f.pos[id]
   const edges = st.edges.map((e) => ({ ...e, between: undefined, route: f.routes[e.id], arc: f.arcs[e.id], at: at(e.from) && at(e.to) ? ([at(e.from).x, at(e.from).y, at(e.to).x, at(e.to).y] as [number, number, number, number]) : undefined }))
-  return { ...st, cards, edges, peers: f.peers as Peer[], round: f.round }
+  return { ...st, cards, edges, peers: f.peers as Peer[], round: f.round, rounds: f.rounds }
 }
 // lines null = "I'll arrange it myself" (piles on the right); otherwise the map is laid out (flow.ts) with the AI's lines
 export function lay(cards: Card[], lines: { from: string; to: string }[] | null, size: { w: number; h: number }): Laid {
@@ -33,7 +33,7 @@ export function lay(cards: Card[], lines: { from: string; to: string }[] | null,
   }
   const edges: Edge[] = lines.map((l) => ({ id: uid(), from: l.from, to: l.to, by: 'ai' as const }))
   const st = arrange({ cards, edges, peers: [] as Peer[] })
-  const boxes = st.cards.map((c) => ({ x: c.x, y: c.y, w: CARD_W, h: estH(c.text, c.kind) }))
+  const boxes = st.cards.map((c) => ({ x: c.x, y: c.y, w: estW(c.text, c.kind), h: estH(c.text, c.kind) }))
   return { ...st, areas: [], piles: undefined, view: { ...fitView(boxes, size.w, size.h), n: Date.now() } }
 }
 
@@ -41,12 +41,12 @@ export function lay(cards: Card[], lines: { from: string; to: string }[] | null,
 // fast = while a card is being dragged: one quick pass; when it is dropped the full search runs.
 export function reroute(st: State, who: { cards?: string[]; edges?: string[] }, hOf: (id: string) => number, fast = false): State {
   const byId = new Map(st.cards.map((c) => [c.id, c]))
-  const box = (c: Card): Box => ({ x: c.x, y: c.y, w: CARD_W, h: hOf(c.id) })
+  const box = (c: Card): Box => ({ x: c.x, y: c.y, w: estW(c.text, c.kind), h: hOf(c.id) })
   // a moved card can land on other lines: those get rerouted too, not only the lines touching it
   const moved = (who.cards ?? []).map((id) => byId.get(id)).filter((c): c is Card => !!c).map(box)
   const under = (e: Edge) => !!e.route && e.route.some((p, i) => i + 1 < e.route!.length && moved.some((m) => hitsBox(p, e.route![i + 1], m)))
   // a line round the ring is never rerouted: it is always drawn from the ring's circle (see road.ts)
-  const ring = new Set(st.round?.ids)
+  const ring = new Set((st.rounds ?? (st.round ? [st.round] : [])).flatMap((r) => r.ids))
   const onRing = (e: Edge) => ring.has(e.from) && ring.has(e.to) && !!e.arc
   const todo = st.edges.filter((e) => !onRing(e) && (who.edges?.includes(e.id) || who.cards?.includes(e.from) || who.cards?.includes(e.to) || under(e))).map((e) => e.id)
   if (!todo.length) return st
