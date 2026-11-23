@@ -24,9 +24,9 @@ export const SCRIPT: Step[] = [
     why: { what: 'A concrete event: they asked Mia, she said no.', mech: 'A collected. Now looking for B: what they told themselves.', ai: 'Said it back in their words, then asked what went through their mind.', got: ['A'] },
   },
   {
-    p: 'Like, I knew I shouldn’t have asked her. She’s way smarter than me and she knows it.',
-    ai: 'So the thought was that she’s way smarter than you, and she knows it. When that thought is there, what do you do?',
-    why: { what: 'The thought under the feeling.', mech: 'B collected: the event did not say “she’s smarter than me”, the thought did.', ai: 'Did not argue with the thought. Asked what it makes them do.', got: ['B'] },
+    p: 'Like, I knew I shouldn’t have asked her, or anyone else. They’re all way smarter than me and they know it. That’s why they don’t choose me.',
+    ai: 'So the thought was that they’re all way smarter than you and they know it, and that’s why they don’t choose you. When that thought is there, what do you do?',
+    why: { what: 'The thought under the feeling.', mech: 'B collected: the event did not say “they’re all smarter than me”, the thought did.', ai: 'Did not argue with the thought. Asked what it makes them do.', got: ['B'] },
   },
   {
     p: 'I just left class early. And I haven’t asked anyone else since.',
@@ -83,7 +83,7 @@ export type StoryCard = { key: string; text: string; kind: Kind; step: number }
 export const CARDS: StoryCard[] = [
   { key: 'C1', text: 'I just feel really small today', kind: 'C', step: 0 },
   { key: 'A1', text: 'I asked Mia to be my partner for the group project, and she said no', kind: 'A', step: 1 },
-  { key: 'B1', text: 'She’s way smarter than me and she knows it', kind: 'B', step: 2 },
+  { key: 'B1', text: 'They’re all way smarter than me and they know it', kind: 'B', step: 2 },
   { key: 'A2', text: 'I haven’t asked anyone else since', kind: 'A', step: 3 },
   { key: 'B2', text: 'I’m so stupid', kind: 'B', step: 4 },
   { key: 'B3', text: 'She only makes friends with smart people', kind: 'B', step: 4 },
@@ -96,7 +96,7 @@ export const CARDS: StoryCard[] = [
   { key: 'NX', text: 'Ask Jonas after Thursday’s lecture if he has a group', kind: 'NEXT', step: 9 },
 ]
 // circle in the world (walked last): she said no → small → I haven’t asked anyone → I’m not worth anyone choosing me → (and that leaves me feeling small again) → small
-// circle only in the head (walked first): comes from the same moment, by its own line (A1 → B2; A1 is on no cycle, so the two stay separate loops): I’m so stupid → she only makes friends with smart people → worthless → she’s way smarter than me → back to I’m so stupid
+// circle only in the head (walked first): comes from the same moment, by its own line (A1 → B2; A1 is on no cycle, so the two stay separate loops): I’m so stupid → she only makes friends with smart people → worthless → they’re all way smarter than me → back to I’m so stupid
 const LINES = [['A1', 'C1'], ['B4', 'C1'], ['C1', 'A2'], ['A2', 'B4'], ['A1', 'B2'], ['B2', 'B3'], ['B3', 'C2'], ['C2', 'B1'], ['B1', 'B2'], ['B4', 'DE1'], ['B4', 'DE2'], ['B4', 'DE3'], ['B3', 'DH1'], ['A2', 'NX']]
 export const NEXT = { when: 'I think about the group project', will: 'ask Jonas after the lecture' }
 // closing the circle, "somewhere new": what the presenter can add between "I haven't asked anyone else" and "she's smarter than me" (pre-filled in the box)
