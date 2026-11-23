@@ -16,14 +16,14 @@ export function makeCards(msgs: Msg[], got: { text: string; kind: string; from: 
   })
 }
 
-type Laid = Pick<State, 'cards' | 'edges' | 'areas' | 'piles' | 'view' | 'peers' | 'round'>
+type Laid = Pick<State, 'cards' | 'edges' | 'areas' | 'piles' | 'view' | 'peers' | 'round' | 'rounds'>
 // Put the cards where cause and effect put them (flow.ts) and draw the lines again. hOf: the cards' real heights once they have been drawn.
 export function arrange<T extends Pick<State, 'cards' | 'edges' | 'peers' | 'pick'>>(st: T, hOf?: (id: string) => number): T {
   const f = flow(st.cards, st.edges, (st.peers ?? []).filter((p) => p.own), hOf && ((c) => hOf(c.id)), st.pick)
   const cards = st.cards.map((c) => ({ ...c, ...f.pos[c.id], pile: undefined }))
   const at = (id: string) => f.pos[id]
   const edges = st.edges.map((e) => ({ ...e, between: undefined, route: f.routes[e.id], arc: f.arcs[e.id], at: at(e.from) && at(e.to) ? ([at(e.from).x, at(e.from).y, at(e.to).x, at(e.to).y] as [number, number, number, number]) : undefined }))
-  return { ...st, cards, edges, peers: f.peers as Peer[], round: f.round }
+  return { ...st, cards, edges, peers: f.peers as Peer[], round: f.round, rounds: f.rounds }
 }
 // lines null = "I'll arrange it myself" (piles on the right); otherwise the map is laid out (flow.ts) with the AI's lines
 export function lay(cards: Card[], lines: { from: string; to: string }[] | null, size: { w: number; h: number }): Laid {
@@ -46,7 +46,7 @@ export function reroute(st: State, who: { cards?: string[]; edges?: string[] }, 
   const moved = (who.cards ?? []).map((id) => byId.get(id)).filter((c): c is Card => !!c).map(box)
   const under = (e: Edge) => !!e.route && e.route.some((p, i) => i + 1 < e.route!.length && moved.some((m) => hitsBox(p, e.route![i + 1], m)))
   // a line round the ring is never rerouted: it is always drawn from the ring's circle (see road.ts)
-  const ring = new Set(st.round?.ids)
+  const ring = new Set((st.rounds ?? (st.round ? [st.round] : [])).flatMap((r) => r.ids))
   const onRing = (e: Edge) => ring.has(e.from) && ring.has(e.to) && !!e.arc
   const todo = st.edges.filter((e) => !onRing(e) && (who.edges?.includes(e.id) || who.cards?.includes(e.from) || who.cards?.includes(e.to) || under(e))).map((e) => e.id)
   if (!todo.length) return st

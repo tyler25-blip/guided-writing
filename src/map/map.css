@@ -306,7 +306,7 @@
 .tm-card.tail { filter: drop-shadow(0 0 1px var(--ink)) drop-shadow(0 0 1px var(--ink)) drop-shadow(0 8px 14px rgba(0, 0, 0, 0.14)); }
 .tm-card.pickable { cursor: pointer; }
 /* the cards' shadows are filters that follow each card's shape (see "thought cards" above), so the glow is one too */
-/* level 0: every card that can be tapped glows softly, so it is clear the cards are the answer; level 1 narrows it to two (.cand) */
+/* level 0: every card that can be tapped glows softly, so it is clear the cards are the answer; level 1 narrows it to one (.cand), twice as bright */
 .tm-card.tappable { animation: tm-glow 1.8s ease-in-out infinite; }
 @keyframes tm-glow {
   0%, 100% { filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 4px rgba(253, 246, 233, 0.55)); }
@@ -314,8 +314,8 @@
 }
 .tm-card.cand { animation: tm-cand 1.6s ease-in-out infinite; }
 @keyframes tm-cand {
-  0%, 100% { filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 9px rgba(253, 246, 233, 0.9)); }
-  50% { filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 16px var(--cream)); }
+  0%, 100% { filter: drop-shadow(0 0 2px var(--cream)) drop-shadow(0 0 2px var(--cream)) drop-shadow(0 0 2px var(--cream)) drop-shadow(0 0 18px var(--cream)) drop-shadow(0 0 18px rgba(253, 246, 233, 0.8)); }
+  50% { filter: drop-shadow(0 0 2px var(--cream)) drop-shadow(0 0 2px var(--cream)) drop-shadow(0 0 2px var(--cream)) drop-shadow(0 0 32px var(--cream)) drop-shadow(0 0 32px var(--cream)); }
 }
 .tm-card.pickable:hover { animation: none; filter: drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 1px var(--cream)) drop-shadow(0 0 12px var(--cream)); }
 .tm-ask .tm-tip { font-size: 12px; color: var(--mid); }
@@ -505,12 +505,12 @@
 .tm .k-B .tm-kind, .tm .k-B .tm-kind:disabled { background: var(--k-B); }
 .tm .k-DE .tm-kind, .tm .k-DE .tm-kind:disabled { background: var(--k-DE); }
 .tm .k-C .tm-kind, .tm .k-C .tm-kind:disabled { background: transparent; color: var(--k-C); box-shadow: inset 0 0 0 1px var(--k-C); }
-.tm .k-NEXT .tm-kind, .tm .k-NEXT .tm-kind:disabled { background: transparent; color: var(--k-C); outline: 1px dashed var(--k-C); outline-offset: -1px; }
+.tm .k-NEXT .tm-kind, .tm .k-NEXT .tm-kind:disabled { background: var(--k-NEXT); color: var(--on-card); outline: 0; } /* filled, like the DE chip */
 .tm-xp-labels li.on, .tm-xp-labels li.on.k-A { background: var(--k-A); color: var(--on-card); }
 .tm-xp-labels li.on.k-B { background: var(--k-B); }
 .tm-xp-labels li.on.k-C { background: transparent; color: var(--k-C); box-shadow: inset 0 0 0 1px var(--k-C); }
 .tm-xp-labels li.on.k-DE { background: var(--k-DE); }
-.tm-xp-labels li.on.k-NEXT { background: transparent; color: var(--k-C); outline: 1px dashed var(--k-C); outline-offset: -1px; }
+.tm-xp-labels li.on.k-NEXT { background: var(--k-NEXT); color: var(--on-card); outline: 0; }
 /* the tag on a card: an outline in the card's ink (Next step: dashed) */
 .tm .tm-card .tm-kind, .tm .tm-card .tm-kind:disabled { background: transparent; color: var(--on-card); box-shadow: inset 0 0 0 1px var(--on-card); outline: 0; }
 .tm .tm-card.k-NEXT .tm-kind, .tm .tm-card.k-NEXT .tm-kind:disabled { box-shadow: none; outline: 1px dashed var(--on-card); outline-offset: -1px; }
@@ -526,7 +526,11 @@
 .tm-over { z-index: 2; }
 .tm-links .arrow { fill: var(--connector); stroke: var(--connector); stroke-width: 3px; stroke-linejoin: round; }
 .tm-links .arrow.waiting { fill: none; stroke-width: 1.5px; }
-.tm-links .arrow.cut, .tm-links .band.cut { opacity: 0.15; }
+/* every loop line is white and solid: the cut line looks like a kept one; a line waiting for a yes keeps its outline, in white too */
 .tm-links .band path { fill: none; stroke-linecap: butt; }
 .tm-links .band .outer { stroke: var(--connector); stroke-width: 25px; }
 .tm-links .band .inner { stroke: var(--bg); stroke-width: 21px; }
+/* the head on a ring line lies over its band: a dark rim keeps it readable */
+.tm-links .arrow.head:not(.waiting) { stroke: var(--bg); stroke-width: 6px; paint-order: stroke fill; }
+/* the one card that glows while a circle is closed: twice the glow of the others, still pulsing */
+.tm-card.cand { animation: tm-cand 1.6s ease-in-out infinite; filter: drop-shadow(0 0 4px rgba(253, 246, 233, 1)) drop-shadow(0 0 28px rgba(253, 246, 233, 1)); }

@@ -7,12 +7,12 @@ import { DevPanel } from './dev.tsx'
 import { loops } from './graph.ts'
 import { afterNaming, demoBreak, demoNewKind, demoSide, demoState, demoLines, demoMade, demoPair, MORE, NEW as DEMO_NEW, norm, SCRIPT } from './demo.ts'
 import { ExplainPanel } from './ExplainPanel.tsx'
-import { ask, askClose, askOther, askVia, askWhere, candidates, insertNew, otherKind, rewire, sayCircle, stages, through, walkPlan, walkWhy, type Hint, type Plan, type Why } from './walk.ts'
+import { ask, askClose, askOther, askVia, askWhere, candidates, insertNew, orderedLoops, otherKind, rewire, sameMoment, sayCircle, stages, through, walkPlan, walkShown, walkWhy, waysOf, type Hint, type Plan, type Why } from './walk.ts'
 import { arrange, lay, makeCards, reroute } from './build.ts'
 import { escapeOf, escGroups, LG, quietEdges, type Arc, type Peer, type Round } from './flow.ts'
 import { arcGeo, routeGeo, snapToRing, type Geo } from './road.ts'
 import { Links } from './Links.tsx'
-import { bandD, type Arrow, type Band, type LinkState } from './linkGeo.ts'
+import { ringJoin, type Arrow, type Band, type LinkState } from './linkGeo.ts'
 import { CardShape } from './CardShape.tsx'
 import { ai, getKey, hasServer, NEED_KEY, setDemo, setKey } from './link.ts'
 import { CARD_W, cornerInset, describe, estH, estW, feels, fitView, freeSpot, freeSpotLinked, guessKind, LABEL, optionsFor, routeOrtho, segments, summaryOf, tidyPiles, zoomAt, layered, type Kind, type Piles, type View } from './place.ts'
@@ -21,7 +21,7 @@ import './map.css'
 type Src = 'you' | 'ai' // 'ai' only exists in older saved maps
 type Step = { when: string; will: string } // a Next step card: "When {when}, I will {will}."
 export type Card = { id: string; text: string; src: Src; x: number; y: number; stack: string[]; kind?: Kind; names?: string[]; from?: number; step?: Step; t?: number; pile?: Kind } // pile = the pile it still lies in; from = index into msgs of the message it came from; t = last edited
-export type Edge = { id: string; from: string; to: string; label?: string; by?: 'ai'; t?: number; between?: boolean; cut?: boolean; route?: [number, number][]; arc?: Arc; at?: [number, number, number, number] } // cut: the line the person chose to break the circle at; route: the line's path from the layered layout, valid while both cards stay where they were (at); by: drawn by "Lay it out for me" until the person keeps it; label: older maps only
+export type Edge = { id: string; from: string; to: string; label?: string; by?: 'ai'; t?: number; between?: boolean; cut?: boolean; pick?: 'DE' | 'NEXT'; route?: [number, number][]; arc?: Arc; at?: [number, number, number, number] } // cut: the line the person chose to break the circle at; route: the line's path from the layered layout, valid while both cards stay where they were (at); by: drawn by "Lay it out for me" until the person keeps it; label: older maps only
 // notes: the AI's private understanding after this reply (what material is there, the core, how they're stuck). Never shown in the chat.
 export type Notes = { have: Record<string, boolean>; named?: boolean; deAsked?: number; core: string; stuck: string; help: string; ready: boolean }
 export type Msg = { role: Src; text: string; propose?: boolean; declined?: boolean; notes?: Notes; options?: string[]; naming?: boolean; why?: Why } // why: the demo presenter's popup for this reply; propose: the AI offers a map; options: two words offered for the feeling; naming: the person's chosen words
@@ -42,7 +42,7 @@ export type Log =
 // spreadAt: how many messages had been sent when the cards were made; areas: column titles; mode: how the person chose to arrange
 // demo: the scripted story (/map?demo), demoStep: the next script line; piles: where the piles lie (manual layout); view: pan and zoom
 // walk: the guided map is running (step = its stage, see walk.ts); pick = where the person chose to break the circle; hint = how much help closing the circle has taken so far; added = they already wrote "somewhere new" once (one is the limit, so this step always ends); via = a card they added beside another and then tapped: the open line now starts from it
-export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; mode?: 'auto' | 'manual'; risk?: boolean; log?: Log[]; spreadAt?: number; areas?: { name: string; x: number; y: number }[]; demo?: boolean; demoStep?: number; piles?: Piles; view?: View; walk?: { step: number; pick?: 'DE' | 'NEXT'; hint?: Hint; added?: boolean; via?: string }; peers?: Peer[]; round?: Round; pick?: 'DE' | 'NEXT' } // round: the ring's circle (the lines round it are always drawn from it); pick: where the person cut the circle (another way / do something different), kept after the walk
+export type State = { phase: Phase; msgs: Msg[]; cards: Card[]; edges: Edge[]; ended: boolean; mode?: 'auto' | 'manual'; risk?: boolean; log?: Log[]; spreadAt?: number; areas?: { name: string; x: number; y: number }[]; demo?: boolean; demoStep?: number; piles?: Piles; view?: View; walk?: { step: number; loop?: number; pick?: 'DE' | 'NEXT'; hint?: Hint; added?: boolean; via?: string }; peers?: Peer[]; round?: Round; rounds?: Round[]; pick?: 'DE' | 'NEXT' } // round: the first ring's circle, rounds: every ring's (the lines round a ring are always drawn from its circle); loop: which circle the walk is on (0 = the first); pick: where the person cut the first circle (another way / do something different), kept after the walk; each cut line carries its own pick
 export const KEY = 'thought-map-v2'
 type Set = (f: (s: State) => State) => void
 type Entry = Log extends infer L ? (L extends Log ? Omit<L, 'at'> : never) : never
@@ -164,7 +164,7 @@ export default function MapApp() {
   // demo presenter's explanations: an always-visible panel on the right that follows the current step (see ExplainPanel); remembered
   const [explain, setExplainRaw] = useState(() => localStorage.getItem('tm-explain') === '1')
   const setExplain = (on: boolean) => (setExplainRaw(on), localStorage.setItem('tm-explain', on ? '1' : '0'))
-  const plan = s.walk ? walkPlan(s.cards, s.edges) : null
+  const plan = s.walk ? walkPlan(s.cards, s.edges, s.walk.loop ?? 0) : null
   const panel = s.demo && explain && !summary && !touring // the panel and the summary sheet would overlap
   const current = ((): { key: string; why: Why } | null => {
     if (!panel) return null
@@ -173,19 +173,16 @@ export default function MapApp() {
       const m = s.msgs[i]
       return m?.role === 'ai' && m.why ? { key: `m${i}`, why: m.why } : null
     }
-    const w = plan && s.walk && walkWhy(plan, s.walk.step, s.cards, s.walk.hint)
-    return w ? { key: `w${s.walk!.step}h${s.walk!.hint ?? 0}`, why: w } : null
+    const w = plan && s.walk && walkWhy(plan, s.walk.step, s.cards, s.walk.hint, s.walk.loop ?? 0)
+    return w ? { key: `w${s.walk!.loop ?? 0}s${s.walk!.step}h${s.walk!.hint ?? 0}`, why: w } : null
   })()
   // labels light up as collected: from the replies in the chat, and on the map from the kinds of the cards the walk has brought out
   const collected = new Set<Kind>(s.msgs.flatMap((m) => m.why?.got ?? []))
   if (s.phase === 'map') {
-    const st = plan && s.walk ? stages(plan) : null
-    const upto = plan && s.walk ? new Set(plan.path.slice(0, s.walk.step + 1)) : null
+    const upto = plan && s.walk ? walkShown(s.cards, s.edges, s.walk) : null
     for (const c of s.cards) {
       if (!c.kind) continue
-      const k = c.kind as Kind
-      const reached = !plan || !s.walk || !st || !upto ? true : upto.has(c.id) || (!!s.walk.pick && k === s.walk.pick && s.walk.step >= st.placed) || (!!s.walk.pick && k === otherKind(s.walk.pick) && s.walk.step >= st.rest)
-      if (reached) collected.add(k)
+      if (!upto || upto.has(c.id)) collected.add(c.kind as Kind)
     }
   }
   const [asking, setAsking] = useState(false) // "Before you go, is there one small thing…"
@@ -585,6 +582,8 @@ function Layout({ s, set, done }: { s: State; set: Set; done: () => void }) {
 }
 
 // --- 3 · map -----------------------------------------------------------------------------------
+// every ring on the map (older maps only have the first one)
+const roundsOf = (s: Pick<State, 'round' | 'rounds'>): Round[] => s.rounds ?? (s.round ? [s.round] : [])
 type Drag = { kind: 'move'; id: string; dx: number; dy: number } | { kind: 'link'; from: string; x: number; y: number }
 type Pan = { sx: number; sy: number; vx: number; vy: number }
 const PICKABLE: Kind[] = ['A', 'B', 'C', 'DE']
@@ -618,9 +617,10 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   const ro = s.ended // read-only after the summary
 
   // the guided walk: only the cards reached so far are on the map; the line into the newest card is dashed until the person confirms it
-  const walk = !ro && plan && s.walk ? { ...s.walk, plan, st: stages(plan) } : null
+  const rounds = roundsOf(s)
+  const walk = !ro && plan && s.walk ? { ...s.walk, loop: s.walk.loop ?? 0, plan, st: stages(plan), ways: waysOf(s.cards, s.edges, s.walk.loop ?? 0) } : null // ways: the ways out of this circle (the others belong to the circles before or after it)
   const other = walk && otherKind(walk.pick)
-  const shownIds = walk ? new Set([...plan!.path.slice(0, walk.step + 1), ...s.cards.filter((c) => (walk.pick && c.kind === walk.pick) || (other && walk.step >= walk.st.rest && c.kind === other)).map((c) => c.id)]) : null
+  const shownIds = walk ? walkShown(s.cards, s.edges, walk) : null
   if (shownIds)
     for (let grew = true; grew; ) {
       grew = false
@@ -634,14 +634,15 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   const visible = (e: Edge) => {
     if (!walk || !shownIds) return true
     if (!shownIds.has(e.from) || !shownIds.has(e.to)) return false
-    const i = walk.plan.links.indexOf(e.id)
-    return i > 0 ? i <= walk.step : e.id === walk.plan.close ? walk.step > walk.st.close || (walk.step === walk.st.close && walk.hint === 2 && !walk.via) : true // the guess stays hidden until it is offered (hint 2) or the person made the line
+    const i = walk.plan.links.indexOf(e.id) // a later circle's links[0] is the line it comes in by
+    return i >= 0 ? i <= walk.step : e.id === walk.plan.close ? walk.step > walk.st.close || (walk.step === walk.st.close && walk.hint === 2 && !walk.via) : true // the guess stays hidden until it is offered (hint 2) or the person made the line
   }
-  const walkTo = (w: State['walk'], f: (st: State) => State = (x) => x) => set((st) => f({ ...st, walk: w }))
+  const walkTo = (w: State['walk'], f: (st: State) => State = (x) => x) => set((st) => f({ ...st, walk: w && { ...w, loop: w.loop ?? st.walk?.loop } })) // the walk stays on the same circle unless it is told to move on
   const confirm = (edge?: string) => walkTo({ step: walk!.step + 1, pick: walk!.pick }, (st) => ({ ...st, edges: st.edges.map((e) => (e.id === edge ? { ...e, by: undefined } : e)) }))
   const breakAt = (edge: string, pick: 'DE' | 'NEXT') => {
     // the ways out move into one column to the right of the ring, and the road leaves the ring at this cut (flow.ts)
-    walkTo({ step: walk!.st.placed, pick }, (st) => arrange({ ...st, pick, edges: st.edges.map((e) => (e.id === edge ? { ...e, by: undefined, cut: true } : st.cards.find((c) => c.id === e.to)?.kind === pick ? { ...e, by: undefined } : e)) }, hLay))
+    const mine = new Set(walk!.ways)
+    walkTo({ step: walk!.st.placed, pick }, (st) => arrange({ ...st, pick: walk!.loop ? st.pick ?? pick : pick, edges: st.edges.map((e) => (e.id === edge ? { ...e, by: undefined, cut: true, pick } : mine.has(e.to) && st.cards.find((c) => c.id === e.to)?.kind === pick ? { ...e, by: undefined } : e)) }, hLay))
     if (pick === 'NEXT' && !s.cards.some((c) => c.kind === 'NEXT')) setBreaking(edge) // no step from the chat yet: write one now
   }
   const leave = () => walkTo(undefined) // the free map: every card, every tool
@@ -657,7 +658,9 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
     set((st) => ({ ...st, cards: st.cards.map((c) => (c.id === id ? { ...c, text, t: Date.now() } : c)) }))
     confirm(edge)
   }
-  const confirmOther = () => walkTo({ step: walk!.st.done, pick: walk!.pick }, (st) => ({ ...st, edges: st.edges.map((e) => (st.cards.find((c) => c.id === e.to)?.kind === other ? { ...e, by: undefined } : e)) }))
+  const confirmOther = () => walkTo({ step: walk!.st.done, pick: walk!.pick }, (st) => ({ ...st, edges: st.edges.map((e) => (walk!.ways.includes(e.to) && st.cards.find((c) => c.id === e.to)?.kind === other ? { ...e, by: undefined } : e)) }))
+  // the circle is done and there is another one to walk: it starts at the card its way in arrives at
+  const nextRound = () => walkTo({ step: 0, loop: walk!.loop + 1 })
   // "Not quite" on the line that closes the circle: no circle, the line goes
   const dropClose = () => {
     if (guess) logIt(set, { t: 'close', level: 2, how: 'none', from: guess.from, to: '', guess: guess.to })
@@ -677,7 +680,8 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   // the circle is closed: its cards move onto a ring (flow.ts), and the walk goes on to where to break it
   const closed = (st: State): State => {
     const next = arrange(st, hLay)
-    return { ...next, walk: { step: stages(walkPlan(next.cards, next.edges)).pick } }
+    const loop = st.walk?.loop ?? 0
+    return { ...next, walk: { step: stages(walkPlan(next.cards, next.edges, loop)).pick, loop } }
   }
   const keepGuess = () => (set((st) => closed({ ...st, edges: st.edges.map((e) => (e.id === guess!.id ? { ...e, by: undefined } : e)) })), setRelaid((n) => n + 1))
   // they tapped a card: the guess → that line turns solid; another card → their line replaces the guess
@@ -697,8 +701,8 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   // on a level with `via`: the path card it was added beside, and the card that one leads on to (the program's guess for where via leads)
   const viaMain = via ? levelOf(via) : undefined
   const viaAfter = viaMain ? walk!.plan.path[walk!.plan.path.indexOf(viaMain) + 1] : undefined
-  // two cards glow at level 0: the guess and where it started (from a side card: where its neighbour leads, and the neighbour)
-  const lit = !guess || hint === 2 ? [] : via ? [viaAfter, viaMain].filter((x): x is string => !!x) : candidates(walk!.plan, s.edges)
+  // one card glows at level 0: the guess (from a side card: where its neighbour leads, else the neighbour)
+  const lit = !guess || hint === 2 ? [] : via ? [viaAfter ?? viaMain].filter((x): x is string => !!x) : candidates(walk!.plan, s.edges)
   const canTap = (id: string) => !!guess && id !== tailId && (via ? id !== guess.from && walk!.plan.path.includes(id) : levelOf(id) !== guess.from)
   const linkTo = (to: string) => {
     if (!guess || !canTap(to)) return
@@ -733,7 +737,8 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
       const id = uid()
       const cards = [...st.cards, { id, text, src: 'you' as const, kind, x: 0, y: 0, stack: [], t: Date.now() }]
       const next = arrange({ ...st, cards, edges: insertNew(st.edges, walk!.plan, id, [uid(), uid()]) as Edge[] }, hLay)
-      return { ...next, walk: { step: walkPlan(next.cards, next.edges).path.length, hint: 0, added: true } } // one new card is the limit: after it the box no longer offers "somewhere new", then the guess is offered
+      const loop = st.walk?.loop ?? 0
+      return { ...next, walk: { step: walkPlan(next.cards, next.edges, loop).path.length, loop, hint: 0, added: true } } // one new card is the limit: after it the box no longer offers "somewhere new", then the guess is offered
     })
     setRelaid((n) => n + 1)
   }
@@ -764,10 +769,11 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   useEffect(() => {
     if (walkStep === undefined || (walkStep !== 0 && walkStep !== walk!.st.close && walkStep !== walk!.st.placed && walkStep !== walk!.st.rest)) return
     const b = board.current!
-    const ids = walkStep === 0 ? walk!.plan.path : [...shownIds!]
+    const inFrom = s.edges.find((e) => e.id === walk!.plan.links[0])?.from // a later circle: keep the card its way in leaves from in view
+    const ids = walkStep === 0 ? [...(inFrom ? [inFrom] : []), ...walk!.plan.path] : [...shownIds!]
     const boxes = s.cards.filter((c) => ids.includes(c.id)).map((c) => ({ x: c.x, y: c.y, w: wOf(c), h: h[c.id] ?? 110 }))
     setView(fitView(boxes, b.clientWidth, b.clientHeight - 240, 60, 1)) // room for the question box under the last card; never closer than life-size
-  }, [walkStep]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [walkStep, walk?.loop]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // once per visit: ask which cards repeat each other; the person stacks them by hand (or not)
   const askedStack = useRef(false)
@@ -852,7 +858,8 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   const latest = useRef({ x: 0, y: 0 })
   const moveTo = (id: string, x: number, y: number, fast: boolean) =>
     set((st) => {
-      const at = st.round?.ids.includes(id) ? snapToRing(st.round, x, y, hOf(id)) : { x, y } // a ring card slides along the ring, so the circle stays a circle
+      const rd = roundsOf(st).find((r) => r.ids.includes(id))
+      const at = rd ? snapToRing(rd, x, y, hOf(id)) : { x, y } // a ring card slides along the ring, so the circle stays a circle
       return reroute({ ...st, cards: st.cards.map((c) => (c.id === id ? { ...c, ...at, t: Date.now(), pile: undefined } : c)) }, { cards: [id], edges: fast ? [] : st.edges.map((e) => e.id) }, hOf, fast) // leaving a pile: the rest of it tidies up
     })
   useEffect(() => {
@@ -931,8 +938,8 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   const routeFor = (x: Edge) => routeOf(x) ?? routeOrtho(boxOf(card(x.from)), boxOf(card(x.to)), [], [])
   const geom = (x: Edge): Geo => {
     const [a, b] = [find(x.from), find(x.to)]
-    const rd = s.round
-    if (rd && x.arc && a && b && rd.ids.includes(x.from) && rd.ids.includes(x.to)) return arcGeo(rd, boxOf(a), boxOf(b)) // a line round the ring: always part of the circle
+    const rd = rounds.find((r) => r.ids.includes(x.from) && r.ids.includes(x.to))
+    if (rd && x.arc && a && b) return arcGeo(rd, boxOf(a), boxOf(b)) // a line round the ring: always part of the circle
     return routeGeo(routeFor(x))
   }
   const mid = (x: Edge) => geom(x).m
@@ -942,19 +949,24 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   const drawn = live.filter((x) => !quiet.has(x.id))
   // the joins (Links.tsx): an arrow between cards that sit next to each other, a band round the ring; after the cut the fan of lines to the ways out
   // is replaced by one column (an arrow from the card it leaves from, then down the column)
-  const esc = s.round ? escapeOf(s.cards, s.edges, s.pick) : null
-  const fan = new Set(esc?.chain)
-  const rplan = walkPlan(s.cards, s.edges)
-  const pending = new Set(shown.filter((c) => walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other))).map((c) => c.id)) // placeholders waiting for a yes
+  const nLoops = Math.max(1, orderedLoops(s.cards, s.edges).length)
+  const escAt = [...Array(nLoops)].map((_, l) => (rounds.length ? escapeOf(s.cards, s.edges, s.pick, l) : null)) // per circle: where its road leaves and the ways out after it
+  const escs = escAt.filter((e): e is NonNullable<typeof e> => !!e)
+  const fan = new Set(escs.flatMap((e) => e.chain))
+  const rplans = [...Array(nLoops)].map((_, l) => walkPlan(s.cards, s.edges, l))
+  const pending = new Set(shown.filter((c) => walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other && walk.ways.includes(c.id)))).map((c) => c.id)) // placeholders waiting for a yes
   const stateOf = (x?: Edge): LinkState => (x?.cut ? 'cut' : x && (x.by === 'ai' || pending.has(x.to)) ? 'waiting' : 'kept')
-  const onRing = (x: Edge) => !!(s.round && x.arc && s.round.ids.includes(x.from) && s.round.ids.includes(x.to))
-  const bands: Band[] = live.filter(onRing).map((x) => ({ key: x.id, to: x.to, d: bandD(s.round!, boxOf(card(x.from)), boxOf(card(x.to))), state: stateOf(x) })).filter((b) => b.d)
-  const arrows: Arrow[] = live.filter((x) => !onRing(x) && !fan.has(x.to)).map((x) => ({ key: x.id, to: x.to, from: boxOf(card(x.from)), at: boxOf(card(x.to)), state: stateOf(x) }))
+  const ringOf = (x: Edge) => (x.arc ? rounds.find((r) => r.ids.includes(x.from) && r.ids.includes(x.to)) : undefined)
+  const onRing = (x: Edge) => !!ringOf(x)
+  const bands: Band[] = live.filter(onRing).map((x) => ({ key: x.id, to: x.to, ...ringJoin(ringOf(x)!, boxOf(card(x.from)), boxOf(card(x.to))), state: stateOf(x) })).filter((b) => b.d)
+  const arrows: Arrow[] = drawn.filter((x) => !onRing(x) && !fan.has(x.to)).map((x) => ({ key: x.id, to: x.to, from: boxOf(card(x.from)), at: boxOf(card(x.to)), state: stateOf(x) }))
   // the ways out lie in two heaps (flow.ts): one arrow into the first heap from the card the circle is left from, one from the first heap's
   // bottom-right card into the second; none between cards of the same heap (they answer the same card side by side)
-  if (esc && find(esc.at)) {
+  for (const esc of escs) {
+    if (!find(esc.at)) continue
     const [g1, g2] = escGroups(esc, (id) => find(id)?.kind).map((g) => g.map(find).filter((c): c is Card => !!c && shown.includes(c)))
-    const corner = (g: Card[]) => g.reduce((p, c) => (c.x + wOf(c) + c.y + hOf(c.id) > p.x + wOf(p) + p.y + hOf(p.id) ? c : p))
+    // the card of the first pile the second pile touches: the one nearest to the second pile's first card
+    const corner = (g: Card[]) => g.reduce((p, c) => (Math.hypot(c.x + wOf(c) / 2 - g2[0].x - wOf(g2[0]) / 2, c.y + hOf(c.id) / 2 - g2[0].y - hOf(g2[0].id) / 2) < Math.hypot(p.x + wOf(p) / 2 - g2[0].x - wOf(g2[0]) / 2, p.y + hOf(p.id) / 2 - g2[0].y - hOf(g2[0].id) / 2) ? c : p))
     const into = (c: Card) => stateOf(s.edges.find((e) => e.to === c.id))
     if (g1[0]) arrows.push({ key: `esc-${g1[0].id}`, to: g1[0].id, from: boxOf(find(esc.at)!), at: boxOf(g1[0]), state: into(g1[0]) })
     if (g2[0]) {
@@ -979,7 +991,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   useEffect(() => {
     if (!tour || tour === tour0.current) return
     const b = board.current
-    const seq = [...rplan.path, ...(esc?.chain ?? [])].filter((id, i, all) => all.indexOf(id) === i && refs.current.has(id))
+    const seq = rplans.flatMap((p, l) => [...p.path, ...(escAt[l]?.chain ?? [])]).filter((id, i, all) => all.indexOf(id) === i && refs.current.has(id))
     if (!b || !seq.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return onTour()
     const cards = [...refs.current.values()]
     const links = [...b.querySelectorAll<SVGElement>('[data-link]')]
@@ -1012,7 +1024,16 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
             l.style.removeProperty('opacity')
             anims.push(l.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 }))
           }
-          if (i === seq.length - 1 && find(id)?.kind === 'NEXT') timers.push(window.setTimeout(() => anims.push(el.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 500, easing: 'ease-in-out' })), 480))
+          // once the last card has popped, every Next step on the map spins once
+          if (i === seq.length - 1)
+            timers.push(
+              window.setTimeout(() => {
+                for (const c of s.cards.filter((x) => x.kind === 'NEXT')) {
+                  const spin = refs.current.get(c.id)?.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 500, easing: 'ease-in-out' })
+                  if (spin) anims.push(spin)
+                }
+              }, 480),
+            )
         }, 600 + i * STEP),
       ),
     )
@@ -1354,13 +1375,13 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
         (() => {
           // the question sits on the map: under the card that just appeared, on the line that closes the circle, or just below the circle
           const cs = walk.plan.path.map((id) => find(id)).filter((c): c is Card => !!c)
-          const now = walk.step < walk.plan.path.length ? find(walk.plan.path[walk.step]) : walk.step === walk.st.rest && other ? s.cards.find((c) => c.kind === other) : undefined
+          const now = walk.step < walk.plan.path.length ? find(walk.plan.path[walk.step]) : walk.step === walk.st.rest && other ? s.cards.find((c) => c.kind === other && walk.ways.includes(c.id)) : undefined
           const closing = walk.step === walk.st.close && live.find((x) => x.id === walk.plan.close)
           const tail = choosing || via ? find(tailId!) : undefined
           const p = now ? { x: now.x, y: now.y + hOf(now.id) + 14 } : tail ? { x: tail.x, y: tail.y + hOf(tail.id) + 62 } : closing ? { x: find(closing.from)!.x + wOf(find(closing.from)!) + 36, y: find(closing.from)!.y - 24 } : walk.step === walk.st.pick && walk.plan.close ? { x: Math.max(...shown.map((c) => c.x + wOf(c))) + 40, y: Math.min(...cs.map((c) => c.y)) } : { x: Math.min(...cs.map((c) => c.x)), y: Math.max(...shown.map((c) => c.y + hOf(c.id))) + (walk.plan.close ? 64 : 24) } // where to break the circle: beside it, so the whole circle stays in view
           const b = board.current
           const at = { left: Math.max(8, Math.min(view.x + p.x * view.z, (b?.clientWidth ?? 900) - 340)), top: Math.max(8, Math.min(view.y + p.y * view.z, (b?.clientHeight ?? 600) - (walk.step === walk.st.pick ? 150 + 62 * (walk.plan.options.length + 1) : 240))) } // the box where to break the circle is taller: one row per option
-          return <WalkStep key={`${walk.step}-${hint}-${via ?? ''}`} s={s} walk={walk} at={at} hint={hint} viaAfter={viaAfter} takeVia={takeVia} moreHelp={moreHelp} takeGuess={takeGuess} addNew={addNew} beside={beside} setBeside={setBeside} addSide={addSide} confirm={confirm} confirmOther={confirmOther} fixCard={fixCard} dropClose={dropClose} breakAt={breakAt} leave={leave} finish={finishWalk} />
+          return <WalkStep key={`${walk.loop}-${walk.step}-${hint}-${via ?? ''}`} s={s} walk={walk} at={at} hint={hint} viaAfter={viaAfter} takeVia={takeVia} moreHelp={moreHelp} takeGuess={takeGuess} addNew={addNew} beside={beside} setBeside={setBeside} addSide={addSide} confirm={confirm} confirmOther={confirmOther} fixCard={fixCard} dropClose={dropClose} breakAt={breakAt} nextRound={nextRound} leave={leave} finish={finishWalk} />
         })()}
       {!s.cards.length && <p className="tm-empty board">Double-click anywhere to add a card.</p>}
       <div className="tm-zoom" role="group" aria-label="Zoom">
@@ -1380,22 +1401,41 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
 }
 
 // the guided walk's question box: one stage at a time (see walk.ts for the order)
-type Walking = { step: number; pick?: 'DE' | 'NEXT'; added?: boolean; via?: string; plan: Plan; st: ReturnType<typeof stages> }
-function WalkStep({ s, walk, at, hint, viaAfter, takeVia, moreHelp, takeGuess, addNew, beside, setBeside, addSide, confirm, confirmOther, fixCard, dropClose, breakAt, leave, finish }: { s: State; walk: Walking; at: { left: number; top: number }; hint: Hint; viaAfter?: string; takeVia: () => void; moreHelp: () => void; takeGuess: () => void; addNew: (text: string) => void; beside: { id: string; side: 'l' | 'r' } | null; setBeside: (b: { id: string; side: 'l' | 'r' } | null) => void; addSide: (id: string, side: 'l' | 'r', text: string) => void; confirm: (edge?: string) => void; confirmOther: () => void; fixCard: (id: string, text: string, edge?: string) => void; dropClose: () => void; breakAt: (edge: string, pick: 'DE' | 'NEXT') => void; leave: () => void; finish: () => void }) {
+type Walking = { step: number; loop: number; ways: string[]; pick?: 'DE' | 'NEXT'; added?: boolean; via?: string; plan: Plan; st: ReturnType<typeof stages> }
+function WalkStep({ s, walk, at, hint, viaAfter, takeVia, moreHelp, takeGuess, addNew, beside, setBeside, addSide, confirm, confirmOther, fixCard, dropClose, breakAt, nextRound, leave, finish }: { s: State; walk: Walking; at: { left: number; top: number }; hint: Hint; viaAfter?: string; takeVia: () => void; moreHelp: () => void; takeGuess: () => void; addNew: (text: string) => void; beside: { id: string; side: 'l' | 'r' } | null; setBeside: (b: { id: string; side: 'l' | 'r' } | null) => void; addSide: (id: string, side: 'l' | 'r', text: string) => void; confirm: (edge?: string) => void; confirmOther: () => void; fixCard: (id: string, text: string, edge?: string) => void; dropClose: () => void; breakAt: (edge: string, pick: 'DE' | 'NEXT') => void; nextRound: () => void; leave: () => void; finish: () => void }) {
   const { step, plan, st } = walk
   const card = (id?: string) => s.cards.find((c) => c.id === id)
   const back = card(s.edges.find((e) => e.id === plan.close)?.to)
-  const end = (text: string) => (
-    <>
-      <p>{text}</p>
-      <span className="tm-actions">
-        <button className="solid" onClick={finish}>
-          See the summary
-        </button>
-        <button onClick={leave}>Keep looking</button>
-      </span>
-    </>
-  )
+  // another circle waits that has no cut yet: the walk offers to go on with it (it stays on the map until then)
+  const loopsAll = orderedLoops(s.cards, s.edges)
+  const nextLoop = loopsAll[walk.loop + 1]
+  const later = nextLoop && !s.edges.some((e) => e.cut && nextLoop.includes(e.id)) ? walkPlan(s.cards, s.edges, walk.loop + 1) : undefined
+  const end = (text: string) =>
+    later ? (
+      <>
+        <p>
+          {later.path.some((id) => card(id)?.kind === 'A')
+            ? 'There’s another circle here, from the same moment. This one plays out in the world.'
+            : `There’s ${walk.loop === 0 ? 'a second' : 'another'} circle here. This one stays in your head: nothing happens in it, it just goes round.`}
+        </p>
+        <span className="tm-actions">
+          <button className="solid" onClick={nextRound}>
+            Walk it
+          </button>
+          <button onClick={finish}>Finish</button>
+        </span>
+      </>
+    ) : (
+      <>
+        <p>{text}</p>
+        <span className="tm-actions">
+          <button className="solid" onClick={finish}>
+            See the summary
+          </button>
+          <button onClick={leave}>Keep looking</button>
+        </span>
+      </>
+    )
   const [fix, setFix] = useState(false)
   const [fresh, setFresh] = useState(false) // writing "somewhere new"
   let body: React.ReactNode
@@ -1437,7 +1477,7 @@ function WalkStep({ s, walk, at, hint, viaAfter, takeVia, moreHelp, takeGuess, a
   } else if (step < plan.path.length)
     body = (
       <>
-        <p>{ask(card(plan.path[step])!, step)}</p>
+        <p>{ask(card(plan.path[step])!, step, walk.loop, sameMoment(s.cards, s.edges, walk.loop))}</p>
         <span className="tm-actions">
           <button className="solid" onClick={() => confirm(plan.links[step] || undefined)}>
             That’s it
@@ -1467,7 +1507,7 @@ function WalkStep({ s, walk, at, hint, viaAfter, takeVia, moreHelp, takeGuess, a
     body = (
       <>
         <p>{askWhere(card(walk.via ?? s.edges.find((e) => e.id === plan.close)?.from)!)}</p>
-        <p className="tm-how">Tap one of the two glowing cards, or any other card.</p>
+        <p className="tm-how">Tap the glowing card, or any other card.</p>
         <span className="tm-actions">
           {!walk.added && !walk.via && (
             <button className="tm-quiet" onClick={() => setFresh(true)}>
@@ -1511,7 +1551,7 @@ function WalkStep({ s, walk, at, hint, viaAfter, takeVia, moreHelp, takeGuess, a
     )
   else {
     const other = otherKind(walk.pick)
-    const more = other && s.cards.find((c) => c.kind === other)
+    const more = other && s.cards.find((c) => c.kind === other && walk.ways.includes(c.id))
     const said = walk.pick === 'DE' ? 'Here’s the other way you found yourself. The circle is still there, but this line is broken.' : 'Here’s the small step you came up with. The circle is still there, but this line is broken.'
     if (!walk.pick) body = end('That’s okay. Seeing the circle is already a step.')
     else if (step === st.placed && more)
@@ -1722,11 +1762,13 @@ function NextAsk({ risky, add, skip }: { risky: (t: string, where?: string) => b
 // What CBT is stays folded away: only for those who want to know.
 const ROLE: Record<Kind, string> = { A: 'what happened', B: 'what you told yourself', C: 'what you felt', DE: 'another way', NEXT: 'next step' }
 function Summary({ s, close }: { s: State; close: () => void }) {
-  const p = walkPlan(s.cards, s.edges)
   const card = (id?: string) => s.cards.find((c) => c.id === id)
   const say = (c: Card) => (c.kind === 'C' && c.names?.length ? c.names.join(' and ') : `“${c.text}”`)
-  const path = p.path.map((id) => card(id)!).filter(Boolean)
-  const back = card(s.edges.find((e) => e.id === p.close)?.to)
+  // every circle that was walked, in order: its cards, and where it came back to
+  const rounds = [...Array(Math.max(1, orderedLoops(s.cards, s.edges).length))]
+    .map((_, l) => walkPlan(s.cards, s.edges, l))
+    .map((p) => ({ path: p.path.map((id) => card(id)!).filter(Boolean), back: card(s.edges.find((e) => e.id === p.close)?.to) }))
+    .filter((r) => r.path.length)
   const de = s.cards.filter((c) => c.kind === 'DE')
   const next = s.cards.filter((c) => c.kind === 'NEXT')
   return (
@@ -1736,17 +1778,20 @@ function Summary({ s, close }: { s: State; close: () => void }) {
         <h2>Tonight’s map</h2>
         {s.risk ? (
           <p>{SAFE}</p>
-        ) : path.length ? (
+        ) : rounds.length ? (
           <>
-            <p className="tm-story">
-              {path.map((c, i) => (
-                <span key={c.id}>
-                  {i > 0 && ' → '}
-                  {say(c)} <span className="tm-role">({i > 0 && c.kind === 'A' ? 'what you did' : ROLE[c.kind ?? 'A']})</span>
-                </span>
-              ))}
-              {back ? <> → and back to “{back.text}”.</> : '.'}
-            </p>
+            {rounds.map(({ path, back }, l) => (
+              <p className="tm-story" key={path[0].id}>
+                {l > 0 && <b>{path.some((c) => c.kind === 'A') ? (l === 1 ? 'A second circle, in the world: ' : 'Another circle, in the world: ') : l === 1 ? 'A second circle, only in your head: ' : 'Another circle, only in your head: '}</b>}
+                {path.map((c, i) => (
+                  <span key={c.id}>
+                    {i > 0 && ' → '}
+                    {say(c)} <span className="tm-role">({i > 0 && c.kind === 'A' ? 'what you did' : ROLE[c.kind ?? 'A']})</span>
+                  </span>
+                ))}
+                {back ? <> → and back to “{back.text}”.</> : '.'}
+              </p>
+            ))}
             {de.length > 0 && (
               <section className="tm-sgroup k-DE">
                 <span className="tm-kind">The other way you found</span>
