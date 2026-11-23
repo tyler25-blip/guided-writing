@@ -59,11 +59,31 @@ export function segments(source: string, card: string): { s: string; keep: boole
 
 export type View = { x: number; y: number; z: number; n?: number } // n: bumped on every layout / jump, so the canvas starts from the fitted view
 export type Piles = Partial<Record<Kind, { x: number; y: number }>>
-export const CARD_W = 220 // card width, px (Figma: size-card)
+// Cards sit on a grid of 252px cells (Figma: Thought card). One cell; two cells wide when the sentence does not fit one; Next step is always 2×2.
+export const CELL = 252
+export const CARD_W = CELL // one cell: the width most cards have (a wide card is two cells)
 const CW = CARD_W
 const rowOf = (k?: Kind) => (k ? { A: 0, B: 1, C: 2, DE: 3, NEXT: 4 }[k] : 0)
-// roughly how tall a card is before it has been drawn (text lines + kind chip + names row)
-export const estH = (text: string, kind?: Kind) => 54 + 20 * Math.ceil(text.length / (kind === 'NEXT' ? 23 : 26)) + (kind === 'C' ? 30 : 0)
+// how many lines a sentence takes in a text area `per` characters wide (whole words)
+const linesOf = (text: string, per: number) => {
+  let [n, at] = [1, 0]
+  for (const w of text.split(/\s+/).filter(Boolean)) {
+    const l = Math.min(w.length, per)
+    if (at && at + 1 + l > per) {
+      n++
+      at = l
+    } else at += (at ? 1 : 0) + l
+  }
+  return n
+}
+// the text area of a one-cell card holds about 22 characters × 7 lines (a Felt card keeps two lines for its feeling names)
+export const wide = (text: string, kind?: Kind) => kind !== 'NEXT' && linesOf(text, 22) > (kind === 'C' ? 5 : 7)
+export const cardSize = (text: string, kind?: Kind) => (kind === 'NEXT' ? { w: 2 * CELL, h: 2 * CELL } : { w: wide(text, kind) ? 2 * CELL : CELL, h: CELL })
+// how far in from a card's corner its shape starts, measured along the diagonal (the shapes are round: the corner itself is empty).
+// Used to place a card off another's corner, and the arrow between them, by the gap you actually see.
+export const cornerInset = (kind?: Kind) => ({ A: 17, B: 21, C: 57, DE: 26, NEXT: 113 })[kind ?? 'B'] ?? 21
+export const estH = (text: string, kind?: Kind) => cardSize(text, kind).h
+export const estW = (text: string, kind?: Kind) => cardSize(text, kind).w
 
 // the view that shows every box with a margin (zoom 25%–200%, never bigger than `max`)
 export function fitView(boxes: { x: number; y: number; w: number; h: number }[], bw: number, bh: number, pad = 60, max = 1.5): View {

@@ -1,7 +1,7 @@
 // Turning the person's words into cards and putting them on the canvas (plain code, no AI). Shared by the layout step and the demo's jump buttons.
 import type { Card, Edge, Msg, State } from './MapApp.tsx'
 import { flow, type Peer } from './flow.ts'
-import { CARD_W, estH, fitView, hitsBox, namesFor, personIdx, pilesLayout, routeOrtho, type Box, type Kind } from './place.ts'
+import { estH, estW, fitView, hitsBox, namesFor, personIdx, pilesLayout, routeOrtho, type Box, type Kind } from './place.ts'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -33,7 +33,7 @@ export function lay(cards: Card[], lines: { from: string; to: string }[] | null,
   }
   const edges: Edge[] = lines.map((l) => ({ id: uid(), from: l.from, to: l.to, by: 'ai' as const }))
   const st = arrange({ cards, edges, peers: [] as Peer[] })
-  const boxes = st.cards.map((c) => ({ x: c.x, y: c.y, w: CARD_W, h: estH(c.text, c.kind) }))
+  const boxes = st.cards.map((c) => ({ x: c.x, y: c.y, w: estW(c.text, c.kind), h: estH(c.text, c.kind) }))
   return { ...st, areas: [], piles: undefined, view: { ...fitView(boxes, size.w, size.h), n: Date.now() } }
 }
 
@@ -41,7 +41,7 @@ export function lay(cards: Card[], lines: { from: string; to: string }[] | null,
 // fast = while a card is being dragged: one quick pass; when it is dropped the full search runs.
 export function reroute(st: State, who: { cards?: string[]; edges?: string[] }, hOf: (id: string) => number, fast = false): State {
   const byId = new Map(st.cards.map((c) => [c.id, c]))
-  const box = (c: Card): Box => ({ x: c.x, y: c.y, w: CARD_W, h: hOf(c.id) })
+  const box = (c: Card): Box => ({ x: c.x, y: c.y, w: estW(c.text, c.kind), h: hOf(c.id) })
   // a moved card can land on other lines: those get rerouted too, not only the lines touching it
   const moved = (who.cards ?? []).map((id) => byId.get(id)).filter((c): c is Card => !!c).map(box)
   const under = (e: Edge) => !!e.route && e.route.some((p, i) => i + 1 < e.route!.length && moved.some((m) => hitsBox(p, e.route![i + 1], m)))

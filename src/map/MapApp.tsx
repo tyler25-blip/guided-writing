@@ -9,11 +9,13 @@ import { afterNaming, demoBreak, demoNewKind, demoSide, demoState, demoLines, de
 import { ExplainPanel } from './ExplainPanel.tsx'
 import { ask, askClose, askOther, askVia, askWhere, candidates, insertNew, otherKind, rewire, sayCircle, stages, through, walkPlan, walkWhy, type Hint, type Plan, type Why } from './walk.ts'
 import { arrange, lay, makeCards, reroute } from './build.ts'
-import { escapeOf, quietEdges, type Arc, type Peer, type Round } from './flow.ts'
-import { arcGeo, buildRoad, routeGeo, snapToRing, type Geo, type Seg } from './road.ts'
-import { Road } from './Road.tsx'
+import { escapeOf, escGroups, LG, quietEdges, type Arc, type Peer, type Round } from './flow.ts'
+import { arcGeo, routeGeo, snapToRing, type Geo } from './road.ts'
+import { Links } from './Links.tsx'
+import { bandD, type Arrow, type Band, type LinkState } from './linkGeo.ts'
+import { CardShape } from './CardShape.tsx'
 import { ai, getKey, hasServer, NEED_KEY, setDemo, setKey } from './link.ts'
-import { CARD_W, describe, estH, feels, fitView, freeSpot, freeSpotLinked, guessKind, LABEL, optionsFor, routeOrtho, segments, summaryOf, tidyPiles, zoomAt, layered, type Kind, type Piles, type View } from './place.ts'
+import { CARD_W, cornerInset, describe, estH, estW, feels, fitView, freeSpot, freeSpotLinked, guessKind, LABEL, optionsFor, routeOrtho, segments, summaryOf, tidyPiles, zoomAt, layered, type Kind, type Piles, type View } from './place.ts'
 import './map.css'
 
 type Src = 'you' | 'ai' // 'ai' only exists in older saved maps
@@ -46,7 +48,8 @@ type Set = (f: (s: State) => State) => void
 type Entry = Log extends infer L ? (L extends Log ? Omit<L, 'at'> : never) : never
 const logIt = (set: Set, e: Entry) => set((p) => ({ ...p, log: [...(p.log ?? []), { ...e, at: Date.now() } as Log] }))
 
-const W = CARD_W // card width, px
+const W = CARD_W // one cell, px (a wide card is two; see wOf)
+const wOf = (c: Pick<Card, 'text' | 'kind'>) => estW(c.text, c.kind) // a card's width: one cell, or two when its sentence is long
 // the short kind tag on a card (the design system's tags); LABEL stays the long name in menus and row labels
 const TAG: Record<Kind, string> = { A: 'What happened', B: 'Told myself', C: 'Felt', DE: 'Another way', NEXT: 'Next step' }
 const uid = () => Math.random().toString(36).slice(2, 9)
@@ -124,14 +127,14 @@ export function arrangeLoose(st: State, size: { w: number; h: number }): State |
   const fixed = st.cards.filter((c) => linked.has(c.id))
   const r = layered(loose.map((c) => ({ id: c.id, text: c.text, kind: c.kind })), [])
   const LBL = 170 // room for the row labels
-  const ox = fixed.length ? Math.max(...fixed.map((c) => c.x + W)) + 120 + LBL : LBL
+  const ox = fixed.length ? Math.max(...fixed.map((c) => c.x + wOf(c))) + 120 + LBL : LBL
   const oy = fixed.length ? Math.min(...fixed.map((c) => c.y)) : 0
   const pos = Object.fromEntries(loose.map((c) => [c.id, { x: r.pos[c.id].x + ox, y: r.pos[c.id].y + oy }]))
   const cards = st.cards.map((c) => (pos[c.id] ? { ...c, ...pos[c.id], pile: undefined } : c))
   const rows = new Map<string, number>()
   for (const c of loose) rows.set(c.kind ?? 'A', Math.min(rows.get(c.kind ?? 'A') ?? Infinity, pos[c.id].y))
   const areas = [...(fixed.length ? (st.areas ?? []) : []), ...[...rows].map(([k, y]) => ({ name: LABEL[k as Kind], x: ox - LBL + 16, y }))]
-  const boxes = [...cards.map((c) => ({ x: c.x, y: c.y, w: W, h: estH(c.text, c.kind) })), ...areas.map((a) => ({ x: a.x, y: a.y, w: 0, h: 0 }))]
+  const boxes = [...cards.map((c) => ({ x: c.x, y: c.y, w: wOf(c), h: estH(c.text, c.kind) })), ...areas.map((a) => ({ x: a.x, y: a.y, w: 0, h: 0 }))]
   return { ...st, cards, areas, piles: cards.some((c) => c.pile) ? st.piles : undefined, view: { ...fitView(boxes, size.w, size.h), n: Date.now() } }
 }
 
@@ -752,7 +755,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   useEffect(() => {
     if (!relaid) return
     const b = board.current!
-    setView(fitView(shown.map((c) => ({ x: c.x, y: c.y, w: W, h: h[c.id] ?? 110 })), b.clientWidth - (walk?.step === walk?.st.pick ? 380 : 0), b.clientHeight - (walk?.step === walk?.st.pick ? 0 : 200), 60, 1)) // room for the question box (beside the circle, or under the cards); never closer than life-size
+    setView(fitView(shown.map((c) => ({ x: c.x, y: c.y, w: wOf(c), h: h[c.id] ?? 110 })), b.clientWidth - (walk?.step === walk?.st.pick ? 380 : 0), b.clientHeight - (walk?.step === walk?.st.pick ? 0 : 200), 60, 1)) // room for the question box (beside the circle, or under the cards); never closer than life-size
     const t = setTimeout(() => setRelaid(0), 700)
     return () => clearTimeout(t)
   }, [relaid]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -762,7 +765,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
     if (walkStep === undefined || (walkStep !== 0 && walkStep !== walk!.st.close && walkStep !== walk!.st.placed && walkStep !== walk!.st.rest)) return
     const b = board.current!
     const ids = walkStep === 0 ? walk!.plan.path : [...shownIds!]
-    const boxes = s.cards.filter((c) => ids.includes(c.id)).map((c) => ({ x: c.x, y: c.y, w: W, h: h[c.id] ?? 110 }))
+    const boxes = s.cards.filter((c) => ids.includes(c.id)).map((c) => ({ x: c.x, y: c.y, w: wOf(c), h: h[c.id] ?? 110 }))
     setView(fitView(boxes, b.clientWidth, b.clientHeight - 240, 60, 1)) // room for the question box under the last card; never closer than life-size
   }, [walkStep]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -810,7 +813,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   const zoomBy = (f: number) => setView((v) => zoomAt(v, v.z * f, board.current!.clientWidth / 2, board.current!.clientHeight / 2))
   const fit = () => {
     const b = board.current!
-    const boxes = [...shown.map((c) => ({ x: c.x, y: c.y, w: W, h: h[c.id] ?? 90 })), ...live.flatMap((e) => (routeOf(e) ?? []).map(([x, y]) => ({ x, y, w: 0, h: 0 })))]
+    const boxes = [...shown.map((c) => ({ x: c.x, y: c.y, w: wOf(c), h: h[c.id] ?? 90 })), ...live.flatMap((e) => (routeOf(e) ?? []).map(([x, y]) => ({ x, y, w: 0, h: 0 })))]
     // during the guided walk, fit the way the walk does: leave room for the question box (beside the circle when picking, else under the cards), never closer than life-size
     const pick = walk?.step === walk?.st.pick
     setView(walk ? fitView(boxes, b.clientWidth - (pick ? 380 : 0), b.clientHeight - (pick ? 0 : 240), 60, 1) : fitView(boxes, b.clientWidth, b.clientHeight))
@@ -823,7 +826,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   }
   const find = (id: string) => s.cards.find((c) => c.id === id)
   const card = (id: string) => find(id)!
-  const center = (c: Card) => ({ x: c.x + W / 2, y: c.y + (h[c.id] ?? 48) / 2 })
+  const center = (c: Card) => ({ x: c.x + wOf(c) / 2, y: c.y + (h[c.id] ?? 48) / 2 })
   const cardsAt = (cx: number, cy: number, except: string) =>
     document
       .elementsFromPoint(cx, cy)
@@ -920,7 +923,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
 
   // every line is horizontal and vertical runs only: it keeps the route it was given (the layout's, or the router's when a card moved or a line was drawn)
   // while both its cards stay put; otherwise a quick route is worked out for it
-  const boxOf = (c: Card) => ({ x: c.x, y: c.y, w: W, h: hOf(c.id) })
+  const boxOf = (c: Card) => ({ x: c.x, y: c.y, w: wOf(c), h: hOf(c.id) })
   const routeOf = (x: Edge) => {
     const [a, b] = [find(x.from), find(x.to)]
     return x.route && x.at && a && b && a.x === x.at[0] && a.y === x.at[1] && b.x === x.at[2] && b.y === x.at[3] ? x.route : null
@@ -937,126 +940,113 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
   // cards side by side share one arrow: the others' lines are not drawn, a dotted-end line joins them instead
   const quiet = quietEdges(s.edges, s.peers ?? [])
   const drawn = live.filter((x) => !quiet.has(x.id))
-  // the road (road.ts): the lines, the way in from outside, and after the cut one road down a column and out; the fan of lines to the ways out is not drawn
+  // the joins (Links.tsx): an arrow between cards that sit next to each other, a band round the ring; after the cut the fan of lines to the ways out
+  // is replaced by one column (an arrow from the card it leaves from, then down the column)
   const esc = s.round ? escapeOf(s.cards, s.edges, s.pick) : null
   const fan = new Set(esc?.chain)
   const rplan = walkPlan(s.cards, s.edges)
-  const road = buildRoad({ edges: drawn.map((x) => ({ ...x, geo: geom(x) })), plan: rplan, esc, round: s.round, boxes: Object.fromEntries(shown.map((c) => [c.id, boxOf(c)])), story: s.mode === 'auto' && (!!s.walk || !!rplan.close), exitUncut: !walk, pending: new Set(shown.filter((c) => walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other))).map((c) => c.id)) })
-  // the open line of the closing step, in the road's language: a road piece that waits (flowing gradient), never a thin arrow
-  const openSegs: Seg[] = (() => {
-    if (!guess || !tailId || !find(tailId)) return []
-    const t = find(tailId)!
-    const taken = drawn.map((e) => routeOf(e)).filter((r): r is [number, number][] => !!r)
-    const link = (a: Card, b: Card): Geo => routeGeo(routeOrtho(boxOf(a), boxOf(b), shown.filter((c) => c.id !== a.id && c.id !== b.id).map(boxOf), taken)) // round the cards in between, clear of the lines already there
-    const to = choosing && over && canTap(over) ? find(over) : undefined // over a card that can be tapped: the open road reaches for it
-    const after = via && hint === 2 && viaAfter ? find(viaAfter) : undefined // the guess for a side card, offered
-    const out: Seg[] = via ? [{ key: 'via', geo: link(find(guess.from)!, t), state: 'road' }] : []
-    if (to) out.push({ key: 'open', geo: link(t, to), state: 'flow' })
-    else if (after) out.push({ key: 'open', geo: link(t, after), state: 'flow' })
-    else if (choosing) {
-      const [x, y] = via ? [t.x + W, t.y + hOf(t.id) / 2] : [t.x + W / 2, t.y + hOf(t.id)]
-      const [dx, dy] = via ? [1, 0] : [0, 1]
-      out.push({ key: 'open', geo: { d: `M${x - dx * 30},${y - dy * 30} L${x + dx * 70},${y + dy * 70}`, a: [x, y], b: [x + dx * 70, y + dy * 70], m: { x: x + dx * 35, y: y + dy * 35 } }, state: 'flow' })
+  const pending = new Set(shown.filter((c) => walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other))).map((c) => c.id)) // placeholders waiting for a yes
+  const stateOf = (x?: Edge): LinkState => (x?.cut ? 'cut' : x && (x.by === 'ai' || pending.has(x.to)) ? 'waiting' : 'kept')
+  const onRing = (x: Edge) => !!(s.round && x.arc && s.round.ids.includes(x.from) && s.round.ids.includes(x.to))
+  const bands: Band[] = live.filter(onRing).map((x) => ({ key: x.id, to: x.to, d: bandD(s.round!, boxOf(card(x.from)), boxOf(card(x.to))), state: stateOf(x) })).filter((b) => b.d)
+  const arrows: Arrow[] = live.filter((x) => !onRing(x) && !fan.has(x.to)).map((x) => ({ key: x.id, to: x.to, from: boxOf(card(x.from)), at: boxOf(card(x.to)), state: stateOf(x) }))
+  // the ways out lie in two heaps (flow.ts): one arrow into the first heap from the card the circle is left from, one from the first heap's
+  // bottom-right card into the second; none between cards of the same heap (they answer the same card side by side)
+  if (esc && find(esc.at)) {
+    const [g1, g2] = escGroups(esc, (id) => find(id)?.kind).map((g) => g.map(find).filter((c): c is Card => !!c && shown.includes(c)))
+    const corner = (g: Card[]) => g.reduce((p, c) => (c.x + wOf(c) + c.y + hOf(c.id) > p.x + wOf(p) + p.y + hOf(p.id) ? c : p))
+    const into = (c: Card) => stateOf(s.edges.find((e) => e.to === c.id))
+    if (g1[0]) arrows.push({ key: `esc-${g1[0].id}`, to: g1[0].id, from: boxOf(find(esc.at)!), at: boxOf(g1[0]), state: into(g1[0]) })
+    if (g2[0]) {
+      const src = g1.length ? corner(g1) : find(esc.at)!
+      arrows.push({ key: `esc-${g2[0].id}`, to: g2[0].id, from: boxOf(src), at: boxOf(g2[0]), state: into(g2[0]), insets: [cornerInset(src.kind), cornerInset(g2[0].kind)] })
     }
-    return out
-  })()
-  // the summary walk: fit the whole road (the panel is hidden, so the whole board), hide the road, then draw it again piece by piece from outside to outside
-  // (stroke-dashoffset), lighting each card as the drawing reaches it; a click or key press skips it.
+  }
+  // the open line of the closing step: an outlined arrow that waits, toward the card under the pointer (or the offered guess), or toward the empty place below
+  if (guess && tailId && find(tailId)) {
+    const t = find(tailId)!
+    const to = choosing && over && canTap(over) ? find(over) : undefined
+    const after = via && hint === 2 && viaAfter ? find(viaAfter) : undefined
+    if (via && find(guess.from)) arrows.push({ key: 'via', to: t.id, from: boxOf(find(guess.from)!), at: boxOf(t), state: 'kept' })
+    const target = to ?? after
+    const b = boxOf(t)
+    if (target) arrows.push({ key: 'open', to: target.id, from: b, at: boxOf(target), state: 'waiting' })
+    else if (choosing) arrows.push({ key: 'open', to: '', from: b, at: via ? { x: b.x + b.w + LG, y: b.y, w: CARD_W, h: b.h } : { x: b.x, y: b.y + b.h + LG, w: b.w, h: CARD_W }, state: 'waiting' })
+  }
+  // the summary walk: the whole map in view, everything hidden, then the cards come up one by one in the order of the walk (round the circle, then
+  // out along the column), each with a little pop, its arrow or band with it; the last Next step spins once. A click or key press skips it.
   const tour0 = useRef(tour) // the canvas can remount (new view) while `tour` already counts earlier walks: only a later bump starts one
   useEffect(() => {
     if (!tour || tour === tour0.current) return
     const b = board.current
-    const pieces = road.order.map((k) => b?.querySelector<SVGPathElement>(`.tm-road path[data-seg="${k}"]`)).filter((x): x is SVGPathElement => !!x)
-    if (!b || !pieces.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return onTour()
-    const all = [...b.querySelectorAll<SVGPathElement>('.tm-road path[data-seg]')]
-    const current = [...b.querySelectorAll<SVGGElement>('.tm-current')] // the moving light rests while the road is drawn again
-    current.forEach((x) => (x.style.display = 'none'))
-    const lens = pieces.map((x) => x.getTotalLength())
-    const total = lens.reduce((t, l) => t + l, 0)
-    const hide = (x: SVGPathElement) => (x.style.strokeDasharray = '1', (x.style.strokeDashoffset = '1')) // pathLength is 1: a whole piece
-    all.forEach(hide)
-    const boxes = shown.map((c) => ({ id: c.id, x: c.x, y: c.y, w: W, h: h[c.id] ?? 110 }))
-    const bb = all.map((x) => x.getBBox())
-    const [x0, y0] = [Math.min(...bb.map((r) => r.x)), Math.min(...bb.map((r) => r.y))]
-    const [x1, y1] = [Math.max(...bb.map((r) => r.x + r.width)), Math.max(...bb.map((r) => r.y + r.height))]
-    setView(fitView([...boxes, { id: '', x: x0, y: y0, w: x1 - x0, h: y1 - y0 }], b.clientWidth, b.clientHeight, 60, 1))
-    const passed = new Map<string, number>()
-    let raf = 0
+    const seq = [...rplan.path, ...(esc?.chain ?? [])].filter((id, i, all) => all.indexOf(id) === i && refs.current.has(id))
+    if (!b || !seq.length || matchMedia('(prefers-reduced-motion: reduce)').matches) return onTour()
+    const cards = [...refs.current.values()]
+    const links = [...b.querySelectorAll<SVGElement>('[data-link]')]
+    setView(fitView(shown.map((c) => ({ x: c.x, y: c.y, w: wOf(c), h: h[c.id] ?? 110 })), b.clientWidth, b.clientHeight, 60, 1))
+    const anims: Animation[] = []
+    const timers: number[] = []
+    const showAll = () => [...cards, ...links].forEach((el) => el.style.removeProperty('opacity'))
+    ;[...cards, ...links].forEach((el) => (el.style.opacity = '0'))
     let done = false
     const stop = () => {
       done = true
-      cancelAnimationFrame(raf)
-      all.forEach((x) => (x.style.removeProperty('stroke-dasharray'), x.style.removeProperty('stroke-dashoffset')))
-      current.forEach((x) => x.style.removeProperty('display'))
-      refs.current.forEach((el) => el.classList.remove('passed'))
+      timers.forEach(clearTimeout)
+      anims.forEach((a) => a.cancel())
+      showAll()
     }
     const finish = () => {
       if (done) return
       stop()
       onTour()
     }
-    const start = setTimeout(() => {
-      const dur = Math.min(6000, Math.max(4000, total * 3))
-      const t0 = performance.now()
-      const step = (now: number) => {
-        const k = Math.min(1, (now - t0) / dur)
-        let d = k * total
-        const head: { p?: DOMPoint } = {}
-        const drawnTo = new Map<SVGPathElement, number>() // a piece walked twice (round the circle, then on to where the road leaves) stays drawn the second time
-        pieces.forEach((x, i) => {
-          const f = Math.max(0, Math.min(1, d / lens[i]))
-          d -= lens[i]
-          drawnTo.set(x, Math.max(f, drawnTo.get(x) ?? 0))
-          if (f > 0 && f < 1) head.p = x.getPointAtLength(f * lens[i])
-        })
-        drawnTo.forEach((f, x) => (x.style.strokeDashoffset = String(1 - f)))
-        for (const c of boxes) {
-          const el = refs.current.get(c.id)
-          if (head.p && head.p.x > c.x && head.p.x < c.x + c.w && head.p.y > c.y && head.p.y < c.y + c.h) passed.set(c.id, now)
-          el?.classList.toggle('passed', now - (passed.get(c.id) ?? -1e9) < 900)
-        }
-        if (k < 1) raf = requestAnimationFrame(step)
-        else setTimeout(finish, 400)
-      }
-      raf = requestAnimationFrame(step)
-    }, 600)
+    const STEP = 380
+    seq.forEach((id, i) =>
+      timers.push(
+        window.setTimeout(() => {
+          const el = refs.current.get(id)
+          if (!el) return
+          el.style.removeProperty('opacity')
+          anims.push(el.animate([{ opacity: 0, transform: 'scale(0.3)' }, { opacity: 1, transform: 'scale(1.12)', offset: 0.6 }, { opacity: 1, transform: 'scale(1)' }], { duration: 480, easing: 'cubic-bezier(.2,.9,.3,1.2)' }))
+          for (const l of links.filter((x) => x.dataset.to === id)) {
+            l.style.removeProperty('opacity')
+            anims.push(l.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 }))
+          }
+          if (i === seq.length - 1 && find(id)?.kind === 'NEXT') timers.push(window.setTimeout(() => anims.push(el.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 500, easing: 'ease-in-out' })), 480))
+        }, 600 + i * STEP),
+      ),
+    )
+    const end = 600 + seq.length * STEP + 900
+    timers.push(window.setTimeout(showAll, end - 500)) // anything not on the walk comes in at the end
+    timers.push(window.setTimeout(finish, end))
     const skip = (e: Event) => (e.stopPropagation(), e.preventDefault(), finish())
     addEventListener('pointerdown', skip, true)
     addEventListener('keydown', skip, true)
     return () => {
-      clearTimeout(start)
       removeEventListener('pointerdown', skip, true)
       removeEventListener('keydown', skip, true)
       stop()
     }
   }, [tour]) // eslint-disable-line react-hooks/exhaustive-deps
-  // everything new on the map arrives slowly: the road grows toward the new card first, then the card fades in (never a pop). The cards and pieces
-  // already there when the canvas opened stay as they are (unless the guided walk has only just begun).
-  const known = useRef<{ cards: Record<string, true>; segs: Record<string, true> } | null>(null)
+  // everything new on the map arrives slowly: its arrow or band first, then the card fades in (never a pop). The cards and joins already there when
+  // the canvas opened stay as they are (unless the guided walk has only just begun).
+  const known = useRef<{ cards: Record<string, true>; links: Record<string, true> } | null>(null)
   useEffect(() => {
     const b = board.current
     if (!b) return
-    const [cards, segs] = [[...refs.current.entries()], [...b.querySelectorAll<SVGPathElement>('.tm-road path[data-seg]')]]
+    const [cards, links] = [[...refs.current.entries()], [...b.querySelectorAll<SVGElement>('[data-link]')]]
     const first = !known.current
-    known.current ??= { cards: {}, segs: {} }
+    known.current ??= { cards: {}, links: {} }
     const k = known.current
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches || (first && !(s.walk && s.walk.step === 0))
-    const grown = segs.filter((x) => !k.segs[x.dataset.seg!] && x.dataset.seg !== 'in')
-    grown.forEach((x) => !calm && x.animate([{ strokeDasharray: '1 1', strokeDashoffset: 1 }, { strokeDasharray: '1 1', strokeDashoffset: 0 }], { duration: 500, easing: 'ease-out', fill: 'backwards' }))
+    const grown = links.filter((x) => !k.links[x.dataset.link!] && x.dataset.link !== 'open')
+    grown.forEach((x) => !calm && x.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400, easing: 'ease-out', fill: 'backwards' }))
     for (const [id, el] of cards)
-      if (!k.cards[id] && !calm) el.animate([{ opacity: 0, transform: 'translateY(10px) scale(0.96)' }, { opacity: 1, transform: 'none' }], { duration: 400, delay: grown.length ? 450 : 0, easing: 'ease-out', fill: 'backwards' })
-    k.cards = Object.fromEntries(cards.map(([id]) => [id, true])) // pieces that went away (the exit while a card waits) arrive again when they come back
-    k.segs = Object.fromEntries(segs.map((x) => [x.dataset.seg!, true]))
+      if (!k.cards[id] && !calm) el.animate([{ opacity: 0, transform: 'translateY(10px) scale(0.96)' }, { opacity: 1, transform: 'none' }], { duration: 400, delay: grown.length ? 350 : 0, easing: 'ease-out', fill: 'backwards' })
+    k.cards = Object.fromEntries(cards.map(([id]) => [id, true]))
+    k.links = Object.fromEntries(links.map((x) => [x.dataset.link!, true]))
   })
 
-  const isShown = (id: string) => !shownIds || shownIds.has(id)
-  const joins = (s.peers ?? []).flatMap((p) => {
-    const [a, b] = [find(p.a), find(p.b)]
-    if (!a || !b || !isShown(a.id) || !isShown(b.id)) return []
-    const [l, r] = a.x <= b.x ? [a, b] : [b, a]
-    const mid = Math.min(hOf(l.id), hOf(r.id)) / 2 // level with each other, however tall each card is
-    return [{ key: `${p.a}-${p.b}`, kind: b.kind, x1: l.x + W, y1: l.y + mid, x2: r.x, y2: r.y + mid }]
-  })
   const groups = loops(live)
   const inLoop = new Set(groups.flat())
   const loopOf = (edge: string) => groups.find((g) => g.includes(edge)) ?? []
@@ -1152,14 +1142,6 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
     >
       <div className={`tm-layer${relaid ? ' relaid' : ''}`} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
         <svg className="tm-edges" aria-hidden="true" width="6000" height="6000" viewBox="-2000 -2000 6000 6000">
-          <Road segs={[...road.segs, ...openSegs]} order={road.order} />
-          {joins.map((j) => (
-            <g key={j.key} className={`join${j.kind === 'DE' ? ' de' : j.kind === 'NEXT' ? ' next' : ''}`}>
-              <line x1={j.x1} y1={j.y1} x2={j.x2} y2={j.y2} />
-              <circle cx={j.x1} cy={j.y1} r="3.5" />
-              <circle cx={j.x2} cy={j.y2} r="3.5" />
-            </g>
-          ))}
           {!ro &&
             !walk &&
             drawn.filter((x) => !fan.has(x.to)).map((x) => (
@@ -1230,15 +1212,15 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
           (['l', 'r'] as const).map((side) => {
             // the card being placed: its left and right points glow, there may be more on this level
             const c = find(walk.plan.path[walk.step])!
-            return <button key={side} className={`tm-side ${side}`} style={{ left: c.x + (side === 'r' ? W : 0), top: c.y + hOf(c.id) / 2 }} aria-label="Add a card beside this one" title="Add a card beside this one" onClick={() => setBeside({ id: c.id, side })} />
+            return <button key={side} className={`tm-side ${side}`} style={{ left: c.x + (side === 'r' ? wOf(c) : 0), top: c.y + hOf(c.id) / 2 }} aria-label="Add a card beside this one" title="Add a card beside this one" onClick={() => setBeside({ id: c.id, side })} />
           })}
         {shown.map((c) => (
           <div
             key={c.id}
             data-card={c.id}
             ref={(el) => void (el ? refs.current.set(c.id, el) : refs.current.delete(c.id))}
-            className={`tm-card k-${c.kind ?? 'none'}${walk && ((walk.step < walk.plan.path.length && c.id === walk.plan.path[walk.step]) || (walk.step === walk.st.rest && c.kind === other)) ? ' ghost' : ''}${choosing && canTap(c.id) ? ' pickable' : ''}${choosing && c.id === tailId ? ' tail' : ''}${lit.includes(c.id) ? ' cand' : ''}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
-            style={{ left: c.x, top: c.y, width: W }}
+            className={`tm-card k-${c.kind ?? 'none'} s-${c.kind === 'NEXT' ? '2x2' : wOf(c) > W ? '2x1' : '1x1'}${pending.has(c.id) ? ' ghost' : ''}${choosing && canTap(c.id) ? ' pickable' : ''}${choosing && c.id === tailId ? ' tail' : ''}${lit.includes(c.id) ? ' cand' : ''}${sel === c.id ? ' sel' : ''}${partner === c.id ? ' lit' : ''}${c.stack.length ? ' stacked' : ''}${drag?.kind === 'move' && drag.id === c.id ? ' dragging' : ''}`}
+            style={{ left: c.x, top: c.y, width: wOf(c), height: estH(c.text, c.kind) }}
             onPointerDown={(e) => {
               if (editCard === c.id || (e.target as HTMLElement).closest('button,input')) return
               setSel(c.id)
@@ -1255,6 +1237,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
             onClick={() => choosing && !moved.current && (setOver(null), linkTo(c.id))}
             onDoubleClick={() => !ro && !choosing && setEditCard(c.id)}
           >
+            <CardShape kind={c.kind} w={wOf(c)} h={estH(c.text, c.kind)} ghost={pending.has(c.id)} />
             {editCard === c.id ? (
               <textarea
                 autoFocus
@@ -1339,6 +1322,10 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
               ))}
           </div>
         ))}
+        {/* the joins sit above the cards: an arrow's point reaches into the next card's notch */}
+        <svg className="tm-edges tm-over" aria-hidden="true" width="6000" height="6000" viewBox="-2000 -2000 6000 6000">
+          <Links arrows={arrows} bands={bands} />
+        </svg>
 
         {guide && find(guide.id) && !ro && <Guide at={guide} add={(a, b) => addDE(find(guide.id)!, a, b)} cancel={() => setGuide(null)} />}
       </div>
@@ -1370,7 +1357,7 @@ function MapCanvas({ s, set, risky, onOpen, onPick, plan, onFinish, tour, onTour
           const now = walk.step < walk.plan.path.length ? find(walk.plan.path[walk.step]) : walk.step === walk.st.rest && other ? s.cards.find((c) => c.kind === other) : undefined
           const closing = walk.step === walk.st.close && live.find((x) => x.id === walk.plan.close)
           const tail = choosing || via ? find(tailId!) : undefined
-          const p = now ? { x: now.x, y: now.y + hOf(now.id) + 14 } : tail ? { x: tail.x, y: tail.y + hOf(tail.id) + 62 } : closing ? { x: find(closing.from)!.x + W + 36, y: find(closing.from)!.y - 24 } : walk.step === walk.st.pick && walk.plan.close ? { x: Math.max(...shown.map((c) => c.x + W)) + 40, y: Math.min(...cs.map((c) => c.y)) } : { x: Math.min(...cs.map((c) => c.x)), y: Math.max(...shown.map((c) => c.y + hOf(c.id))) + (walk.plan.close ? 64 : 24) } // where to break the circle: beside it, so the whole circle stays in view
+          const p = now ? { x: now.x, y: now.y + hOf(now.id) + 14 } : tail ? { x: tail.x, y: tail.y + hOf(tail.id) + 62 } : closing ? { x: find(closing.from)!.x + wOf(find(closing.from)!) + 36, y: find(closing.from)!.y - 24 } : walk.step === walk.st.pick && walk.plan.close ? { x: Math.max(...shown.map((c) => c.x + wOf(c))) + 40, y: Math.min(...cs.map((c) => c.y)) } : { x: Math.min(...cs.map((c) => c.x)), y: Math.max(...shown.map((c) => c.y + hOf(c.id))) + (walk.plan.close ? 64 : 24) } // where to break the circle: beside it, so the whole circle stays in view
           const b = board.current
           const at = { left: Math.max(8, Math.min(view.x + p.x * view.z, (b?.clientWidth ?? 900) - 340)), top: Math.max(8, Math.min(view.y + p.y * view.z, (b?.clientHeight ?? 600) - (walk.step === walk.st.pick ? 150 + 62 * (walk.plan.options.length + 1) : 240))) } // the box where to break the circle is taller: one row per option
           return <WalkStep key={`${walk.step}-${hint}-${via ?? ''}`} s={s} walk={walk} at={at} hint={hint} viaAfter={viaAfter} takeVia={takeVia} moreHelp={moreHelp} takeGuess={takeGuess} addNew={addNew} beside={beside} setBeside={setBeside} addSide={addSide} confirm={confirm} confirmOther={confirmOther} fixCard={fixCard} dropClose={dropClose} breakAt={breakAt} leave={leave} finish={finishWalk} />

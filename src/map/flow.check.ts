@@ -1,6 +1,6 @@
 // node src/map/flow.check.ts
 import assert from 'node:assert/strict'
-import { escapeOf, flow, GX, GY, quietEdges, type Peer } from './flow.ts'
+import { escapeOf, flow, GX, GY, LG, quietEdges, type Peer } from './flow.ts'
 import { CARD_W, type Kind } from './place.ts'
 
 type C = { id: string; text: string; kind?: Kind }
@@ -26,18 +26,18 @@ const guess: E[] = [
   { id: 'e8', from: 'a2', to: 'n1', by: 'ai' },
 ]
 const h = () => 80
-const overlap = (f: ReturnType<typeof flow>) => {
-  const ids = Object.keys(f.pos)
+const overlap = (f: ReturnType<typeof flow>, skip: string[] = []) => {
+  const ids = Object.keys(f.pos).filter((id) => !skip.includes(id))
   return ids.some((a, i) => ids.slice(i + 1).some((b) => Math.abs(f.pos[a].x - f.pos[b].x) < CARD_W && Math.abs(f.pos[a].y - f.pos[b].y) < 80))
 }
 
 // before the circle is closed: one column, top to bottom, in the order of cause and effect
 const col = flow(cards, guess, [], h)
 assert.deepEqual(col.ring, [])
-assert.deepEqual(['a1', 'b1', 'c1', 'a2'].map((id) => col.pos[id]), [0, 1, 2, 3].map((i) => ({ x: 0, y: i * (80 + GY) })))
-// the ways out sit beside the card they answer, on its level: the other ways beside the thought, the step beside what they did
-assert.deepEqual(['d1', 'd2', 'd3'].map((id) => col.pos[id]), [1, 2, 3].map((i) => ({ x: i * (CARD_W + GX), y: col.pos.b1.y })))
-assert.deepEqual(col.pos.n1, { x: CARD_W + GX, y: col.pos.a2.y })
+assert.deepEqual(['a1', 'b1', 'c1', 'a2'].map((id) => col.pos[id]), [0, 1, 2, 3].map((i) => ({ x: 0, y: i * (80 + LG) }))) // an arrow apart
+// the ways out sit beside the card they answer, on its level (an arrow apart), side by side with each other: the other ways beside the thought, the step beside what they did
+assert.deepEqual(['d1', 'd2', 'd3'].map((id) => col.pos[id]), [0, 1, 2].map((i) => ({ x: CARD_W + LG + i * (CARD_W + GX), y: col.pos.b1.y })))
+assert.deepEqual(col.pos.n1, { x: CARD_W + LG, y: col.pos.a2.y })
 assert.ok(!overlap(col))
 // one arrow to the first "another way", dotted-end lines between the rest
 assert.deepEqual(col.peers, [{ a: 'd1', b: 'd2' }, { a: 'd2', b: 'd3' }])
@@ -53,7 +53,7 @@ const ring = flow(cards, kept, [], h)
 assert.deepEqual(ring.ring, ['b1', 'c1', 'a2'])
 assert.deepEqual(ring.pos.a1, { x: 0, y: 0 })
 assert.equal(ring.pos.b1.x, 0)
-assert.equal(ring.pos.b1.y, 80 + GY)
+assert.equal(ring.pos.b1.y, 80 + LG)
 assert.ok(ring.pos.c1.x > ring.pos.b1.x && ring.pos.c1.y > ring.pos.b1.y) // right and down
 assert.ok(ring.pos.a2.x < ring.pos.b1.x && Math.abs(ring.pos.a2.y - ring.pos.c1.y) < 1) // left, level with it
 assert.deepEqual(Object.keys(ring.arcs).sort(), ['e2', 'e3', 'e4'])
@@ -63,7 +63,7 @@ assert.ok(!ring.routes.e2 && ring.routes.e1)
 assert.ok(['d1', 'd2', 'd3'].every((id) => ring.pos[id].x > ring.pos.b1.x && ring.pos[id].y === ring.pos.b1.y))
 assert.ok(ring.pos.n1.x < ring.pos.a2.x && ring.pos.n1.y === ring.pos.a2.y)
 assert.ok(!overlap(ring))
-assert.deepEqual(ring.routes.e5, [[CARD_W, ring.pos.b1.y + 40], [CARD_W + GX, ring.pos.b1.y + 40]]) // side by side: one straight line
+assert.deepEqual(ring.routes.e5, [[CARD_W, ring.pos.b1.y + 40], [CARD_W + LG, ring.pos.b1.y + 40]]) // side by side: one straight line
 assert.deepEqual(ring.peers, [{ a: 'd1', b: 'd2' }, { a: 'd2', b: 'd3' }])
 
 // a card the person added beside another: same level, on the side they chose, sharing its arrow
@@ -108,28 +108,30 @@ assert.ok(!overlap(side))
 assert.deepEqual(ring.round?.ids, ring.ring)
 assert.ok(ring.round && ring.ring.every((id) => Math.abs(Math.hypot(ring.pos[id].x + CARD_W / 2 - ring.round!.cx, ring.pos[id].y + 40 - ring.round!.cy) - ring.round!.r) < 1.5))
 
-// after the cut: one road. It leaves the ring at the chosen cut and runs down a column to the right of the ring: the chosen kind first (in the order the cards were made), then the other
+// after the cut: the ways out lie in two heaps. The chosen kind sits right next to the card the circle is left from (its first card level with it),
+// parallel cards as one heap on a two-wide grid (top left, under it, beside that); the other kind sits off that heap's bottom-right corner
 const cutAt = (id: string) => kept.map((e) => ({ ...e, cut: e.id === id || undefined }))
-const colOf = (f: ReturnType<typeof flow>, ids: string[]) => {
-  const xs = new Set(ids.map((id) => f.pos[id].x))
-  assert.equal(xs.size, 1) // one column
-  assert.ok(ids.every((id) => f.pos[id].x >= Math.max(...f.ring.map((r) => f.pos[r].x)) + CARD_W + GX)) // right of the ring
-  assert.ok(ids.every((id, i) => i === 0 || f.pos[id].y === f.pos[ids[i - 1]].y + 80 + GY)) // top to bottom, in order
-}
+const next = (f: ReturnType<typeof flow>, a: string, w = CARD_W, g = GX) => f.pos[a].x + w + g
+// off a card's bottom-right corner by a 64px gap between the shapes you see (Another way's corner starts 26px in, Next step's 113px in)
+const off = (f: ReturnType<typeof flow>, a: string, w: number, ia: number, ib: number) => ({ x: f.pos[a].x + w + (LG - ia - ib) / Math.SQRT2, y: f.pos[a].y + 80 + (LG - ia - ib) / Math.SQRT2 })
 // "see it another way": cut at the line into the thought, the road leaves at the thought, another ways, then the next step
 const de = flow(cards, cutAt('e4'), [], h, 'DE')
 assert.deepEqual(de.escape, { at: 'b1', chain: ['d1', 'd2', 'd3', 'n1'], first: 'DE' })
-colOf(de, de.escape!.chain)
-assert.equal(de.pos.d1.y, de.pos.b1.y)
+assert.deepEqual(de.pos.d1, { x: next(de, 'b1', CARD_W, LG), y: de.pos.b1.y }) // beside the thought, an arrow apart, level with it
+assert.deepEqual(de.pos.d2, { x: de.pos.d1.x, y: de.pos.d1.y + 80 + GY }) // under the first
+assert.deepEqual(de.pos.d3, { x: next(de, 'd2'), y: de.pos.d2.y }) // beside that
+assert.deepEqual(de.pos.n1, off(de, 'd3', CARD_W, 26, 113)) // the next step off the heap's bottom-right corner
 assert.ok(['b1', 'c1', 'a2'].every((id) => de.pos[id].x === ring.pos[id].x && de.pos[id].y === ring.pos[id].y)) // the ring does not move
 assert.ok(!de.routes.e5 && !de.routes.e8 && de.routes.e1) // the fan of lines to the ways out is gone
-assert.ok(!overlap(de))
-// "do something different": cut at the line into what they did, the road leaves at that card, the next step, then the other ways
+assert.ok(!overlap(de, ['n1'])) // the next step's empty corner tucks in by the heap's
+// "do something different": cut at the line into what they did, the road leaves at that card, the next step, then the other ways as a heap
 const act = flow(cards, cutAt('e3'), [], h, 'NEXT')
 assert.deepEqual(act.escape, { at: 'a2', chain: ['n1', 'd1', 'd2', 'd3'], first: 'NEXT' })
-colOf(act, act.escape!.chain)
 assert.equal(act.pos.n1.y, act.pos.a2.y)
-assert.ok(!overlap(act))
+assert.deepEqual(act.pos.d1, off(act, 'n1', 2 * CARD_W, 113, 26)) // off the next step's bottom-right corner (it is two cells wide)
+assert.deepEqual(act.pos.d2, { x: act.pos.d1.x, y: act.pos.d1.y + 80 + GY })
+assert.deepEqual(act.pos.d3, { x: next(act, 'd2'), y: act.pos.d2.y })
+assert.ok(!overlap(act, ['n1']))
 // older maps have no pick: it is read from the cut line
 assert.deepEqual(escapeOf(cards, cutAt('e4')), de.escape)
 assert.deepEqual(escapeOf(cards, cutAt('e3')), act.escape)
