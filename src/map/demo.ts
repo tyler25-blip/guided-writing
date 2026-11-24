@@ -5,7 +5,7 @@
 import type { Msg, State } from './MapApp.tsx'
 import { arrange, lay, makeCards } from './build.ts'
 import type { Kind } from './place.ts'
-import { walkPlan, type Why } from './walk.ts'
+import { orderedLoops, walkPlan, type Why } from './walk.ts'
 
 export type Step = { p: string; ai: string; options?: string[]; after?: string; propose?: boolean; why?: Why; afterWhy?: Why }
 // p = the person's line (pre-filled in the box), ai = the scripted reply; after = what the AI says once the person has named the feeling
@@ -29,9 +29,9 @@ export const SCRIPT: Step[] = [
     why: { what: 'The thought under the feeling.', mech: 'B collected: the event did not say “they’re all smarter than me”, the thought did.', ai: 'Did not argue with the thought. Asked what it makes them do.', got: ['B'] },
   },
   {
-    p: 'I just left class early. And I haven’t asked anyone else since.',
-    ai: 'So you left early, and you haven’t asked anyone else since. And at night, when you think back to it, where does your mind go?',
-    why: { what: 'What they did: left early, asked no one else.', mech: 'What they did feeds the first circle: no new ask, so nothing contradicts the thought.', ai: 'Said it back, then asked where the mind goes at night. That is the way into the second circle.' },
+    p: 'I just left class early. And I haven’t asked anyone else since. I’m not worth anyone choosing me anyway.',
+    ai: 'So you left early, and you haven’t asked anyone else since, because it feels like you’re not worth anyone choosing you. And at night, when you think back to it, where does your mind go?',
+    why: { what: 'What they did: left early, asked no one else, and the thought behind it.', mech: 'The circle in the world is complete: small → “I haven’t asked anyone” → “not worth anyone choosing me” → small again. Not asking means no one gets the chance to choose them.', ai: 'Said it back, then asked where the mind goes at night. That is the way into the second circle.' },
   },
   {
     p: 'I keep replaying it and thinking, I’m so stupid. She only makes friends with smart people.',
@@ -39,9 +39,9 @@ export const SCRIPT: Step[] = [
     why: { what: 'Two thoughts that go round at night, with no event on them.', mech: 'A circle only in the head: thoughts feeding a feeling, nothing happens in the world.', ai: 'Said both thoughts back, then asked where they take them.' },
   },
   {
-    p: 'Like I’m not smart enough, I’m not worth anyone choosing me. I just feel worthless.',
+    p: 'Like I’m not smart enough. I just feel worthless.',
     ai: 'That sounds really heavy. Is there anything about that day that doesn’t quite fit the thought that she only makes friends with smart people?',
-    why: { what: 'One more thought, and the feeling it leaves.', mech: 'The circle in the head: “I’m so stupid” → “not worth anyone choosing me” → worthless → “she only makes friends with smart people” → back to “I’m so stupid”. With no event on it, the way out is to question a thought: D.', ai: 'Named it as heavy, then asked for anything that does not fit the thought. Asks for evidence, never supplies it.' },
+    why: { what: 'The feeling those thoughts leave: worthless.', mech: 'The circle in the head is complete: “I’m so stupid” → “she only makes friends with smart people” → worthless → “they’re all way smarter than me” → back to “I’m so stupid”. With no event on it, the way out is to question a thought: D.', ai: 'Named it as heavy, then asked for anything that does not fit the thought. Asks for evidence, never supplies it.' },
   },
   {
     p: 'Well, she did say sorry, and that she’d ask around who still needs someone.',
@@ -87,7 +87,7 @@ export const CARDS: StoryCard[] = [
   { key: 'A2', text: 'I haven’t asked anyone else since', kind: 'A', step: 3 },
   { key: 'B2', text: 'I’m so stupid', kind: 'B', step: 4 },
   { key: 'B3', text: 'She only makes friends with smart people', kind: 'B', step: 4 },
-  { key: 'B4', text: 'I’m not worth anyone choosing me', kind: 'B', step: 5 },
+  { key: 'B4', text: 'I’m not worth anyone choosing me', kind: 'B', step: 3 },
   { key: 'C2', text: 'I just feel worthless', kind: 'C', step: 5 },
   { key: 'DH1', text: 'she did say sorry, and that she’d ask around who still needs someone', kind: 'DE', step: 6 },
   { key: 'DE1', text: 'She’d already promised Tom', kind: 'DE', step: 7 },
@@ -146,4 +146,24 @@ export function demoState(to: 'chat' | 'laid' | 'summary', size = { w: innerWidt
   // after the walk: every line kept, the person chose to see the thought another way in both circles
   const cut = [0, 1].map((l) => walkPlan(st.cards, st.edges, l).options.find((o) => o.kind === 'DE')?.edge)
   return arrange({ ...st, pick: 'DE', edges: st.edges.map((e) => ({ ...e, by: undefined, cut: cut.includes(e.id) || undefined, pick: cut.includes(e.id) ? ('DE' as const) : undefined })), ended: true }) // the circles are closed: their cards lie on rings
+}
+
+// the circles the chat has collected so far (for the presenter's panel): each in walk order, round from the card the way in arrives at.
+// A circle only counts once every one of its cards has been said, because the scripted lines only join cards that exist.
+export type FoundLoop = { head: boolean; chain: { text: string; kind: Kind }[] }
+// in the order they were found (the message that brought their last card), not the order the map walks them
+export function demoLoops(msgs: Msg[]): FoundLoop[] {
+  const made = demoMade(msgs)
+  const cards = made.map((c) => ({ id: keyOf(c.text)!, text: c.text, kind: c.kind as Kind }))
+  const from = new Map(made.map((c) => [keyOf(c.text)!, c.from]))
+  const lines = demoLines(cards).map((l, i) => ({ id: `l${i}`, ...l }))
+  return orderedLoops(cards, lines)
+    .map((g, i) => {
+      const on = new Set(g.flatMap((id) => { const e = lines.find((x) => x.id === id)!; return [e.from, e.to] }))
+      const ids = walkPlan(cards, lines, i).path.filter((id) => on.has(id))
+      const chain = ids.map((id) => cards.find((c) => c.id === id)!).map((c) => ({ text: c.text, kind: c.kind }))
+      return { head: !chain.some((c) => c.kind === 'A'), chain, at: Math.max(...ids.map((id) => from.get(id) ?? 0)) }
+    })
+    .sort((x, y) => x.at - y.at)
+    .map(({ head, chain }) => ({ head, chain }))
 }

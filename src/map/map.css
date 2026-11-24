@@ -534,3 +534,16 @@
 .tm-links .arrow.head:not(.waiting) { stroke: var(--bg); stroke-width: 6px; paint-order: stroke fill; }
 /* the one card that glows while a circle is closed: twice the glow of the others, still pulsing */
 .tm-card.cand { animation: tm-cand 1.6s ease-in-out infinite; filter: drop-shadow(0 0 4px rgba(253, 246, 233, 1)) drop-shadow(0 0 28px rgba(253, 246, 233, 1)); }
+/* the presenter's panel, chat: the loops collected so far, at the bottom, folded; open one to see its cards in order and back to the first */
+.tm-xp-loops { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.tm-xp-loop summary { cursor: pointer; font-size: 13px; font-weight: 600; list-style: none; display: flex; align-items: baseline; gap: 6px; }
+.tm-xp-loop summary::-webkit-details-marker { display: none; }
+.tm-xp-loop summary::before { content: '▸'; font-size: 11px; transition: transform 0.2s; }
+.tm-xp-loop[open] summary::before { transform: rotate(90deg); }
+.tm-xp-loop summary span { font-weight: 400; font-size: 12px; color: var(--soft); }
+.tm-xp-loop ol { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.tm-xp-loop li { font-size: 13px; line-height: 1.35; padding: 5px 10px; border-radius: 10px; color: var(--on-card); background: var(--k-B); }
+.tm-xp-loop li.k-A { background: var(--k-A); }
+.tm-xp-loop li.k-C { background: transparent; color: var(--k-C); box-shadow: inset 0 0 0 1px var(--k-C); }
+.tm-xp-loop li.back { opacity: 0.55; }
+.tm-xp-loop li.back::after { content: ' (back to the start)'; font-size: 11px; }

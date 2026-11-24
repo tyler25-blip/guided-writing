@@ -1,6 +1,6 @@
 // node src/map/demo.check.ts
 import assert from 'node:assert/strict'
-import { CARDS, NEW, SCRIPT, SIDE, afterNaming, demoLines, demoMade, demoMsgs, demoNewKind, demoSide } from './demo.ts'
+import { demoLoops, CARDS, NEW, SCRIPT, SIDE, afterNaming, demoLines, demoMade, demoMsgs, demoNewKind, demoSide } from './demo.ts'
 import { trimmed } from './mapchecks.ts'
 import { estH, estW } from './place.ts'
 import { demoState } from './demo.ts'
@@ -99,3 +99,18 @@ assert.ok(Math.min(...pile.map((c) => boxGap(nx, real(c)))) <= 2 * Math.SQRT2 * 
 // within the pile the cards are a whole number of cells (252 + 64) from each other
 assert.ok(pile.every((c) => (c.x - pile[0].x) % 316 === 0 && (c.y - pile[0].y) % 316 === 0))
 console.log('demo ok')
+// the presenter's panel in the chat: no loop until all its cards have been said; in the order found (the world one first), each in walk order
+{
+  const all = demoMsgs()
+  assert.deepEqual(demoLoops([]), [])
+  const found = demoLoops(all)
+  assert.equal(found.length, 2)
+  assert.deepEqual(found.map((l) => l.head), [false, true])
+  assert.deepEqual(found[1].chain.map((c) => c.text), ['I’m so stupid', 'She only makes friends with smart people', 'I just feel worthless', 'They’re all way smarter than me and they know it'])
+  assert.deepEqual(found[0].chain.map((c) => c.text), ['I just feel really small today', 'I haven’t asked anyone else since', 'I’m not worth anyone choosing me'])
+  // when each one appears: the first message after which its last card exists
+  const mine = all.map((_, i) => all.slice(0, i + 1))
+  const firstAt = (n: number) => mine.findIndex((m) => demoLoops(m).length >= n)
+  const [w, h] = [firstAt(1), firstAt(2)]
+  assert.ok(w < h, `${w} < ${h}`) // the world circle closes with turn 4 (“…not worth anyone choosing me anyway”), the head circle later (“…I just feel worthless”)
+}
