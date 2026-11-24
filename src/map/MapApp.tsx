@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { isCrisis } from '../triggers.ts'
 import { DevPanel } from './dev.tsx'
 import { loops } from './graph.ts'
-import { afterNaming, demoBreak, demoNewKind, demoSide, demoState, demoLines, demoMade, demoPair, MORE, NEW as DEMO_NEW, norm, SCRIPT } from './demo.ts'
+import { afterNaming, demoBreak, demoNewKind, demoSide, demoState, demoLines, demoLoops, demoMade, demoPair, MORE, NEW as DEMO_NEW, norm, SCRIPT } from './demo.ts'
 import { ExplainPanel } from './ExplainPanel.tsx'
 import { ask, askClose, askOther, askVia, askWhere, candidates, insertNew, orderedLoops, otherKind, rewire, sameMoment, sayCircle, stages, through, walkPlan, walkShown, walkWhy, waysOf, type Hint, type Plan, type Why } from './walk.ts'
 import { arrange, lay, makeCards, reroute } from './build.ts'
@@ -361,7 +361,7 @@ export default function MapApp() {
           </button>
         </div>
       )}
-      {panel && <ExplainPanel collected={collected} current={current} />}
+      {panel && <ExplainPanel collected={collected} current={current} loops={s.phase === 'chat' ? demoLoops(s.msgs) : []} />}
       {toast && <div className="tm-toast">{toast}</div>}
       {import.meta.env.DEV && !s.demo && <DevPanel s={s} setS={setS} openSummary={setSummary} crisis={() => setCrisis(true)} pane={setTalk} />}
     </div>
